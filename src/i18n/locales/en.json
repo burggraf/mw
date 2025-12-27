@@ -13,7 +13,10 @@
     "create": "Create",
     "back": "Back",
     "next": "Next",
-    "submit": "Submit"
+    "submit": "Submit",
+    "search": "Search",
+    "import": "Import",
+    "noChurchSelected": "No church selected"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -122,11 +125,16 @@
     "addTag": "Add tag",
     "editTags": "Edit Tags",
     "stockMedia": "Stock Media",
+    "stockMediaDescription": "Search and import free stock images from Pexels or Unsplash",
     "searchStock": "Search Stock Media",
     "searchPexels": "Search Pexels",
     "searchUnsplash": "Search Unsplash",
     "import": "Import",
     "importing": "Importing...",
+    "importSuccess": "Media imported successfully",
+    "importError": "Failed to import media",
+    "stockSearchError": "Failed to search stock media",
+    "searchStockPrompt": "Enter a search term to find stock images",
     "deleteConfirm": "Delete this media?",
     "deleteWarning": "This action cannot be undone.",
     "deleteWarningUsed": "This media is used in {{count}} song(s). Deleting it will remove the background from those songs.",
