@@ -18,6 +18,7 @@ export function SignUpPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,8 +37,12 @@ export function SignUpPage() {
     setIsLoading(true)
 
     try {
-      await signUp(email, password, churchName)
-      navigate('/dashboard')
+      const result = await signUp(email, password, churchName)
+      if (result.needsEmailConfirmation) {
+        setEmailSent(true)
+      } else {
+        navigate('/dashboard')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed')
     } finally {
@@ -57,6 +62,44 @@ export function SignUpPage() {
       setError(err instanceof Error ? err.message : 'Google sign up failed')
       setIsLoading(false)
     }
+  }
+
+  if (emailSent) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>{t('auth.createAccount')}</CardTitle>
+            <CardDescription>{t('app.name')}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 text-sm p-4 rounded-md text-center">
+              {t('auth.confirmEmailSent')}
+            </div>
+            <p className="text-sm text-muted-foreground text-center">
+              We sent a confirmation link to <strong>{email}</strong>
+            </p>
+            <p className="text-sm text-muted-foreground text-center">
+              Please check your email and click the link to complete your registration.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                setEmailSent(false)
+                setEmail('')
+                setPassword('')
+                setConfirmPassword('')
+              }}
+            >
+              {t('common.back')}
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    )
   }
 
   return (

@@ -31,6 +31,7 @@
     "continueWithEmail": "Continue with Email",
     "sendMagicLink": "Send Magic Link",
     "magicLinkSent": "Check your email for the login link!",
+    "confirmEmailSent": "Check your email to confirm your account!",
     "orContinueWith": "or continue with",
     "orSignInWith": "or sign in with",
     "emailPassword": "Email & Password"

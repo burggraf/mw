@@ -31,6 +31,7 @@
     "continueWithEmail": "Continuar con Correo",
     "sendMagicLink": "Enviar Enlace Magico",
     "magicLinkSent": "Revisa tu correo para el enlace de inicio de sesion!",
+    "confirmEmailSent": "Revisa tu correo para confirmar tu cuenta!",
     "orContinueWith": "o continuar con",
     "orSignInWith": "o iniciar sesion con",
     "emailPassword": "Correo y Contrasena"

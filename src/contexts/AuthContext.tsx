@@ -2,11 +2,15 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import type { User, Session } from '@supabase/supabase-js'
 import { getSupabase } from '@/lib/supabase'
 
+interface SignUpResult {
+  needsEmailConfirmation: boolean
+}
+
 interface AuthContextType {
   user: User | null
   session: Session | null
   isLoading: boolean
-  signUp: (email: string, password: string, churchName: string) => Promise<void>
+  signUp: (email: string, password: string, churchName: string) => Promise<SignUpResult>
   signIn: (email: string, password: string) => Promise<void>
   signInWithGoogle: () => Promise<void>
   signInWithMagicLink: (email: string) => Promise<void>
@@ -60,11 +64,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
         setSession(session)
         setUser(session?.user ?? null)
         if (session?.user) {
-          await checkChurchMembership(session.user.id)
+          // Check for pending church creation (from email signup flow)
+          const pendingChurchName = localStorage.getItem('pendingChurchName')
+          if (pendingChurchName && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
+            // User confirmed email and signed in - create their church
+            const { error: churchError } = await supabase.rpc('create_church_with_admin', {
+              church_name: pendingChurchName
+            })
+            if (!churchError) {
+              localStorage.removeItem('pendingChurchName')
+              setHasChurch(true)
+            } else {
+              console.error('Error creating pending church:', churchError)
+              await checkChurchMembership(session.user.id)
+            }
+          } else {
+            await checkChurchMembership(session.user.id)
+          }
         } else {
           setHasChurch(null)
         }
@@ -75,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const signUp = async (email: string, password: string, churchName: string) => {
+  const signUp = async (email: string, password: string, churchName: string): Promise<SignUpResult> => {
     const supabase = getSupabase()
 
     // Sign up the user
@@ -87,12 +107,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error
     if (!data.user) throw new Error('Signup failed')
 
-    // Create church with admin membership using the database function
-    const { error: churchError } = await supabase.rpc('create_church_with_admin', {
-      church_name: churchName
-    })
-
-    if (churchError) throw churchError
+    // Check if user needs to confirm email
+    // If session exists, user is immediately authenticated (auto-confirm enabled)
+    // If no session, user needs to confirm email first
+    if (data.session) {
+      // User is authenticated, create church immediately
+      const { error: churchError } = await supabase.rpc('create_church_with_admin', {
+        church_name: churchName
+      })
+      if (churchError) throw churchError
+      setHasChurch(true)
+      return { needsEmailConfirmation: false }
+    } else {
+      // User needs to confirm email - store church name for later
+      // We'll create the church when they first log in after confirmation
+      localStorage.setItem('pendingChurchName', churchName)
+      return { needsEmailConfirmation: true }
+    }
   }
 
   const signIn = async (email: string, password: string) => {
