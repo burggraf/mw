@@ -9,6 +9,7 @@ export function AuthCallbackPage() {
   const { user, isLoading, hasChurch } = useAuth()
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
+  const [processingTokens, setProcessingTokens] = useState(true)
 
   useEffect(() => {
     // Handle the auth callback - could be OAuth code or email confirmation tokens
@@ -23,6 +24,7 @@ export function AuthCallbackPage() {
       if (errorParam) {
         console.error('Auth error (query):', errorParam, errorDescription)
         setError(errorDescription || errorParam)
+        setProcessingTokens(false)
         return
       }
 
@@ -34,6 +36,7 @@ export function AuthCallbackPage() {
       if (hashError) {
         console.error('Auth error (hash):', hashError, hashErrorDescription)
         setError(hashErrorDescription || hashError)
+        setProcessingTokens(false)
         return
       }
 
@@ -44,8 +47,13 @@ export function AuthCallbackPage() {
         if (error) {
           console.error('Error exchanging code for session:', error)
           setError(error.message)
+          setProcessingTokens(false)
           return
         }
+        // Clear the URL
+        window.history.replaceState(null, '', window.location.pathname)
+        setProcessingTokens(false)
+        return
       }
 
       // Check for access_token in hash (email confirmation flow)
@@ -62,31 +70,37 @@ export function AuthCallbackPage() {
         if (error) {
           console.error('Error setting session from hash tokens:', error)
           setError(error.message)
+          setProcessingTokens(false)
           return
         }
 
         // Clear the hash to clean up the URL
         window.history.replaceState(null, '', window.location.pathname)
+        setProcessingTokens(false)
+        return
       }
+
+      // No tokens to process
+      setProcessingTokens(false)
     }
 
     handleAuthCallback()
   }, [])
 
   useEffect(() => {
+    // Still processing tokens from URL
+    if (processingTokens) return
+
     // Wait for auth to finish loading
     if (isLoading) return
 
-    // If there's an error, don't redirect yet
+    // If there's an error, don't redirect
     if (error) return
 
     // If no user after loading, go to login
     if (!user) {
-      // Give it a moment - session might still be processing
-      const timeout = setTimeout(() => {
-        navigate('/login')
-      }, 2000)
-      return () => clearTimeout(timeout)
+      navigate('/login')
+      return
     }
 
     // If user has church, go to dashboard
@@ -97,7 +111,7 @@ export function AuthCallbackPage() {
       navigate('/setup-church')
     }
     // If hasChurch is null, we're still checking - wait
-  }, [user, isLoading, hasChurch, navigate, error])
+  }, [user, isLoading, hasChurch, navigate, error, processingTokens])
 
   if (error) {
     return (
