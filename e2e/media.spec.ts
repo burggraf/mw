@@ -17,6 +17,8 @@ test.describe('Media Library', () => {
     await page.goto('/login')
     await page.waitForLoadState('networkidle')
     await page.locator('input[type="email"]').fill(email)
+    await page.getByRole('button', { name: /email.*password/i }).click()
+    await page.waitForTimeout(500)
     await page.locator('input[type="password"]').fill(password)
     await page.locator('button[type="submit"]').click()
     await page.waitForURL(url => url.pathname !== '/login', { timeout: 15000 })

@@ -174,6 +174,7 @@ export function MediaPage() {
           <MediaGrid
             media={media}
             loading={loading}
+            onClick={setEditMedia}
             onEdit={setEditMedia}
             onDelete={handleDeleteClick}
           />
