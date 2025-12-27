@@ -1,6 +1,8 @@
 import { getSupabase } from '@/lib/supabase'
 import type { Media, MediaInput, MediaFilters, StockMediaItem, StockSearchResult } from '@/types/media'
 import { generateStoragePath, generateImageThumbnail } from '@/lib/media-utils'
+import { rowToStyle } from './styles'
+import type { Style } from '@/types/style'
 
 // Convert database row to Media type
 function rowToMedia(row: any): Media {
@@ -20,6 +22,8 @@ function rowToMedia(row: any): Media {
     sourceId: row.source_id,
     sourceUrl: row.source_url,
     tags: row.tags || [],
+    styleId: row.style_id,
+    backgroundColor: row.background_color,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -88,6 +92,8 @@ export async function createMedia(churchId: string, input: MediaInput): Promise<
       source_id: input.sourceId || null,
       source_url: input.sourceUrl || null,
       tags: input.tags || [],
+      style_id: input.styleId || null,
+      background_color: input.backgroundColor || null,
     })
     .select()
     .single()
@@ -314,4 +320,64 @@ export async function importStockMedia(
     sourceId: item.id,
     sourceUrl: item.downloadUrl,
   })
+}
+
+export async function updateMediaStyle(mediaId: string, styleId: string | null): Promise<void> {
+  const supabase = getSupabase()
+
+  const { error } = await supabase
+    .from('media')
+    .update({ style_id: styleId })
+    .eq('id', mediaId)
+
+  if (error) throw error
+}
+
+export async function getMediaWithStyle(mediaId: string): Promise<(Media & { style: Style | null }) | null> {
+  const supabase = getSupabase()
+
+  const { data, error } = await supabase
+    .from('media')
+    .select('*, styles(*)')
+    .eq('id', mediaId)
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') return null
+    throw error
+  }
+
+  return {
+    ...rowToMedia(data),
+    style: data.styles ? rowToStyle(data.styles) : null,
+  }
+}
+
+export async function createSolidColorBackground(
+  churchId: string,
+  name: string,
+  color: string,
+  styleId?: string
+): Promise<Media> {
+  const supabase = getSupabase()
+
+  const { data, error } = await supabase
+    .from('media')
+    .insert({
+      church_id: churchId,
+      name,
+      type: 'image',
+      mime_type: 'application/x-color',
+      storage_path: null,
+      file_size: 0,
+      source: 'upload',
+      tags: [],
+      style_id: styleId || null,
+      background_color: color,
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return rowToMedia(data)
 }
