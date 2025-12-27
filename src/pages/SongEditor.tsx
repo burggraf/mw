@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useChurch } from '@/contexts/ChurchContext'
@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Save, Eye } from 'lucide-react'
 import { toast } from 'sonner'
@@ -24,6 +23,7 @@ export function SongEditorPage() {
 
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
+  const [previewIndex, setPreviewIndex] = useState(0)
 
   // Form fields
   const [title, setTitle] = useState('')
@@ -117,9 +117,20 @@ export function SongEditorPage() {
   }
 
   // Parse lyrics for preview
-  const previewSections = lyrics
-    ? parseSong(buildMarkdownFromParts({ title }, lyrics)).sections
-    : []
+  const previewSections = useMemo(() => {
+    if (!lyrics) return []
+    const markdown = buildMarkdownFromParts({ title: title || 'Untitled' }, lyrics)
+    return parseSong(markdown).sections
+  }, [lyrics, title])
+
+  // Reset preview index when sections change
+  useEffect(() => {
+    if (previewIndex >= previewSections.length) {
+      setPreviewIndex(0)
+    }
+  }, [previewSections.length, previewIndex])
+
+  const currentPreviewSection = previewSections[previewIndex]
 
   if (!currentChurch) {
     return null
@@ -233,31 +244,30 @@ How sweet the sound`}
                   Start typing lyrics to see preview
                 </p>
               ) : (
-                <Tabs defaultValue={previewSections[0]?.id} className="w-full">
-                  <TabsList className="flex flex-wrap h-auto gap-1 bg-transparent p-0 mb-4">
-                    {previewSections.map((section) => (
-                      <TabsTrigger
+                <div className="space-y-4">
+                  <div className="flex flex-wrap gap-1">
+                    {previewSections.map((section, index) => (
+                      <Button
                         key={section.id}
-                        value={section.id}
-                        className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-1 text-sm"
+                        variant={index === previewIndex ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setPreviewIndex(index)}
                       >
                         {section.label}
-                      </TabsTrigger>
+                      </Button>
                     ))}
-                  </TabsList>
-                  {previewSections.map((section) => (
-                    <TabsContent key={section.id} value={section.id}>
-                      <div className="bg-muted/50 rounded-lg p-6 text-center">
-                        <p className="text-xs text-muted-foreground mb-4 uppercase tracking-wide">
-                          {section.label}
-                        </p>
-                        <div className="text-lg whitespace-pre-line">
-                          {section.content}
-                        </div>
+                  </div>
+                  {currentPreviewSection && (
+                    <div className="bg-muted/50 rounded-lg p-6 text-center">
+                      <p className="text-xs text-muted-foreground mb-4 uppercase tracking-wide">
+                        {currentPreviewSection.label}
+                      </p>
+                      <div className="text-lg whitespace-pre-line">
+                        {currentPreviewSection.content || '(no content)'}
                       </div>
-                    </TabsContent>
-                  ))}
-                </Tabs>
+                    </div>
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>
