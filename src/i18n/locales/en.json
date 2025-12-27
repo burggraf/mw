@@ -62,5 +62,43 @@
     "language": "Language",
     "appearance": "Appearance",
     "account": "Account"
+  },
+  "songs": {
+    "title": "Songs",
+    "newSong": "New Song",
+    "editSong": "Edit Song",
+    "deleteSong": "Delete Song",
+    "duplicateSong": "Duplicate Song",
+    "searchPlaceholder": "Search songs...",
+    "noSongs": "No songs yet",
+    "noSongsDescription": "Create your first song to get started",
+    "confirmDelete": "Are you sure you want to delete this song?",
+    "deleteWarning": "This action cannot be undone.",
+    "songDeleted": "Song deleted",
+    "songCreated": "Song created",
+    "songUpdated": "Song updated",
+    "songDuplicated": "Song duplicated",
+    "importSong": "Import Song",
+    "exportSong": "Export Song",
+    "form": {
+      "title": "Title",
+      "author": "Author",
+      "copyright": "Copyright",
+      "ccliNumber": "CCLI Number",
+      "lyrics": "Lyrics",
+      "lyricsHelp": "Use # headers for sections (e.g., # Verse 1, # Chorus)"
+    },
+    "sections": {
+      "verse": "Verse",
+      "chorus": "Chorus",
+      "bridge": "Bridge",
+      "prechorus": "Pre-Chorus",
+      "intro": "Intro",
+      "outro": "Outro",
+      "tag": "Tag",
+      "interlude": "Interlude"
+    },
+    "arrangement": "Arrangement",
+    "preview": "Preview"
   }
 }

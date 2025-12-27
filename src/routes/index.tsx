@@ -5,6 +5,9 @@ import { SignUpPage } from '@/pages/SignUp'
 import { DashboardPage } from '@/pages/Dashboard'
 import { AuthCallbackPage } from '@/pages/AuthCallback'
 import { SetupChurchPage } from '@/pages/SetupChurch'
+import { SongsPage } from '@/pages/Songs'
+import { SongEditorPage } from '@/pages/SongEditor'
+import { SongDetailPage } from '@/pages/SongDetail'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AppLayout } from '@/components/AppLayout'
 
@@ -48,7 +51,19 @@ const router = createBrowserRouter([
       },
       {
         path: '/songs',
-        element: <div className="p-8"><h1 className="text-2xl font-bold">Songs</h1><p className="text-muted-foreground mt-2">Coming in Milestone 1</p></div>,
+        element: <SongsPage />,
+      },
+      {
+        path: '/songs/new',
+        element: <SongEditorPage />,
+      },
+      {
+        path: '/songs/:id',
+        element: <SongDetailPage />,
+      },
+      {
+        path: '/songs/:id/edit',
+        element: <SongEditorPage />,
       },
       {
         path: '/events',

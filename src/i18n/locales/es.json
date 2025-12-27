@@ -62,5 +62,43 @@
     "language": "Idioma",
     "appearance": "Apariencia",
     "account": "Cuenta"
+  },
+  "songs": {
+    "title": "Canciones",
+    "newSong": "Nueva Cancion",
+    "editSong": "Editar Cancion",
+    "deleteSong": "Eliminar Cancion",
+    "duplicateSong": "Duplicar Cancion",
+    "searchPlaceholder": "Buscar canciones...",
+    "noSongs": "No hay canciones todavia",
+    "noSongsDescription": "Crea tu primera cancion para comenzar",
+    "confirmDelete": "Estas seguro que quieres eliminar esta cancion?",
+    "deleteWarning": "Esta accion no se puede deshacer.",
+    "songDeleted": "Cancion eliminada",
+    "songCreated": "Cancion creada",
+    "songUpdated": "Cancion actualizada",
+    "songDuplicated": "Cancion duplicada",
+    "importSong": "Importar Cancion",
+    "exportSong": "Exportar Cancion",
+    "form": {
+      "title": "Titulo",
+      "author": "Autor",
+      "copyright": "Derechos de Autor",
+      "ccliNumber": "Numero CCLI",
+      "lyrics": "Letras",
+      "lyricsHelp": "Usa encabezados # para secciones (ej., # Verso 1, # Coro)"
+    },
+    "sections": {
+      "verse": "Verso",
+      "chorus": "Coro",
+      "bridge": "Puente",
+      "prechorus": "Pre-Coro",
+      "intro": "Intro",
+      "outro": "Outro",
+      "tag": "Tag",
+      "interlude": "Interludio"
+    },
+    "arrangement": "Arreglo",
+    "preview": "Vista Previa"
   }
 }
