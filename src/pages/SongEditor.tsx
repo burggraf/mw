@@ -38,6 +38,37 @@ export function SongEditorPage() {
     }
   }, [id, isNew])
 
+  // Handle lyrics change - detect and extract frontmatter if present
+  function handleLyricsChange(value: string) {
+    // Check if input contains frontmatter (starts with ---)
+    const frontmatterMatch = value.match(/^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/)
+
+    if (frontmatterMatch) {
+      // Parse frontmatter and extract metadata
+      const parsed = parseSong(value)
+
+      // Update form fields if metadata exists
+      if (parsed.metadata.title && parsed.metadata.title !== 'Untitled') {
+        setTitle(parsed.metadata.title)
+      }
+      if (parsed.metadata.author) {
+        setAuthor(parsed.metadata.author)
+      }
+      if (parsed.metadata.copyright) {
+        setCopyright(parsed.metadata.copyright)
+      }
+      if (parsed.metadata.ccliNumber) {
+        setCcliNumber(parsed.metadata.ccliNumber)
+      }
+
+      // Set lyrics to just the content (without frontmatter)
+      setLyrics(extractLyricsContent(value))
+    } else {
+      // No frontmatter, just set lyrics as-is
+      setLyrics(value)
+    }
+  }
+
   async function loadSong(songId: string) {
     try {
       setLoading(true)
@@ -207,7 +238,7 @@ export function SongEditorPage() {
             <Textarea
               id="lyrics"
               value={lyrics}
-              onChange={(e) => setLyrics(e.target.value)}
+              onChange={(e) => handleLyricsChange(e.target.value)}
               placeholder={`# Verse 1
 Amazing grace how sweet the sound
 That saved a wretch like me
