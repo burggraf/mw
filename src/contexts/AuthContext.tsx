@@ -24,7 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [hasChurch, setHasChurch] = useState<boolean | null>(null)
 
   // Check if user has a church membership
-  const checkChurchMembership = async (userId: string) => {
+  const checkChurchMembership = async (userId: string): Promise<boolean> => {
     const supabase = getSupabase()
     const { data, error } = await supabase
       .from('user_church_memberships')
@@ -35,24 +35,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) {
       console.error('Error checking church membership:', error)
       setHasChurch(false)
-      return
+      return false
     }
 
-    setHasChurch(data && data.length > 0)
+    const hasMembership = data && data.length > 0
+    setHasChurch(hasMembership)
+    return hasMembership
   }
 
   useEffect(() => {
     const supabase = getSupabase()
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const initSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
       setSession(session)
       setUser(session?.user ?? null)
       if (session?.user) {
-        checkChurchMembership(session.user.id)
+        await checkChurchMembership(session.user.id)
       }
       setIsLoading(false)
-    })
+    }
+    initSession()
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -60,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session)
         setUser(session?.user ?? null)
         if (session?.user) {
-          checkChurchMembership(session.user.id)
+          await checkChurchMembership(session.user.id)
         } else {
           setHasChurch(null)
         }
