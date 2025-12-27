@@ -14,6 +14,8 @@ export interface Media {
   sourceId: string | null
   sourceUrl: string | null
   tags: string[]
+  styleId: string | null
+  backgroundColor: string | null  // hex for solid colors, null for images/videos
   createdAt: string
   updatedAt: string
 }
@@ -32,6 +34,8 @@ export interface MediaInput {
   sourceId?: string
   sourceUrl?: string
   tags?: string[]
+  styleId?: string
+  backgroundColor?: string
 }
 
 export interface MediaFilters {
@@ -55,4 +59,9 @@ export interface StockSearchResult {
   results: StockMediaItem[]
   total: number
   page: number
+}
+
+// Check if media is a solid color background
+export function isSolidColor(media: Media): boolean {
+  return media.backgroundColor !== null
 }
