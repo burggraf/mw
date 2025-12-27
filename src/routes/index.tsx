@@ -8,6 +8,7 @@ import { SetupChurchPage } from '@/pages/SetupChurch'
 import { SongsPage } from '@/pages/Songs'
 import { SongEditorPage } from '@/pages/SongEditor'
 import { SongDetailPage } from '@/pages/SongDetail'
+import { MediaPage } from '@/pages/Media'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AppLayout } from '@/components/AppLayout'
 
@@ -64,6 +65,10 @@ const router = createBrowserRouter([
       {
         path: '/songs/:id/edit',
         element: <SongEditorPage />,
+      },
+      {
+        path: '/media',
+        element: <MediaPage />,
       },
       {
         path: '/events',
