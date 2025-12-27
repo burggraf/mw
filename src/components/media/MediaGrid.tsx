@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { ImageIcon } from 'lucide-react'
-import { Media } from '@/types/media'
+import type { Media } from '@/types/media'
 import { MediaCard } from './MediaCard'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -52,9 +52,9 @@ export function MediaGrid({
         <MediaCard
           key={item.id}
           media={item}
-          onEdit={onEdit ? () => onEdit(item) : undefined}
-          onDelete={onDelete ? () => onDelete(item) : undefined}
-          onClick={onClick ? () => onClick(item) : undefined}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onClick={onClick}
           selected={selectedId === item.id}
           selectable={selectable}
         />
