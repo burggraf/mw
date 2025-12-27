@@ -40,8 +40,9 @@ export function SongEditorPage() {
 
   // Handle lyrics change - detect and extract frontmatter if present
   function handleLyricsChange(value: string) {
-    // Check if input contains frontmatter (starts with ---)
-    const frontmatterMatch = value.match(/^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/)
+    // Normalize line endings and check if input contains frontmatter (starts with 3+ dashes)
+    const normalized = value.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+    const frontmatterMatch = normalized.match(/^-{3,}\s*\n([\s\S]*?)\n-{3,}\s*\n?([\s\S]*)$/)
 
     if (frontmatterMatch) {
       // Parse frontmatter and extract metadata

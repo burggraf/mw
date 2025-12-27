@@ -20,10 +20,14 @@ export interface ParsedSong {
 
 /**
  * Simple YAML frontmatter parser (browser-compatible)
+ * Accepts 3 or more dashes as delimiter (---, ----, ----------, etc.)
  */
 function parseFrontmatter(markdown: string): { data: Record<string, string>; content: string } {
-  const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/
-  const match = markdown.match(frontmatterRegex)
+  // Normalize line endings first
+  const normalized = markdown.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  // Match 3+ dashes as frontmatter delimiters
+  const frontmatterRegex = /^-{3,}\s*\n([\s\S]*?)\n-{3,}\s*\n?([\s\S]*)$/
+  const match = normalized.match(frontmatterRegex)
 
   if (!match) {
     return { data: {}, content: markdown }
