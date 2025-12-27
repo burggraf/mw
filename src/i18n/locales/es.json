@@ -151,5 +151,63 @@
     "selectBackground": "Seleccionar Fondo",
     "noResults": "No se encontraron resultados",
     "searchStockPlaceholder": "Buscar imágenes..."
+  },
+  "styles": {
+    "title": "Estilos",
+    "selectStyle": "Seleccionar Estilo",
+    "currentStyle": "Estilo Actual",
+    "preview": "Vista Previa",
+    "previewText": "Sublime gracia del Señor\nQue a mi pecador salvó",
+    "builtin": "Predeterminado",
+    "custom": "Personalizado",
+    "configureStyle": "Configurar Estilo",
+    "styleFor": "Estilo para {{name}}",
+    "styleName": "Nombre del Estilo",
+    "font": "Fuente",
+    "fontSize": "Tamaño",
+    "textColor": "Color de Texto",
+    "maxLines": "Líneas Máximas",
+    "horizontalAlign": "Alineación Horizontal",
+    "verticalAlign": "Alineación Vertical",
+    "backgroundOverlay": "Superposición de Fondo",
+    "showSectionLabel": "Mostrar Etiqueta de Sección",
+    "showCopyright": "Mostrar Copyright",
+    "textPosition": "Posición del Texto",
+    "dragToMove": "Arrastra para mover, esquina para redimensionar",
+    "saveStyle": "Guardar Estilo",
+    "styleUpdated": "Estilo actualizado",
+    "styleCreated": "Estilo creado",
+    "displayClass": {
+      "audience": "Audiencia",
+      "stage": "Escenario",
+      "lobby": "Vestíbulo"
+    },
+    "selectBackground": "Seleccionar Fondo",
+    "selectBackgroundFor": "Seleccionar Fondo para {{class}}",
+    "noBackground": "Sin fondo",
+    "displayBackgrounds": "Fondos de Pantalla",
+    "selectBackgroundContext": "Selecciona fondos para cada contexto de visualización",
+    "builtinStyles": {
+      "classic": {
+        "name": "Clásico",
+        "description": "Estilo tradicional y elegante con fuente serif"
+      },
+      "modern": {
+        "name": "Moderno",
+        "description": "Estilo limpio y contemporáneo sans-serif"
+      },
+      "bold": {
+        "name": "Negrita",
+        "description": "Estilo de alto impacto con texto prominente"
+      },
+      "minimal": {
+        "name": "Mínimo",
+        "description": "Estilo simple y sutil enfocado en las letras"
+      },
+      "lowerThird": {
+        "name": "Tercio Inferior",
+        "description": "Texto posicionado en la parte inferior para un estilo cinematográfico"
+      }
+    }
   }
 }

@@ -151,5 +151,63 @@
     "selectBackground": "Select Background",
     "noResults": "No results found",
     "searchStockPlaceholder": "Search for images..."
+  },
+  "styles": {
+    "title": "Styles",
+    "selectStyle": "Select Style",
+    "currentStyle": "Current Style",
+    "preview": "Preview",
+    "previewText": "Amazing grace how sweet the sound\nThat saved a wretch like me",
+    "builtin": "Built-in",
+    "custom": "Custom",
+    "configureStyle": "Configure Style",
+    "styleFor": "Style for {{name}}",
+    "styleName": "Style Name",
+    "font": "Font",
+    "fontSize": "Size",
+    "textColor": "Text Color",
+    "maxLines": "Max Lines",
+    "horizontalAlign": "Horizontal Align",
+    "verticalAlign": "Vertical Align",
+    "backgroundOverlay": "Background Overlay",
+    "showSectionLabel": "Show Section Label",
+    "showCopyright": "Show Copyright",
+    "textPosition": "Text Position",
+    "dragToMove": "Drag to move, corner to resize",
+    "saveStyle": "Save Style",
+    "styleUpdated": "Style updated",
+    "styleCreated": "Style created",
+    "displayClass": {
+      "audience": "Audience",
+      "stage": "Stage",
+      "lobby": "Lobby"
+    },
+    "selectBackground": "Select Background",
+    "selectBackgroundFor": "Select Background for {{class}}",
+    "noBackground": "No background",
+    "displayBackgrounds": "Display Backgrounds",
+    "selectBackgroundContext": "Select backgrounds for each display context",
+    "builtinStyles": {
+      "classic": {
+        "name": "Classic",
+        "description": "Traditional, elegant style with serif font"
+      },
+      "modern": {
+        "name": "Modern",
+        "description": "Clean, contemporary sans-serif style"
+      },
+      "bold": {
+        "name": "Bold",
+        "description": "High impact style with strong text presence"
+      },
+      "minimal": {
+        "name": "Minimal",
+        "description": "Simple, understated style with focus on lyrics"
+      },
+      "lowerThird": {
+        "name": "Lower Third",
+        "description": "Text positioned at the bottom for cinematic feel"
+      }
+    }
   }
 }
