@@ -14,6 +14,9 @@ function rowToSong(row: any): Song {
     content: row.content,
     arrangements: row.arrangements,
     backgrounds: row.backgrounds,
+    audienceBackgroundId: row.audience_background_id,
+    stageBackgroundId: row.stage_background_id,
+    lobbyBackgroundId: row.lobby_background_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -76,6 +79,9 @@ export async function createSong(churchId: string, input: SongInput): Promise<So
       content: input.content,
       arrangements,
       backgrounds: input.backgrounds || {},
+      audience_background_id: input.audienceBackgroundId || null,
+      stage_background_id: input.stageBackgroundId || null,
+      lobby_background_id: input.lobbyBackgroundId || null,
     })
     .select()
     .single()
@@ -117,6 +123,9 @@ export async function updateSong(id: string, input: Partial<SongInput>): Promise
   }
   if (input.arrangements !== undefined) updateData.arrangements = input.arrangements
   if (input.backgrounds !== undefined) updateData.backgrounds = input.backgrounds
+  if (input.audienceBackgroundId !== undefined) updateData.audience_background_id = input.audienceBackgroundId || null
+  if (input.stageBackgroundId !== undefined) updateData.stage_background_id = input.stageBackgroundId || null
+  if (input.lobbyBackgroundId !== undefined) updateData.lobby_background_id = input.lobbyBackgroundId || null
 
   const { data, error } = await supabase
     .from('songs')
@@ -161,6 +170,9 @@ export async function duplicateSong(id: string, newTitle?: string): Promise<Song
     content: newContent,
     arrangements: original.arrangements,
     backgrounds: original.backgrounds,
+    audienceBackgroundId: original.audienceBackgroundId || undefined,
+    stageBackgroundId: original.stageBackgroundId || undefined,
+    lobbyBackgroundId: original.lobbyBackgroundId || undefined,
   })
 }
 
