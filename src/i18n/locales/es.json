@@ -26,7 +26,14 @@
     "resetPassword": "Restablecer Contrasena",
     "noAccount": "No tienes una cuenta?",
     "hasAccount": "Ya tienes una cuenta?",
-    "createAccount": "Crear Cuenta"
+    "createAccount": "Crear Cuenta",
+    "continueWithGoogle": "Continuar con Google",
+    "continueWithEmail": "Continuar con Correo",
+    "sendMagicLink": "Enviar Enlace Magico",
+    "magicLinkSent": "Revisa tu correo para el enlace de inicio de sesion!",
+    "orContinueWith": "o continuar con",
+    "orSignInWith": "o iniciar sesion con",
+    "emailPassword": "Correo y Contrasena"
   },
   "church": {
     "name": "Nombre de la Iglesia",

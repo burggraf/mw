@@ -26,7 +26,14 @@
     "resetPassword": "Reset Password",
     "noAccount": "Don't have an account?",
     "hasAccount": "Already have an account?",
-    "createAccount": "Create Account"
+    "createAccount": "Create Account",
+    "continueWithGoogle": "Continue with Google",
+    "continueWithEmail": "Continue with Email",
+    "sendMagicLink": "Send Magic Link",
+    "magicLinkSent": "Check your email for the login link!",
+    "orContinueWith": "or continue with",
+    "orSignInWith": "or sign in with",
+    "emailPassword": "Email & Password"
   },
   "church": {
     "name": "Church Name",
