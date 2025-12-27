@@ -1,21 +1,59 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
+import { getSupabase } from '@/lib/supabase'
 
 export function AuthCallbackPage() {
   const { t } = useTranslation()
   const { user, isLoading, hasChurch } = useAuth()
   const navigate = useNavigate()
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Handle the OAuth callback - exchange code for session
+    const handleOAuthCallback = async () => {
+      const supabase = getSupabase()
+
+      // Check for error in URL params
+      const params = new URLSearchParams(window.location.search)
+      const errorParam = params.get('error')
+      const errorDescription = params.get('error_description')
+
+      if (errorParam) {
+        console.error('OAuth error:', errorParam, errorDescription)
+        setError(errorDescription || errorParam)
+        return
+      }
+
+      // Check for code in URL (PKCE flow)
+      const code = params.get('code')
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code)
+        if (error) {
+          console.error('Error exchanging code for session:', error)
+          setError(error.message)
+        }
+      }
+    }
+
+    handleOAuthCallback()
+  }, [])
 
   useEffect(() => {
     // Wait for auth to finish loading
     if (isLoading) return
 
+    // If there's an error, don't redirect yet
+    if (error) return
+
     // If no user after loading, go to login
     if (!user) {
-      navigate('/login')
-      return
+      // Give it a moment - session might still be processing
+      const timeout = setTimeout(() => {
+        navigate('/login')
+      }, 2000)
+      return () => clearTimeout(timeout)
     }
 
     // If user has church, go to dashboard
@@ -26,7 +64,25 @@ export function AuthCallbackPage() {
       navigate('/setup-church')
     }
     // If hasChurch is null, we're still checking - wait
-  }, [user, isLoading, hasChurch, navigate])
+  }, [user, isLoading, hasChurch, navigate, error])
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4 max-w-md px-4">
+          <div className="text-6xl">⚠️</div>
+          <h1 className="text-xl font-bold text-destructive">Authentication Error</h1>
+          <p className="text-muted-foreground">{error}</p>
+          <button
+            onClick={() => navigate('/login')}
+            className="text-primary hover:underline"
+          >
+            Back to Login
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">
