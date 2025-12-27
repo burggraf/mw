@@ -30,3 +30,6 @@ e2e/screenshots/
 *.njsproj
 *.sln
 *.sw?
+
+# Server secrets
+.env.server
