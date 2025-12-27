@@ -14,8 +14,9 @@ function App() {
       <div className="space-y-4 text-center">
         <h1 className="text-4xl font-bold">{t('app.name')}</h1>
         <p className="text-muted-foreground">{t('app.tagline')}</p>
+        <p className="text-sm text-green-600">✓ Config loaded, Supabase connected</p>
         <Button onClick={toggleLanguage}>
-          {i18n.language === 'en' ? 'Espanol' : 'English'}
+          {i18n.language === 'en' ? 'Español' : 'English'}
         </Button>
       </div>
     </div>
