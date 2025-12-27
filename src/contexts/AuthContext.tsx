@@ -49,51 +49,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Check for and accept pending invitations
   const checkAndAcceptInvitation = async (userEmail: string): Promise<boolean> => {
-    const supabase = getSupabase()
+    try {
+      console.log('checkAndAcceptInvitation: starting for', userEmail)
+      const supabase = getSupabase()
 
-    // Find pending invitation for this email
-    const { data: invitations, error: inviteError } = await supabase
-      .from('invitations')
-      .select('id, church_id, role')
-      .eq('email', userEmail.toLowerCase())
-      .is('accepted_at', null)
-      .gt('expires_at', new Date().toISOString())
-      .limit(1)
+      // Find pending invitation for this email
+      console.log('checkAndAcceptInvitation: querying invitations...')
+      const { data: invitations, error: inviteError } = await supabase
+        .from('invitations')
+        .select('id, church_id, role')
+        .eq('email', userEmail.toLowerCase())
+        .is('accepted_at', null)
+        .gt('expires_at', new Date().toISOString())
+        .limit(1)
 
-    if (inviteError) {
-      console.error('Error checking invitations:', inviteError)
+      console.log('checkAndAcceptInvitation: query complete', { invitations, inviteError })
+
+      if (inviteError) {
+        console.error('Error checking invitations:', inviteError)
+        return false
+      }
+
+      if (!invitations || invitations.length === 0) {
+        // No pending invitation
+        console.log('checkAndAcceptInvitation: no pending invitations')
+        return false
+      }
+
+      const invitation = invitations[0]
+
+      // Accept the invitation - add user to church
+      const { error: memberError } = await supabase
+        .from('user_church_memberships')
+        .insert({
+          user_id: (await supabase.auth.getUser()).data.user?.id,
+          church_id: invitation.church_id,
+          role: invitation.role,
+        })
+
+      if (memberError) {
+        console.error('Error accepting invitation:', memberError)
+        return false
+      }
+
+      // Mark invitation as accepted
+      await supabase
+        .from('invitations')
+        .update({ accepted_at: new Date().toISOString() })
+        .eq('id', invitation.id)
+
+      setHasChurch(true)
+      return true
+    } catch (err) {
+      console.error('checkAndAcceptInvitation: unexpected error', err)
       return false
     }
-
-    if (!invitations || invitations.length === 0) {
-      // No pending invitation
-      return false
-    }
-
-    const invitation = invitations[0]
-
-    // Accept the invitation - add user to church
-    const { error: memberError } = await supabase
-      .from('user_church_memberships')
-      .insert({
-        user_id: (await supabase.auth.getUser()).data.user?.id,
-        church_id: invitation.church_id,
-        role: invitation.role,
-      })
-
-    if (memberError) {
-      console.error('Error accepting invitation:', memberError)
-      return false
-    }
-
-    // Mark invitation as accepted
-    await supabase
-      .from('invitations')
-      .update({ accepted_at: new Date().toISOString() })
-      .eq('id', invitation.id)
-
-    setHasChurch(true)
-    return true
   }
 
   // Check user's church status: invitation first, then existing membership
