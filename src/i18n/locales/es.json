@@ -15,6 +15,14 @@
     "next": "Siguiente",
     "submit": "Enviar"
   },
+  "nav": {
+    "dashboard": "Panel",
+    "songs": "Canciones",
+    "events": "Eventos",
+    "displays": "Pantallas",
+    "team": "Equipo",
+    "settings": "Configuracion"
+  },
   "auth": {
     "signIn": "Iniciar Sesion",
     "signUp": "Registrarse",
@@ -39,10 +47,20 @@
   "church": {
     "name": "Nombre de la Iglesia",
     "create": "Crear Iglesia",
-    "settings": "Configuracion de la Iglesia"
+    "settings": "Configuracion de la Iglesia",
+    "select": "Seleccionar iglesia"
   },
   "dashboard": {
     "title": "Panel",
-    "welcome": "Bienvenido a {{churchName}}"
+    "welcome": "Bienvenido a {{churchName}}",
+    "quickActions": "Acciones Rapidas",
+    "recentActivity": "Actividad Reciente"
+  },
+  "settings": {
+    "title": "Configuracion",
+    "darkMode": "Modo Oscuro",
+    "language": "Idioma",
+    "appearance": "Apariencia",
+    "account": "Cuenta"
   }
 }

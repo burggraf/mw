@@ -6,8 +6,10 @@ import { DashboardPage } from '@/pages/Dashboard'
 import { AuthCallbackPage } from '@/pages/AuthCallback'
 import { SetupChurchPage } from '@/pages/SetupChurch'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { AppLayout } from '@/components/AppLayout'
 
 const router = createBrowserRouter([
+  // Public routes (no sidebar)
   {
     path: '/',
     element: <HomePage />,
@@ -32,13 +34,39 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
+  // Protected routes with sidebar layout
   {
-    path: '/dashboard',
     element: (
       <ProtectedRoute>
-        <DashboardPage />
+        <AppLayout />
       </ProtectedRoute>
     ),
+    children: [
+      {
+        path: '/dashboard',
+        element: <DashboardPage />,
+      },
+      {
+        path: '/songs',
+        element: <div className="p-8"><h1 className="text-2xl font-bold">Songs</h1><p className="text-muted-foreground mt-2">Coming in Milestone 1</p></div>,
+      },
+      {
+        path: '/events',
+        element: <div className="p-8"><h1 className="text-2xl font-bold">Events</h1><p className="text-muted-foreground mt-2">Coming soon</p></div>,
+      },
+      {
+        path: '/displays',
+        element: <div className="p-8"><h1 className="text-2xl font-bold">Displays</h1><p className="text-muted-foreground mt-2">Coming soon</p></div>,
+      },
+      {
+        path: '/team',
+        element: <div className="p-8"><h1 className="text-2xl font-bold">Team</h1><p className="text-muted-foreground mt-2">Coming soon</p></div>,
+      },
+      {
+        path: '/settings',
+        element: <div className="p-8"><h1 className="text-2xl font-bold">Settings</h1><p className="text-muted-foreground mt-2">Coming soon</p></div>,
+      },
+    ],
   },
 ])
 

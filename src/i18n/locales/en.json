@@ -15,6 +15,14 @@
     "next": "Next",
     "submit": "Submit"
   },
+  "nav": {
+    "dashboard": "Dashboard",
+    "songs": "Songs",
+    "events": "Events",
+    "displays": "Displays",
+    "team": "Team",
+    "settings": "Settings"
+  },
   "auth": {
     "signIn": "Sign In",
     "signUp": "Sign Up",
@@ -39,10 +47,20 @@
   "church": {
     "name": "Church Name",
     "create": "Create Church",
-    "settings": "Church Settings"
+    "settings": "Church Settings",
+    "select": "Select church"
   },
   "dashboard": {
     "title": "Dashboard",
-    "welcome": "Welcome to {{churchName}}"
+    "welcome": "Welcome to {{churchName}}",
+    "quickActions": "Quick Actions",
+    "recentActivity": "Recent Activity"
+  },
+  "settings": {
+    "title": "Settings",
+    "darkMode": "Dark Mode",
+    "language": "Language",
+    "appearance": "Appearance",
+    "account": "Account"
   }
 }
