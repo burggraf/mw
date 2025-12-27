@@ -79,14 +79,17 @@ export function parseSong(markdown: string): ParsedSong {
  */
 function parseSections(content: string): SongSection[] {
   const sections: SongSection[] = []
-  const lines = content.split('\n')
+  // Normalize line endings (handle Windows \r\n)
+  const normalizedContent = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  const lines = normalizedContent.split('\n')
 
   let currentSection: SongSection | null = null
   let contentLines: string[] = []
   let preHeaderLines: string[] = []  // Lines before any header
 
   for (const line of lines) {
-    const headerMatch = line.match(/^#\s+(.+)$/)
+    // Match # followed by optional space and section name
+    const headerMatch = line.match(/^#\s*(.+)$/)
 
     if (headerMatch) {
       // Save previous section if exists
