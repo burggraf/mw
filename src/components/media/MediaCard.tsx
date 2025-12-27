@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Play, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { Play, MoreHorizontal, Pencil, Trash2, Palette } from 'lucide-react'
 import type { Media } from '@/types/media'
 import { getSignedMediaUrl } from '@/services/media'
 import { cn } from '@/lib/utils'
@@ -16,6 +16,7 @@ interface MediaCardProps {
   media: Media
   onEdit?: (media: Media) => void
   onDelete?: (media: Media) => void
+  onConfigureStyle?: (media: Media) => void
   onClick?: (media: Media) => void
   selected?: boolean
   selectable?: boolean
@@ -25,6 +26,7 @@ export function MediaCard({
   media,
   onEdit,
   onDelete,
+  onConfigureStyle,
   onClick,
   selected = false,
   selectable = false,
@@ -80,6 +82,13 @@ export function MediaCard({
     }
   }
 
+  const handleConfigureStyle = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (onConfigureStyle) {
+      onConfigureStyle(media)
+    }
+  }
+
   return (
     <div
       className={cn(
@@ -117,8 +126,8 @@ export function MediaCard({
 
         {/* Hover overlay with actions */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors">
-          {/* Edit/Delete dropdown menu */}
-          {(onEdit || onDelete) && (
+          {/* Edit/Delete/Style dropdown menu */}
+          {(onEdit || onDelete || onConfigureStyle) && (
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -136,6 +145,12 @@ export function MediaCard({
                     <DropdownMenuItem onClick={handleEdit}>
                       <Pencil className="h-4 w-4 mr-2" />
                       Edit
+                    </DropdownMenuItem>
+                  )}
+                  {onConfigureStyle && (
+                    <DropdownMenuItem onClick={handleConfigureStyle}>
+                      <Palette className="h-4 w-4 mr-2" />
+                      Style
                     </DropdownMenuItem>
                   )}
                   {onDelete && (

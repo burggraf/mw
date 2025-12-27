@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useChurch } from '@/contexts/ChurchContext'
-import { getMedia, deleteMedia, getAllTags, getMediaUsage } from '@/services/media'
+import { getMedia, deleteMedia, getAllTags, getMediaUsage, updateMediaStyle } from '@/services/media'
 import type { Media, MediaFilters } from '@/types/media'
 import { MediaGrid } from '@/components/media/MediaGrid'
 import { MediaSidebar } from '@/components/media/MediaSidebar'
 import { MediaUploadDialog } from '@/components/media/MediaUploadDialog'
 import { StockMediaDialog } from '@/components/media/StockMediaDialog'
 import { MediaDetailDialog } from '@/components/media/MediaDetailDialog'
+import { StyleEditor } from '@/components/styles'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -40,6 +41,7 @@ export function MediaPage() {
   const [uploadOpen, setUploadOpen] = useState(false)
   const [stockOpen, setStockOpen] = useState(false)
   const [editMedia, setEditMedia] = useState<Media | null>(null)
+  const [styleEditorMedia, setStyleEditorMedia] = useState<Media | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Media | null>(null)
   const [deleteUsageCount, setDeleteUsageCount] = useState(0)
 
@@ -177,6 +179,7 @@ export function MediaPage() {
             onClick={setEditMedia}
             onEdit={setEditMedia}
             onDelete={handleDeleteClick}
+            onConfigureStyle={setStyleEditorMedia}
           />
         </div>
       </div>
@@ -209,6 +212,19 @@ export function MediaPage() {
           loadTags()
         }}
       />
+
+      {styleEditorMedia && (
+        <StyleEditor
+          open={!!styleEditorMedia}
+          onOpenChange={(open) => !open && setStyleEditorMedia(null)}
+          media={styleEditorMedia}
+          styleId={styleEditorMedia.styleId}
+          onSave={async (styleId) => {
+            await updateMediaStyle(styleEditorMedia.id, styleId)
+            loadMedia()
+          }}
+        />
+      )}
 
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>

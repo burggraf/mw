@@ -9,6 +9,7 @@ interface MediaGridProps {
   loading?: boolean
   onEdit?: (media: Media) => void
   onDelete?: (media: Media) => void
+  onConfigureStyle?: (media: Media) => void
   onClick?: (media: Media) => void
   selectedId?: string
   selectable?: boolean
@@ -20,6 +21,7 @@ export function MediaGrid({
   loading = false,
   onEdit,
   onDelete,
+  onConfigureStyle,
   onClick,
   selectedId,
   selectable = false,
@@ -54,6 +56,7 @@ export function MediaGrid({
           media={item}
           onEdit={onEdit}
           onDelete={onDelete}
+          onConfigureStyle={onConfigureStyle}
           onClick={onClick}
           selected={selectedId === item.id}
           selectable={selectable}
