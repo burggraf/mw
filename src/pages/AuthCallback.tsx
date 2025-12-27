@@ -14,6 +14,7 @@ export function AuthCallbackPage() {
   useEffect(() => {
     // Handle the auth callback - could be OAuth code or email confirmation tokens
     const handleAuthCallback = async () => {
+      console.log('handleAuthCallback: START')
       const supabase = getSupabase()
 
       // Check for error in URL params (query string)
@@ -43,6 +44,7 @@ export function AuthCallbackPage() {
       // Check for code in URL (PKCE/OAuth flow)
       const code = params.get('code')
       if (code) {
+        console.log('handleAuthCallback: found code, exchanging...')
         const { error } = await supabase.auth.exchangeCodeForSession(code)
         if (error) {
           console.error('Error exchanging code for session:', error)
@@ -50,6 +52,7 @@ export function AuthCallbackPage() {
           setProcessingTokens(false)
           return
         }
+        console.log('handleAuthCallback: code exchange complete')
         // Clear the URL
         window.history.replaceState(null, '', window.location.pathname)
         setProcessingTokens(false)
@@ -60,7 +63,10 @@ export function AuthCallbackPage() {
       const accessToken = hashParams.get('access_token')
       const refreshToken = hashParams.get('refresh_token')
 
+      console.log('handleAuthCallback: checking hash tokens', { hasAccess: !!accessToken, hasRefresh: !!refreshToken })
+
       if (accessToken && refreshToken) {
+        console.log('handleAuthCallback: setting session from hash tokens...')
         // Manually set the session from hash tokens
         const { error } = await supabase.auth.setSession({
           access_token: accessToken,
@@ -74,13 +80,16 @@ export function AuthCallbackPage() {
           return
         }
 
+        console.log('handleAuthCallback: setSession complete, clearing hash')
         // Clear the hash to clean up the URL
         window.history.replaceState(null, '', window.location.pathname)
         setProcessingTokens(false)
+        console.log('handleAuthCallback: DONE (with tokens)')
         return
       }
 
       // No tokens to process
+      console.log('handleAuthCallback: DONE (no tokens)')
       setProcessingTokens(false)
     }
 
@@ -88,17 +97,29 @@ export function AuthCallbackPage() {
   }, [])
 
   useEffect(() => {
+    console.log('AuthCallback redirect check:', { processingTokens, isLoading, error, user: !!user, hasChurch })
+
     // Still processing tokens from URL
-    if (processingTokens) return
+    if (processingTokens) {
+      console.log('AuthCallback: still processing tokens, waiting...')
+      return
+    }
 
     // Wait for auth to finish loading
-    if (isLoading) return
+    if (isLoading) {
+      console.log('AuthCallback: auth still loading, waiting...')
+      return
+    }
 
     // If there's an error, don't redirect
-    if (error) return
+    if (error) {
+      console.log('AuthCallback: has error, not redirecting')
+      return
+    }
 
     // If no user after loading, go to login
     if (!user) {
+      console.log('AuthCallback: no user, redirecting to login')
       navigate('/login')
       return
     }
@@ -106,11 +127,14 @@ export function AuthCallbackPage() {
     // If user has church, go to dashboard
     // If not, go to church setup
     if (hasChurch === true) {
+      console.log('AuthCallback: hasChurch=true, redirecting to dashboard')
       navigate('/dashboard')
     } else if (hasChurch === false) {
+      console.log('AuthCallback: hasChurch=false, redirecting to setup-church')
       navigate('/setup-church')
+    } else {
+      console.log('AuthCallback: hasChurch is null, still checking...')
     }
-    // If hasChurch is null, we're still checking - wait
   }, [user, isLoading, hasChurch, navigate, error, processingTokens])
 
   if (error) {
