@@ -49,12 +49,22 @@ export function AuthCallbackPage() {
       }
 
       // Check for access_token in hash (email confirmation flow)
-      // Supabase's detectSessionInUrl should handle this automatically,
-      // but we'll trigger a session refresh to be safe
       const accessToken = hashParams.get('access_token')
-      if (accessToken) {
-        // The token is in the URL - Supabase should pick it up automatically
-        // Just need to wait for the auth state to update
+      const refreshToken = hashParams.get('refresh_token')
+
+      if (accessToken && refreshToken) {
+        // Manually set the session from hash tokens
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        })
+
+        if (error) {
+          console.error('Error setting session from hash tokens:', error)
+          setError(error.message)
+          return
+        }
+
         // Clear the hash to clean up the URL
         window.history.replaceState(null, '', window.location.pathname)
       }
