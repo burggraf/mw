@@ -10,6 +10,9 @@ export interface Song {
   content: string
   arrangements: SongArrangements
   backgrounds: SongBackgrounds
+  audienceBackgroundId: string | null
+  stageBackgroundId: string | null
+  lobbyBackgroundId: string | null
   createdAt: string
   updatedAt: string
 }
@@ -35,6 +38,9 @@ export interface SongInput {
   content: string
   arrangements?: SongArrangements
   backgrounds?: SongBackgrounds
+  audienceBackgroundId?: string
+  stageBackgroundId?: string
+  lobbyBackgroundId?: string
 }
 
 // Re-export parser types
