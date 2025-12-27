@@ -52,19 +52,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = getSupabase()
 
     // Find pending invitation for this email
-    const { data: invitation, error: inviteError } = await supabase
+    const { data: invitations, error: inviteError } = await supabase
       .from('invitations')
       .select('id, church_id, role')
       .eq('email', userEmail.toLowerCase())
       .is('accepted_at', null)
       .gt('expires_at', new Date().toISOString())
       .limit(1)
-      .single()
 
-    if (inviteError || !invitation) {
+    if (inviteError) {
+      console.error('Error checking invitations:', inviteError)
+      return false
+    }
+
+    if (!invitations || invitations.length === 0) {
       // No pending invitation
       return false
     }
+
+    const invitation = invitations[0]
 
     // Accept the invitation - add user to church
     const { error: memberError } = await supabase
@@ -92,14 +98,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Check user's church status: invitation first, then existing membership
   const checkUserChurchStatus = async (userEmail: string, userId: string) => {
+    console.log('checkUserChurchStatus:', { userEmail, userId })
+
     // First check for pending invitations
     const acceptedInvite = await checkAndAcceptInvitation(userEmail)
+    console.log('Invitation check result:', acceptedInvite)
+
     if (acceptedInvite) {
       return // hasChurch already set to true
     }
 
     // No invitation, check existing membership
-    await checkChurchMembership(userId)
+    const hasMembership = await checkChurchMembership(userId)
+    console.log('Membership check result:', hasMembership)
   }
 
   useEffect(() => {
@@ -119,7 +130,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        console.log('onAuthStateChange:', event, session?.user?.email)
         setSession(session)
         setUser(session?.user ?? null)
         if (session?.user?.email) {
@@ -127,6 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setHasChurch(null)
         }
+        console.log('Auth state change complete, isLoading -> false')
         setIsLoading(false)
       }
     )
