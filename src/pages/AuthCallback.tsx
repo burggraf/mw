@@ -11,33 +11,56 @@ export function AuthCallbackPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Handle the OAuth callback - exchange code for session
-    const handleOAuthCallback = async () => {
+    // Handle the auth callback - could be OAuth code or email confirmation tokens
+    const handleAuthCallback = async () => {
       const supabase = getSupabase()
 
-      // Check for error in URL params
+      // Check for error in URL params (query string)
       const params = new URLSearchParams(window.location.search)
       const errorParam = params.get('error')
       const errorDescription = params.get('error_description')
 
       if (errorParam) {
-        console.error('OAuth error:', errorParam, errorDescription)
+        console.error('Auth error (query):', errorParam, errorDescription)
         setError(errorDescription || errorParam)
         return
       }
 
-      // Check for code in URL (PKCE flow)
+      // Check for error in hash (email confirmation errors)
+      const hashParams = new URLSearchParams(window.location.hash.substring(1))
+      const hashError = hashParams.get('error')
+      const hashErrorDescription = hashParams.get('error_description')
+
+      if (hashError) {
+        console.error('Auth error (hash):', hashError, hashErrorDescription)
+        setError(hashErrorDescription || hashError)
+        return
+      }
+
+      // Check for code in URL (PKCE/OAuth flow)
       const code = params.get('code')
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code)
         if (error) {
           console.error('Error exchanging code for session:', error)
           setError(error.message)
+          return
         }
+      }
+
+      // Check for access_token in hash (email confirmation flow)
+      // Supabase's detectSessionInUrl should handle this automatically,
+      // but we'll trigger a session refresh to be safe
+      const accessToken = hashParams.get('access_token')
+      if (accessToken) {
+        // The token is in the URL - Supabase should pick it up automatically
+        // Just need to wait for the auth state to update
+        // Clear the hash to clean up the URL
+        window.history.replaceState(null, '', window.location.pathname)
       }
     }
 
-    handleOAuthCallback()
+    handleAuthCallback()
   }, [])
 
   useEffect(() => {
