@@ -185,13 +185,6 @@ export function MediaUploadDialog({
 
       setIsUploading(false)
 
-      // Check results
-      const completed = newUploadingFiles.filter(
-        (f) =>
-          uploadingFiles.find((uf) => uf.id === f.id)?.status === 'complete' ||
-          f.status === 'pending' // Will be complete after uploadFile
-      )
-
       // Get final state after uploads complete
       setUploadingFiles((currentFiles) => {
         const successCount = currentFiles.filter(

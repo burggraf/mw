@@ -110,7 +110,7 @@ export function MediaPage() {
 
   async function handleDeleteClick(media: Media) {
     const usage = await getMediaUsage(media.id)
-    setDeleteUsageCount(usage.songCount)
+    setDeleteUsageCount(usage.songIds.length)
     setDeleteTarget(media)
   }
 
