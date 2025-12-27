@@ -1,5 +1,3 @@
-import matter from 'gray-matter'
-
 export interface SongSection {
   id: string        // e.g., "verse-1", "chorus", "bridge"
   type: string      // e.g., "verse", "chorus", "bridge"
@@ -21,10 +19,44 @@ export interface ParsedSong {
 }
 
 /**
+ * Simple YAML frontmatter parser (browser-compatible)
+ */
+function parseFrontmatter(markdown: string): { data: Record<string, string>; content: string } {
+  const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/
+  const match = markdown.match(frontmatterRegex)
+
+  if (!match) {
+    return { data: {}, content: markdown }
+  }
+
+  const yamlContent = match[1]
+  const content = match[2]
+
+  const data: Record<string, string> = {}
+  const lines = yamlContent.split('\n')
+
+  for (const line of lines) {
+    const colonIndex = line.indexOf(':')
+    if (colonIndex > 0) {
+      const key = line.slice(0, colonIndex).trim()
+      let value = line.slice(colonIndex + 1).trim()
+      // Remove quotes if present
+      if ((value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1)
+      }
+      data[key] = value
+    }
+  }
+
+  return { data, content }
+}
+
+/**
  * Parse a song from markdown format with YAML frontmatter
  */
 export function parseSong(markdown: string): ParsedSong {
-  const { data, content } = matter(markdown)
+  const { data, content } = parseFrontmatter(markdown)
 
   const metadata: SongMetadata = {
     title: data.title || 'Untitled',
@@ -164,7 +196,7 @@ export function generateDefaultArrangement(sections: SongSection[]): string[] {
  * Extract just the lyrics content (without frontmatter) for editing
  */
 export function extractLyricsContent(markdown: string): string {
-  const { content } = matter(markdown)
+  const { content } = parseFrontmatter(markdown)
   return content.trim()
 }
 
