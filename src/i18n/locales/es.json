@@ -1,0 +1,40 @@
+{
+  "app": {
+    "name": "Mobile Worship",
+    "tagline": "Controla tu presentacion de adoracion desde cualquier lugar"
+  },
+  "common": {
+    "loading": "Cargando...",
+    "error": "Ocurrio un error",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "create": "Crear",
+    "back": "Atras",
+    "next": "Siguiente",
+    "submit": "Enviar"
+  },
+  "auth": {
+    "signIn": "Iniciar Sesion",
+    "signUp": "Registrarse",
+    "signOut": "Cerrar Sesion",
+    "email": "Correo Electronico",
+    "password": "Contrasena",
+    "confirmPassword": "Confirmar Contrasena",
+    "forgotPassword": "Olvidaste tu contrasena?",
+    "resetPassword": "Restablecer Contrasena",
+    "noAccount": "No tienes una cuenta?",
+    "hasAccount": "Ya tienes una cuenta?",
+    "createAccount": "Crear Cuenta"
+  },
+  "church": {
+    "name": "Nombre de la Iglesia",
+    "create": "Crear Iglesia",
+    "settings": "Configuracion de la Iglesia"
+  },
+  "dashboard": {
+    "title": "Panel",
+    "welcome": "Bienvenido a {{churchName}}"
+  }
+}
