@@ -3,10 +3,20 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getSong, deleteSong } from '@/services/songs'
 import { parseSong } from '@/lib/song-parser'
+import { chunkSections, getShortLabel } from '@/services/chunking'
+import { getMediaWithStyle } from '@/services/media'
+import { styleToBoundingBoxCSS, styleToTextCSS, styleToOverlayCSS } from '@/services/styles'
 import type { Song } from '@/types/song'
-import type { SongSection } from '@/lib/song-parser'
+import type { Slide, DisplayClass } from '@/types/style'
+import type { Media } from '@/types/media'
+import type { Style } from '@/types/style'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +42,9 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  Users,
+  Monitor,
+  DoorOpen,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { duplicateSong } from '@/services/songs'
@@ -42,10 +55,16 @@ export function SongDetailPage() {
   const { id } = useParams()
 
   const [song, setSong] = useState<Song | null>(null)
-  const [sections, setSections] = useState<SongSection[]>([])
+  const [slides, setSlides] = useState<Slide[]>([])
+  const [backgrounds, setBackgrounds] = useState<{
+    audience: (Media & { style: Style | null }) | null
+    stage: (Media & { style: Style | null }) | null
+    lobby: (Media & { style: Style | null }) | null
+  }>({ audience: null, stage: null, lobby: null })
   const [loading, setLoading] = useState(true)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [currentSectionIndex, setCurrentSectionIndex] = useState(0)
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
+  const [displayClass, setDisplayClass] = useState<DisplayClass>('audience')
 
   useEffect(() => {
     if (id) {
@@ -64,7 +83,20 @@ export function SongDetailPage() {
       }
       setSong(data)
       const parsed = parseSong(data.content)
-      setSections(parsed.sections)
+
+      // Load backgrounds with their styles
+      const [audienceBg, stageBg, lobbyBg] = await Promise.all([
+        data.audienceBackgroundId ? getMediaWithStyle(data.audienceBackgroundId) : null,
+        data.stageBackgroundId ? getMediaWithStyle(data.stageBackgroundId) : null,
+        data.lobbyBackgroundId ? getMediaWithStyle(data.lobbyBackgroundId) : null,
+      ])
+
+      setBackgrounds({ audience: audienceBg, stage: stageBg, lobby: lobbyBg })
+
+      // Chunk sections based on backgrounds
+      const activeBackgrounds = [audienceBg, stageBg, lobbyBg].filter(Boolean) as (Media & { style: Style | null })[]
+      const chunkedSlides = chunkSections(parsed.sections, activeBackgrounds)
+      setSlides(chunkedSlides)
     } catch (error) {
       console.error('Failed to load song:', error)
       toast.error(t('common.error'))
@@ -100,12 +132,12 @@ export function SongDetailPage() {
     }
   }
 
-  function goToPreviousSection() {
-    setCurrentSectionIndex((prev) => Math.max(0, prev - 1))
+  function goToPreviousSlide() {
+    setCurrentSlideIndex((prev) => Math.max(0, prev - 1))
   }
 
-  function goToNextSection() {
-    setCurrentSectionIndex((prev) => Math.min(sections.length - 1, prev + 1))
+  function goToNextSlide() {
+    setCurrentSlideIndex((prev) => Math.min(slides.length - 1, prev + 1))
   }
 
   if (loading) {
@@ -120,7 +152,9 @@ export function SongDetailPage() {
     return null
   }
 
-  const currentSection = sections[currentSectionIndex]
+  const currentSlide = slides[currentSlideIndex]
+  const currentBackground = backgrounds[displayClass]
+  const currentStyle = currentBackground?.style
 
   return (
     <div className="p-8">
@@ -172,40 +206,105 @@ export function SongDetailPage() {
         </div>
       )}
 
-      {/* Section navigation */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {sections.map((section, index) => (
-          <Button
-            key={section.id}
-            variant={index === currentSectionIndex ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setCurrentSectionIndex(index)}
-          >
-            {section.label}
-          </Button>
-        ))}
+      {/* Display class toggle */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-wrap gap-2">
+          {slides.map((slide, index) => (
+            <Button
+              key={`${slide.sectionId}-${slide.subIndex}`}
+              variant={index === currentSlideIndex ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setCurrentSlideIndex(index)}
+            >
+              {getShortLabel(slide)}
+            </Button>
+          ))}
+        </div>
+
+        <ToggleGroup
+          type="single"
+          value={displayClass}
+          onValueChange={(value: string) => value && setDisplayClass(value as DisplayClass)}
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <ToggleGroupItem value="audience" aria-label={t('styles.displayClass.audience')}>
+                <Users className="h-4 w-4" />
+              </ToggleGroupItem>
+            </TooltipTrigger>
+            <TooltipContent>{t('styles.displayClass.audience')}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <ToggleGroupItem value="stage" aria-label={t('styles.displayClass.stage')}>
+                <Monitor className="h-4 w-4" />
+              </ToggleGroupItem>
+            </TooltipTrigger>
+            <TooltipContent>{t('styles.displayClass.stage')}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <ToggleGroupItem value="lobby" aria-label={t('styles.displayClass.lobby')}>
+                <DoorOpen className="h-4 w-4" />
+              </ToggleGroupItem>
+            </TooltipTrigger>
+            <TooltipContent>{t('styles.displayClass.lobby')}</TooltipContent>
+          </Tooltip>
+        </ToggleGroup>
       </div>
 
-      {/* Current section display */}
-      {currentSection && (
-        <Card className="relative">
-          <CardContent className="py-12 px-8">
-            <p className="text-xs text-muted-foreground mb-6 uppercase tracking-wide text-center">
-              {currentSection.label}
-            </p>
-            <div className="text-2xl text-center whitespace-pre-line leading-relaxed max-w-2xl mx-auto">
-              {currentSection.content}
+      {/* Current slide display with style */}
+      {currentSlide && currentStyle && (
+        <div
+          className="relative rounded-lg overflow-hidden min-h-[300px]"
+          style={{
+            backgroundColor: currentBackground?.backgroundColor || '#1a1a1a',
+            backgroundImage: currentBackground?.storagePath
+              ? `url(${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/media/${currentBackground.storagePath})`
+              : undefined,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        >
+          {/* Background overlay */}
+          <div className="absolute inset-0" style={styleToOverlayCSS(currentStyle)} />
+
+          {/* Content in bounding box */}
+          <div style={styleToBoundingBoxCSS(currentStyle)}>
+            {/* Section label */}
+            {currentStyle.showSectionLabel && (
+              <p
+                className="mb-4 uppercase tracking-wider opacity-70 text-sm"
+                style={styleToTextCSS(currentStyle)}
+              >
+                {currentSlide.displayLabel}
+              </p>
+            )}
+
+            {/* Lyrics */}
+            <div className="whitespace-pre-line" style={styleToTextCSS(currentStyle)}>
+              {currentSlide.lines.join('\n')}
             </div>
-          </CardContent>
+
+            {/* Copyright */}
+            {currentStyle.showCopyright && song.copyrightInfo && (
+              <p
+                className="mt-6 opacity-50 text-xs"
+                style={styleToTextCSS(currentStyle)}
+              >
+                {song.copyrightInfo}
+              </p>
+            )}
+          </div>
 
           {/* Navigation arrows */}
           <div className="absolute inset-y-0 left-0 flex items-center">
             <Button
               variant="ghost"
               size="icon"
-              className="h-full rounded-none rounded-l-lg"
-              onClick={goToPreviousSection}
-              disabled={currentSectionIndex === 0}
+              className="h-full rounded-none rounded-l-lg text-white/70 hover:text-white hover:bg-white/10"
+              onClick={goToPreviousSlide}
+              disabled={currentSlideIndex === 0}
             >
               <ChevronLeft className="h-6 w-6" />
             </Button>
@@ -214,19 +313,52 @@ export function SongDetailPage() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-full rounded-none rounded-r-lg"
-              onClick={goToNextSection}
-              disabled={currentSectionIndex === sections.length - 1}
+              className="h-full rounded-none rounded-r-lg text-white/70 hover:text-white hover:bg-white/10"
+              onClick={goToNextSlide}
+              disabled={currentSlideIndex === slides.length - 1}
             >
               <ChevronRight className="h-6 w-6" />
             </Button>
           </div>
-        </Card>
+        </div>
       )}
 
-      {/* Section count */}
+      {/* Fallback for no style */}
+      {currentSlide && !currentStyle && (
+        <div className="relative rounded-lg overflow-hidden min-h-[300px] bg-slate-800 flex items-center justify-center">
+          <div className="text-white text-center whitespace-pre-line p-8">
+            {currentSlide.lines.join('\n')}
+          </div>
+
+          {/* Navigation arrows */}
+          <div className="absolute inset-y-0 left-0 flex items-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-full rounded-none rounded-l-lg text-white/70 hover:text-white hover:bg-white/10"
+              onClick={goToPreviousSlide}
+              disabled={currentSlideIndex === 0}
+            >
+              <ChevronLeft className="h-6 w-6" />
+            </Button>
+          </div>
+          <div className="absolute inset-y-0 right-0 flex items-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-full rounded-none rounded-r-lg text-white/70 hover:text-white hover:bg-white/10"
+              onClick={goToNextSlide}
+              disabled={currentSlideIndex === slides.length - 1}
+            >
+              <ChevronRight className="h-6 w-6" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Slide count */}
       <p className="text-center text-sm text-muted-foreground mt-4">
-        {currentSectionIndex + 1} / {sections.length}
+        {currentSlideIndex + 1} / {slides.length}
       </p>
 
       {/* Delete dialog */}
