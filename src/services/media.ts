@@ -1,5 +1,6 @@
 import { getSupabase } from '@/lib/supabase'
-import type { Media, MediaInput, MediaFilters } from '@/types/media'
+import type { Media, MediaInput, MediaFilters, StockMediaItem, StockSearchResult } from '@/types/media'
+import { generateStoragePath, generateImageThumbnail } from '@/lib/media-utils'
 
 // Convert database row to Media type
 function rowToMedia(row: any): Media {
@@ -240,4 +241,77 @@ export async function getSignedMediaUrl(path: string, expiresIn: number = 3600):
 
   if (error) throw error
   return data.signedUrl
+}
+
+export async function searchStockMedia(
+  provider: 'pexels' | 'unsplash',
+  query: string,
+  options: { page?: number; perPage?: number; type?: 'image' | 'video' } = {}
+): Promise<StockSearchResult> {
+  const supabase = getSupabase()
+
+  const { data, error } = await supabase.functions.invoke('stock-media-search', {
+    body: {
+      provider,
+      query,
+      page: options.page || 1,
+      per_page: options.perPage || 20,
+      type: options.type || 'image',
+    },
+  })
+
+  if (error) throw error
+  return data as StockSearchResult
+}
+
+export async function importStockMedia(
+  churchId: string,
+  item: StockMediaItem
+): Promise<Media> {
+  const supabase = getSupabase()
+
+  // Download the image
+  const response = await fetch(item.downloadUrl)
+  if (!response.ok) throw new Error('Failed to download media')
+
+  const blob = await response.blob()
+  const file = new File([blob], `${item.id}.jpg`, { type: blob.type })
+
+  // Generate storage paths
+  const storagePath = generateStoragePath(churchId, file.name)
+  const thumbnailPath = generateStoragePath(churchId, file.name, true)
+
+  // Generate thumbnail
+  const thumbnailBlob = await generateImageThumbnail(file)
+
+  // Upload original
+  const { error: uploadError } = await supabase.storage
+    .from('media')
+    .upload(storagePath, blob)
+
+  if (uploadError) throw uploadError
+
+  // Upload thumbnail
+  const { error: thumbError } = await supabase.storage
+    .from('media')
+    .upload(thumbnailPath, thumbnailBlob)
+
+  if (thumbError) {
+    console.error('Thumbnail upload failed:', thumbError)
+  }
+
+  // Create media record
+  return createMedia(churchId, {
+    name: item.attribution,
+    type: 'image',
+    mimeType: blob.type || 'image/jpeg',
+    storagePath,
+    thumbnailPath: thumbError ? undefined : thumbnailPath,
+    fileSize: blob.size,
+    width: item.width,
+    height: item.height,
+    source: item.provider as 'pexels' | 'unsplash',
+    sourceId: item.id,
+    sourceUrl: item.downloadUrl,
+  })
 }
