@@ -48,7 +48,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   // Check for and accept pending invitations
-  const checkAndAcceptInvitation = async (userEmail: string): Promise<boolean> => {
+  // TODO: Re-enable once RLS issue is debugged
+  // @ts-expect-error - Temporarily disabled, keeping for later
+  const _checkAndAcceptInvitation = async (userEmail: string): Promise<boolean> => {
     try {
       console.log('checkAndAcceptInvitation: starting for', userEmail)
       const supabase = getSupabase()
@@ -106,19 +108,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // Check user's church status: invitation first, then existing membership
-  const checkUserChurchStatus = async (userEmail: string, userId: string) => {
-    console.log('checkUserChurchStatus:', { userEmail, userId })
-
-    // First check for pending invitations
-    const acceptedInvite = await checkAndAcceptInvitation(userEmail)
-    console.log('Invitation check result:', acceptedInvite)
-
-    if (acceptedInvite) {
-      return // hasChurch already set to true
-    }
-
-    // No invitation, check existing membership
+  // Check user's church status: just check membership for now
+  // TODO: Add invitation check back once RLS issue is resolved
+  const checkUserChurchStatus = async (_userEmail: string, userId: string) => {
+    console.log('checkUserChurchStatus: checking membership for', userId)
     const hasMembership = await checkChurchMembership(userId)
     console.log('Membership check result:', hasMembership)
   }
