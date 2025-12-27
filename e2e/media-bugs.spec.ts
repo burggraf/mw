@@ -72,32 +72,40 @@ test.describe('Media Library Bug Tests', () => {
     // Wait for media to load
     await page.waitForTimeout(1000)
 
-    // Find first media card and hover
-    const firstCard = page.locator('.aspect-video').first()
-    await firstCard.hover()
-    await page.waitForTimeout(300)
+    // Find the media card container (the parent with group class)
+    const cardContainer = page.locator('.group.relative.cursor-pointer').first()
+    console.log('Card container visible:', await cardContainer.isVisible().catch(() => false))
+
+    // Hover over the card to reveal the menu
+    await cardContainer.hover()
+    await page.waitForTimeout(500)
 
     // Take screenshot after hover
     await page.screenshot({ path: 'test-results/after-hover.png', fullPage: true })
 
-    // Find menu button
-    const menuButton = page.locator('button:has(svg)').filter({ has: page.locator('.lucide-more-horizontal, [class*="MoreHorizontal"]') }).first()
-    const menuButtonAlt = page.locator('[class*="MediaCard"] button').first()
+    // Find the menu button within the card
+    const menuButton = cardContainer.locator('button').first()
+    console.log('Menu button count:', await cardContainer.locator('button').count())
+    console.log('Menu button visible after hover:', await menuButton.isVisible().catch(() => false))
 
-    console.log('Menu button visible:', await menuButton.isVisible().catch(() => false))
-    console.log('Alt menu button visible:', await menuButtonAlt.isVisible().catch(() => false))
+    // Force show the button by removing opacity-0 class
+    await page.evaluate(() => {
+      const buttons = document.querySelectorAll('.group button')
+      buttons.forEach(btn => {
+        (btn as HTMLElement).style.opacity = '1'
+      })
+    })
+    await page.waitForTimeout(200)
 
-    // Try clicking
+    // Try clicking the button
     if (await menuButton.isVisible()) {
       await menuButton.click()
-    } else if (await menuButtonAlt.isVisible()) {
-      await menuButtonAlt.click()
+      await page.waitForTimeout(500)
     }
 
-    await page.waitForTimeout(500)
     await page.screenshot({ path: 'test-results/after-menu-click.png', fullPage: true })
 
-    // Check for dropdown
+    // Check for dropdown menu
     const dropdown = page.locator('[role="menu"]')
     console.log('Dropdown visible:', await dropdown.isVisible().catch(() => false))
   })
@@ -106,35 +114,41 @@ test.describe('Media Library Bug Tests', () => {
     // Open stock media dialog
     await page.getByRole('button', { name: /stock media/i }).click()
     await expect(page.getByRole('dialog')).toBeVisible()
+    await page.waitForTimeout(500)
 
     // Take screenshot
     await page.screenshot({ path: 'test-results/stock-dialog.png', fullPage: true })
 
-    // Find search input in dialog
-    const searchInputs = await page.locator('input').all()
-    console.log('Inputs in dialog:', searchInputs.length)
+    // Find search input by placeholder (inside dialog)
+    const searchInput = page.getByRole('dialog').getByPlaceholder(/search for/i)
+    await expect(searchInput).toBeVisible()
+    console.log('Search input found')
 
-    for (const input of searchInputs) {
-      const placeholder = await input.getAttribute('placeholder')
-      console.log('Input placeholder:', placeholder)
-    }
+    // Search for winter
+    await searchInput.fill('winter')
+    console.log('Filled search input with "winter"')
 
-    // Try to search
-    const searchInput = page.getByRole('dialog').locator('input[type="text"]').first()
-    await searchInput.fill('nature')
-
-    // Find and click search button
+    // Click search button
     const searchButton = page.getByRole('dialog').getByRole('button', { name: /search/i })
-    console.log('Search button visible:', await searchButton.isVisible().catch(() => false))
+    await expect(searchButton).toBeVisible()
+    await searchButton.click()
+    console.log('Clicked search button')
 
-    if (await searchButton.isVisible()) {
-      await searchButton.click()
-      await page.waitForTimeout(3000)
-      await page.screenshot({ path: 'test-results/after-stock-search.png', fullPage: true })
-    }
+    // Wait for results
+    await page.waitForTimeout(3000)
+    await page.screenshot({ path: 'test-results/after-stock-search.png', fullPage: true })
 
     // Check for results or errors
-    const results = await page.locator('[class*="grid"] img').count()
-    console.log('Results found:', results)
+    const dialog = page.getByRole('dialog')
+    const images = await dialog.locator('img').count()
+    console.log('Images found in dialog:', images)
+
+    // Check for any error toasts
+    const errorToast = page.locator('[data-sonner-toast][data-type="error"]')
+    const hasError = await errorToast.isVisible().catch(() => false)
+    console.log('Has error toast:', hasError)
+
+    // Expect at least some results
+    expect(images).toBeGreaterThan(0)
   })
 })
