@@ -12,7 +12,7 @@ export function initSupabase(config: AppConfig): SupabaseClient {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: true,
+      detectSessionInUrl: false, // We handle URL tokens manually in AuthCallback
     },
   })
 

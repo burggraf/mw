@@ -29,9 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Check if user has a church membership
   const checkChurchMembership = async (userId: string): Promise<boolean> => {
-    console.log('checkChurchMembership: START for userId:', userId)
     const supabase = getSupabase()
-    console.log('checkChurchMembership: got supabase client, about to query...')
 
     try {
       const { data, error } = await supabase
@@ -40,8 +38,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('user_id', userId)
         .limit(1)
 
-      console.log('checkChurchMembership: query complete', { data, error })
-
       if (error) {
         console.error('Error checking church membership:', error)
         setHasChurch(false)
@@ -49,11 +45,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const hasMembership = data && data.length > 0
-      console.log('checkChurchMembership: setting hasChurch to', hasMembership)
       setHasChurch(hasMembership)
       return hasMembership
     } catch (err) {
-      console.error('checkChurchMembership: CAUGHT ERROR', err)
+      console.error('Error checking church membership:', err)
       setHasChurch(false)
       return false
     }
@@ -123,9 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Check user's church status: just check membership for now
   // TODO: Add invitation check back once RLS issue is resolved
   const checkUserChurchStatus = async (_userEmail: string, userId: string) => {
-    console.log('checkUserChurchStatus: checking membership for', userId)
-    const hasMembership = await checkChurchMembership(userId)
-    console.log('Membership check result:', hasMembership)
+    await checkChurchMembership(userId)
   }
 
   useEffect(() => {
@@ -133,39 +126,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Get initial session
     const initSession = async () => {
-      console.log('AuthContext initSession: START')
       const { data: { session } } = await supabase.auth.getSession()
-      console.log('AuthContext initSession: got session', { hasSession: !!session, email: session?.user?.email })
       setSession(session)
       setUser(session?.user ?? null)
       if (session?.user?.email) {
-        console.log('AuthContext initSession: checking church status...')
         await checkUserChurchStatus(session.user.email, session.user.id)
-        console.log('AuthContext initSession: church status checked')
-      } else {
-        console.log('AuthContext initSession: no session, skipping church check')
       }
-      console.log('AuthContext initSession: setting isLoading=false')
       setIsLoading(false)
     }
     initSession()
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('onAuthStateChange: START', { event, email: session?.user?.email })
+      (event, session) => {
         setSession(session)
         setUser(session?.user ?? null)
+
         if (session?.user?.email) {
-          console.log('onAuthStateChange: checking church status...')
-          await checkUserChurchStatus(session.user.email, session.user.id)
-          console.log('onAuthStateChange: church status checked')
+          // Defer database query to avoid blocking during auth state change
+          // The Supabase client blocks during onAuthStateChange callbacks
+          setTimeout(async () => {
+            await checkUserChurchStatus(session.user.email!, session.user.id)
+            setIsLoading(false)
+          }, 0)
         } else {
-          console.log('onAuthStateChange: no session, setting hasChurch=null')
           setHasChurch(null)
+          setIsLoading(false)
         }
-        console.log('onAuthStateChange: COMPLETE, setting isLoading=false')
-        setIsLoading(false)
       }
     )
 
