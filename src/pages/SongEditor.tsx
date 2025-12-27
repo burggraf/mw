@@ -10,7 +10,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Save, Eye } from 'lucide-react'
+import { StyleSelector } from '@/components/styles'
+import { BackgroundPicker } from '@/components/songs/BackgroundPicker'
+import { getMediaWithStyle } from '@/services/media'
+import type { DisplayClass } from '@/types/style'
+import type { Media } from '@/types/media'
+import { ArrowLeft, Save, Eye, Users, Monitor, DoorOpen } from 'lucide-react'
 import { toast } from 'sonner'
 
 export function SongEditorPage() {
@@ -31,6 +36,16 @@ export function SongEditorPage() {
   const [copyright, setCopyright] = useState('')
   const [ccliNumber, setCcliNumber] = useState('')
   const [lyrics, setLyrics] = useState('')
+  const [styleId, setStyleId] = useState<string | null>(null)
+
+  // Background state
+  const [audienceBackground, setAudienceBackground] = useState<Media | null>(null)
+  const [stageBackground, setStageBackground] = useState<Media | null>(null)
+  const [lobbyBackground, setLobbyBackground] = useState<Media | null>(null)
+  const [audienceBackgroundId, setAudienceBackgroundId] = useState<string | null>(null)
+  const [stageBackgroundId, setStageBackgroundId] = useState<string | null>(null)
+  const [lobbyBackgroundId, setLobbyBackgroundId] = useState<string | null>(null)
+  const [pickerOpen, setPickerOpen] = useState<DisplayClass | null>(null)
 
   useEffect(() => {
     if (!isNew && id) {
@@ -85,6 +100,22 @@ export function SongEditorPage() {
       setCopyright(song.copyrightInfo || '')
       setCcliNumber(song.ccliNumber || '')
       setLyrics(extractLyricsContent(song.content))
+      setStyleId(song.styleId)
+
+      // Load background IDs and media
+      setAudienceBackgroundId(song.audienceBackgroundId)
+      setStageBackgroundId(song.stageBackgroundId)
+      setLobbyBackgroundId(song.lobbyBackgroundId)
+
+      if (song.audienceBackgroundId) {
+        getMediaWithStyle(song.audienceBackgroundId).then(setAudienceBackground)
+      }
+      if (song.stageBackgroundId) {
+        getMediaWithStyle(song.stageBackgroundId).then(setStageBackground)
+      }
+      if (song.lobbyBackgroundId) {
+        getMediaWithStyle(song.lobbyBackgroundId).then(setLobbyBackground)
+      }
     } catch (error) {
       console.error('Failed to load song:', error)
       toast.error(t('common.error'))
@@ -126,6 +157,10 @@ export function SongEditorPage() {
           copyrightInfo: metadata.copyright,
           ccliNumber: metadata.ccliNumber,
           content,
+          styleId: styleId || undefined,
+          audienceBackgroundId: audienceBackgroundId || undefined,
+          stageBackgroundId: stageBackgroundId || undefined,
+          lobbyBackgroundId: lobbyBackgroundId || undefined,
         })
         toast.success(t('songs.songCreated'))
       } else if (id) {
@@ -135,6 +170,10 @@ export function SongEditorPage() {
           copyrightInfo: metadata.copyright,
           ccliNumber: metadata.ccliNumber,
           content,
+          styleId: styleId || undefined,
+          audienceBackgroundId: audienceBackgroundId || undefined,
+          stageBackgroundId: stageBackgroundId || undefined,
+          lobbyBackgroundId: lobbyBackgroundId || undefined,
         })
         toast.success(t('songs.songUpdated'))
       }
@@ -232,6 +271,14 @@ export function SongEditorPage() {
           </div>
 
           <div className="space-y-2">
+            <Label>{t('styles.title')}</Label>
+            <StyleSelector
+              value={styleId}
+              onChange={setStyleId}
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="lyrics">{t('songs.form.lyrics')} *</Label>
             <p className="text-sm text-muted-foreground">
               {t('songs.form.lyricsHelp')}
@@ -249,6 +296,79 @@ Amazing grace, amazing grace
 How sweet the sound`}
               className="min-h-[400px] font-mono text-sm"
             />
+          </div>
+
+          {/* Display Class Backgrounds */}
+          <div className="space-y-4 pt-6 border-t">
+            <h3 className="text-lg font-medium">{t('songs.displayBackgrounds', 'Display Backgrounds')}</h3>
+            <p className="text-sm text-muted-foreground">
+              {t('songs.displayBackgroundsHelp', 'Select backgrounds for each display context')}
+            </p>
+
+            <div className="grid grid-cols-3 gap-4">
+              {/* Audience */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  {t('styles.displayClass.audience', 'Audience')}
+                </Label>
+                <button
+                  type="button"
+                  className="w-full aspect-video rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-muted-foreground/50 flex items-center justify-center overflow-hidden"
+                  style={audienceBackground?.backgroundColor
+                    ? { backgroundColor: audienceBackground.backgroundColor }
+                    : audienceBackground?.thumbnailPath
+                    ? { backgroundImage: `url(${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/media/${audienceBackground.thumbnailPath})`, backgroundSize: 'cover' }
+                    : undefined
+                  }
+                  onClick={() => setPickerOpen('audience')}
+                >
+                  {!audienceBackground && <span className="text-sm text-muted-foreground">{t('common.select', 'Select')}</span>}
+                </button>
+              </div>
+
+              {/* Stage */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Monitor className="h-4 w-4" />
+                  {t('styles.displayClass.stage', 'Stage')}
+                </Label>
+                <button
+                  type="button"
+                  className="w-full aspect-video rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-muted-foreground/50 flex items-center justify-center overflow-hidden"
+                  style={stageBackground?.backgroundColor
+                    ? { backgroundColor: stageBackground.backgroundColor }
+                    : stageBackground?.thumbnailPath
+                    ? { backgroundImage: `url(${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/media/${stageBackground.thumbnailPath})`, backgroundSize: 'cover' }
+                    : undefined
+                  }
+                  onClick={() => setPickerOpen('stage')}
+                >
+                  {!stageBackground && <span className="text-sm text-muted-foreground">{t('common.select', 'Select')}</span>}
+                </button>
+              </div>
+
+              {/* Lobby */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <DoorOpen className="h-4 w-4" />
+                  {t('styles.displayClass.lobby', 'Lobby')}
+                </Label>
+                <button
+                  type="button"
+                  className="w-full aspect-video rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-muted-foreground/50 flex items-center justify-center overflow-hidden"
+                  style={lobbyBackground?.backgroundColor
+                    ? { backgroundColor: lobbyBackground.backgroundColor }
+                    : lobbyBackground?.thumbnailPath
+                    ? { backgroundImage: `url(${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/media/${lobbyBackground.thumbnailPath})`, backgroundSize: 'cover' }
+                    : undefined
+                  }
+                  onClick={() => setPickerOpen('lobby')}
+                >
+                  {!lobbyBackground && <span className="text-sm text-muted-foreground">{t('common.select', 'Select')}</span>}
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="flex gap-4">
@@ -305,6 +425,33 @@ How sweet the sound`}
           </Card>
         </div>
       </div>
+
+      {/* Background Picker Dialog */}
+      {pickerOpen && (
+        <BackgroundPicker
+          open={!!pickerOpen}
+          onOpenChange={(open) => !open && setPickerOpen(null)}
+          displayClass={pickerOpen}
+          currentBackgroundId={
+            pickerOpen === 'audience' ? audienceBackgroundId :
+            pickerOpen === 'stage' ? stageBackgroundId :
+            lobbyBackgroundId
+          }
+          onSelect={async (bgId) => {
+            const bg = bgId ? await getMediaWithStyle(bgId) : null
+            if (pickerOpen === 'audience') {
+              setAudienceBackground(bg)
+              setAudienceBackgroundId(bgId)
+            } else if (pickerOpen === 'stage') {
+              setStageBackground(bg)
+              setStageBackgroundId(bgId)
+            } else {
+              setLobbyBackground(bg)
+              setLobbyBackgroundId(bgId)
+            }
+          }}
+        />
+      )}
     </div>
   )
 }
