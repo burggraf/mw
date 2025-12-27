@@ -83,6 +83,7 @@ function parseSections(content: string): SongSection[] {
 
   let currentSection: SongSection | null = null
   let contentLines: string[] = []
+  let preHeaderLines: string[] = []  // Lines before any header
 
   for (const line of lines) {
     const headerMatch = line.match(/^#\s+(.+)$/)
@@ -107,6 +108,9 @@ function parseSections(content: string): SongSection[] {
       contentLines = []
     } else if (currentSection) {
       contentLines.push(line)
+    } else {
+      // Collect lines before any header
+      preHeaderLines.push(line)
     }
   }
 
@@ -114,6 +118,19 @@ function parseSections(content: string): SongSection[] {
   if (currentSection) {
     currentSection.content = contentLines.join('\n').trim()
     sections.push(currentSection)
+  }
+
+  // If no sections found but we have content, create a default "Lyrics" section
+  if (sections.length === 0) {
+    const allContent = preHeaderLines.join('\n').trim()
+    if (allContent) {
+      sections.push({
+        id: 'lyrics',
+        type: 'lyrics',
+        label: 'Lyrics',
+        content: allContent,
+      })
+    }
   }
 
   return sections
