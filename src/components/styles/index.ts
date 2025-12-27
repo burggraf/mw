@@ -1,4 +1,5 @@
 export { BoundingBoxEditor } from './BoundingBoxEditor'
+export { StyleEditor } from './StyleEditor'
 export { StylePreview } from './StylePreview'
 export { StyleCard } from './StyleCard'
 export { StyleSelector } from './StyleSelector'
