@@ -12,7 +12,6 @@ export function SignUpPage() {
   const { signUp, signInWithGoogle } = useAuth()
   const navigate = useNavigate()
 
-  const [churchName, setChurchName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -37,11 +36,13 @@ export function SignUpPage() {
     setIsLoading(true)
 
     try {
-      const result = await signUp(email, password, churchName)
+      const result = await signUp(email, password)
       if (result.needsEmailConfirmation) {
         setEmailSent(true)
       } else {
-        navigate('/dashboard')
+        // No email confirmation needed - redirect based on church status
+        // AuthCallback will handle the redirect
+        navigate('/auth/callback')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed')
@@ -158,16 +159,6 @@ export function SignUpPage() {
 
           {/* Email/Password Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="churchName">{t('church.name')}</Label>
-              <Input
-                id="churchName"
-                type="text"
-                value={churchName}
-                onChange={(e) => setChurchName(e.target.value)}
-                required
-              />
-            </div>
             <div className="space-y-2">
               <Label htmlFor="email">{t('auth.email')}</Label>
               <Input
