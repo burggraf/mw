@@ -32,10 +32,11 @@ function rowToMedia(row: any): Media {
 export async function getMedia(churchId: string, filters?: MediaFilters): Promise<Media[]> {
   const supabase = getSupabase()
 
+  // Get church media and built-in media (church_id IS NULL)
   let query = supabase
     .from('media')
     .select('*')
-    .eq('church_id', churchId)
+    .or(`church_id.eq.${churchId},church_id.is.null`)
 
   if (filters?.type) {
     query = query.eq('type', filters.type)

@@ -32,15 +32,31 @@ export function MediaCard({
   selectable = false,
 }: MediaCardProps) {
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(!media.backgroundColor)
   const [error, setError] = useState(false)
 
+  // Check if this is a solid color background
+  const isSolidColor = !!media.backgroundColor
+
   useEffect(() => {
+    // Skip loading for solid color backgrounds
+    if (isSolidColor) {
+      setIsLoading(false)
+      return
+    }
+
     let isMounted = true
 
     async function loadThumbnail() {
       try {
         const path = media.thumbnailPath || media.storagePath
+        if (!path) {
+          if (isMounted) {
+            setError(true)
+            setIsLoading(false)
+          }
+          return
+        }
         const url = await getSignedMediaUrl(path)
         if (isMounted) {
           setThumbnailUrl(url)
@@ -60,7 +76,7 @@ export function MediaCard({
     return () => {
       isMounted = false
     }
-  }, [media.thumbnailPath, media.storagePath])
+  }, [media.thumbnailPath, media.storagePath, isSolidColor])
 
   const handleClick = () => {
     if (onClick) {
@@ -103,6 +119,11 @@ export function MediaCard({
       <div className="aspect-video relative">
         {isLoading ? (
           <Skeleton className="absolute inset-0" />
+        ) : isSolidColor ? (
+          <div
+            className="absolute inset-0"
+            style={{ backgroundColor: media.backgroundColor! }}
+          />
         ) : error ? (
           <div className="absolute inset-0 flex items-center justify-center bg-muted text-muted-foreground text-sm">
             Failed to load
