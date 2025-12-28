@@ -2,6 +2,7 @@ use crate::webrtc::types::{PeerInfo, PeerType, Priority};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Represents a peer in the WebRTC network
+#[derive(Clone)]
 pub struct Peer {
     pub id: uuid::Uuid,
     pub peer_type: PeerType,
