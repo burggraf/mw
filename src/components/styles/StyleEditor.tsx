@@ -60,7 +60,7 @@ export function StyleEditor({
   // Form state
   const [name, setName] = useState('')
   const [fontFamily, setFontFamily] = useState('Inter')
-  const [fontSize, setFontSize] = useState(3.5)
+  const [fontSize, setFontSize] = useState(1)
   const [fontWeight, setFontWeight] = useState('600')
   const [textColor, setTextColor] = useState('#ffffff')
   const [textBoxLeft, setTextBoxLeft] = useState(10)
@@ -92,7 +92,7 @@ export function StyleEditor({
       // Reset to defaults for new style
       setName(`Style for ${media.name}`)
       setFontFamily('Inter')
-      setFontSize(3.5)
+      setFontSize(1)
       setFontWeight('600')
       setTextColor(media.backgroundColor === '#FFFFFF' ? '#000000' : '#ffffff')
       setTextBoxLeft(10)
@@ -257,9 +257,9 @@ export function StyleEditor({
                   <Slider
                     value={[fontSize]}
                     onValueChange={([v]) => setFontSize(v)}
-                    min={1}
-                    max={8}
-                    step={0.25}
+                    min={0.25}
+                    max={2}
+                    step={0.05}
                   />
                 </div>
               </div>
