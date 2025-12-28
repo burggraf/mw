@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useChurch } from '@/contexts/ChurchContext'
-import { getMedia } from '@/services/media'
+import { getMedia, getSignedMediaUrl } from '@/services/media'
 import type { Media } from '@/types/media'
 import type { DisplayClass } from '@/types/style'
 import {
@@ -32,6 +32,7 @@ export function BackgroundPicker({
   const { t } = useTranslation()
   const { currentChurch } = useChurch()
   const [backgrounds, setBackgrounds] = useState<Media[]>([])
+  const [thumbnailUrls, setThumbnailUrls] = useState<Map<string, string>>(new Map())
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -51,6 +52,25 @@ export function BackgroundPicker({
         m.type === 'image' || m.type === 'video' || m.backgroundColor !== null
       )
       setBackgrounds(validBackgrounds)
+
+      // Load thumbnail URLs for non-solid-color backgrounds
+      const urlMap = new Map<string, string>()
+      await Promise.all(
+        validBackgrounds.map(async (m) => {
+          if (!m.backgroundColor) {
+            try {
+              const path = m.thumbnailPath || m.storagePath
+              if (path) {
+                const url = await getSignedMediaUrl(path)
+                urlMap.set(m.id, url)
+              }
+            } catch (err) {
+              console.error('Failed to load thumbnail for', m.id, err)
+            }
+          }
+        })
+      )
+      setThumbnailUrls(urlMap)
     } catch (error) {
       console.error('Failed to load backgrounds:', error)
     } finally {
@@ -68,9 +88,10 @@ export function BackgroundPicker({
     if (media.backgroundColor) {
       return { backgroundColor: media.backgroundColor }
     }
-    if (media.thumbnailPath) {
+    const thumbnailUrl = thumbnailUrls.get(media.id)
+    if (thumbnailUrl) {
       return {
-        backgroundImage: `url(${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/media/${media.thumbnailPath})`,
+        backgroundImage: `url(${thumbnailUrl})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }

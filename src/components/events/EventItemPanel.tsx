@@ -5,9 +5,11 @@ import type { EventItemWithData, EventItemCustomizations } from '@/types/event'
 import type { DisplayClass } from '@/types/style'
 import { parseSong } from '@/lib/song-parser'
 import { BackgroundPicker } from '@/components/songs/BackgroundPicker'
+import { getSignedMediaUrl } from '@/services/media'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Tooltip,
   TooltipContent,
@@ -127,6 +129,8 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
   const [stageBgId, setStageBgId] = useState<string | null>(null)
   const [lobbyBgId, setLobbyBgId] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState<DisplayClass | null>(null)
+  const [mediaPreviewUrl, setMediaPreviewUrl] = useState<string | null>(null)
+  const [mediaLoading, setMediaLoading] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -157,6 +161,20 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
       setAudienceBgId(item.customizations.audienceBackgroundId || null)
       setStageBgId(item.customizations.stageBackgroundId || null)
       setLobbyBgId(item.customizations.lobbyBackgroundId || null)
+    }
+
+    // Load media preview URL for media items
+    if (item?.media) {
+      setMediaLoading(true)
+      getSignedMediaUrl(item.media.storagePath)
+        .then(setMediaPreviewUrl)
+        .catch(err => {
+          console.error('Failed to load media preview:', err)
+          setMediaPreviewUrl(null)
+        })
+        .finally(() => setMediaLoading(false))
+    } else {
+      setMediaPreviewUrl(null)
     }
   }, [item])
 
@@ -400,11 +418,19 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
 
         {!isSong && item.media && (
           <div className="aspect-video rounded-lg overflow-hidden bg-muted">
-            <img
-              src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/media/${item.media.storagePath}`}
-              alt={item.media.name}
-              className="w-full h-full object-cover"
-            />
+            {mediaLoading ? (
+              <Skeleton className="w-full h-full" />
+            ) : mediaPreviewUrl ? (
+              <img
+                src={mediaPreviewUrl}
+                alt={item.media.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
+                Failed to load
+              </div>
+            )}
           </div>
         )}
       </div>
