@@ -77,3 +77,11 @@ export function findSlideIndex(
   const slides = generateSlides(song, customizations)
   return slides.findIndex(s => s.sectionLabel === sectionId)
 }
+
+/**
+ * Get section labels for navigation UI
+ */
+export function getSectionLabels(song: Song): string[] {
+  const parsed = parseSong(song.content)
+  return parsed.sections.map(s => s.label)
+}
