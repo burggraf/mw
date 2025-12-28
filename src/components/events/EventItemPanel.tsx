@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { EventItemWithData, EventItemCustomizations } from '@/types/event'
-import { parseSongContent } from '@/lib/song-parser'
+import type { DisplayClass } from '@/types/style'
+import { parseSong } from '@/lib/song-parser'
 import { BackgroundPicker } from '@/components/songs/BackgroundPicker'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import { X, GripVertical, RotateCcw, Trash2 } from 'lucide-react'
+import { X, GripVertical, RotateCcw, Trash2, ImageIcon } from 'lucide-react'
 import {
   DndContext,
   closestCenter,
@@ -15,7 +16,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent,
+  type DragEndEvent,
 } from '@dnd-kit/core'
 import {
   arrayMove,
@@ -25,6 +26,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import type { SongSection } from '@/lib/song-parser'
 
 interface EventItemPanelProps {
   item: EventItemWithData | null
@@ -71,9 +73,10 @@ function SortableSection({ section, onToggle }: { section: SectionItem; onToggle
 export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemPanelProps) {
   const { t } = useTranslation()
   const [sections, setSections] = useState<SectionItem[]>([])
-  const [audienceBgId, setAudienceBgId] = useState<string | undefined>()
-  const [stageBgId, setStageBgId] = useState<string | undefined>()
-  const [lobbyBgId, setLobbyBgId] = useState<string | undefined>()
+  const [audienceBgId, setAudienceBgId] = useState<string | null>(null)
+  const [stageBgId, setStageBgId] = useState<string | null>(null)
+  const [lobbyBgId, setLobbyBgId] = useState<string | null>(null)
+  const [pickerOpen, setPickerOpen] = useState<DisplayClass | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -82,13 +85,13 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
 
   useEffect(() => {
     if (item?.song) {
-      const parsed = parseSongContent(item.song.content)
-      const defaultArrangement = item.song.arrangements?.default || parsed.sections.map(s => s.id)
+      const parsed = parseSong(item.song.content)
+      const defaultArrangement = item.song.arrangements?.default || parsed.sections.map((s: SongSection) => s.id)
       const customArrangement = item.customizations.arrangement
 
       // Build sections list
-      const sectionList: SectionItem[] = (customArrangement || defaultArrangement).map(id => {
-        const section = parsed.sections.find(s => s.id === id)
+      const sectionList: SectionItem[] = (customArrangement || defaultArrangement).map((id: string) => {
+        const section = parsed.sections.find((s: SongSection) => s.id === id)
         return {
           id,
           label: section?.label || id,
@@ -98,7 +101,7 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
 
       // Add any sections not in arrangement as unchecked
       for (const section of parsed.sections) {
-        if (!sectionList.find(s => s.id === section.id)) {
+        if (!sectionList.find((s: SectionItem) => s.id === section.id)) {
           sectionList.push({
             id: section.id,
             label: section.label,
@@ -110,9 +113,9 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
       setSections(sectionList)
 
       // Set backgrounds
-      setAudienceBgId(item.customizations.audienceBackgroundId || undefined)
-      setStageBgId(item.customizations.stageBackgroundId || undefined)
-      setLobbyBgId(item.customizations.lobbyBackgroundId || undefined)
+      setAudienceBgId(item.customizations.audienceBackgroundId || null)
+      setStageBgId(item.customizations.stageBackgroundId || null)
+      setLobbyBgId(item.customizations.lobbyBackgroundId || null)
     }
   }, [item])
 
@@ -121,7 +124,7 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
   const isSong = item.itemType === 'song' && item.song
 
   function handleSectionToggle(id: string) {
-    setSections(prev => prev.map(s =>
+    setSections(prev => prev.map((s: SectionItem) =>
       s.id === id ? { ...s, included: !s.included } : s
     ))
   }
@@ -130,8 +133,8 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
     const { active, over } = event
     if (over && active.id !== over.id) {
       setSections(prev => {
-        const oldIndex = prev.findIndex(s => s.id === active.id)
-        const newIndex = prev.findIndex(s => s.id === over.id)
+        const oldIndex = prev.findIndex((s: SectionItem) => s.id === active.id)
+        const newIndex = prev.findIndex((s: SectionItem) => s.id === over.id)
         return arrayMove(prev, oldIndex, newIndex)
       })
     }
@@ -142,7 +145,7 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
 
     if (isSong) {
       // Only save arrangement if different from default
-      const arrangement = sections.filter(s => s.included).map(s => s.id)
+      const arrangement = sections.filter((s: SectionItem) => s.included).map((s: SectionItem) => s.id)
       customizations.arrangement = arrangement
     }
 
@@ -154,14 +157,14 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
   }
 
   function handleReset() {
-    setAudienceBgId(undefined)
-    setStageBgId(undefined)
-    setLobbyBgId(undefined)
+    setAudienceBgId(null)
+    setStageBgId(null)
+    setLobbyBgId(null)
 
     if (item?.song) {
-      const parsed = parseSongContent(item.song.content)
-      const defaultArrangement = item.song.arrangements?.default || parsed.sections.map(s => s.id)
-      setSections(parsed.sections.map(s => ({
+      const parsed = parseSong(item.song.content)
+      const defaultArrangement = item.song.arrangements?.default || parsed.sections.map((s: SongSection) => s.id)
+      setSections(parsed.sections.map((s: SongSection) => ({
         id: s.id,
         label: s.label,
         included: defaultArrangement.includes(s.id),
@@ -169,6 +172,28 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
     }
 
     onUpdate({})
+  }
+
+  function handleBackgroundSelect(bgId: string | null) {
+    if (!pickerOpen) return
+
+    switch (pickerOpen) {
+      case 'audience':
+        setAudienceBgId(bgId)
+        break
+      case 'stage':
+        setStageBgId(bgId)
+        break
+      case 'lobby':
+        setLobbyBgId(bgId)
+        break
+    }
+    setPickerOpen(null)
+  }
+
+  function getBackgroundLabel(bgId: string | null): string {
+    if (!bgId) return t('events.usingDefaults')
+    return t('styles.selectBackground')
   }
 
   return (
@@ -200,9 +225,9 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
                 {t('events.arrangementDescription')}
               </p>
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={sections.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                <SortableContext items={sections.map((s: SectionItem) => s.id)} strategy={verticalListSortingStrategy}>
                   <div className="space-y-1">
-                    {sections.map(section => (
+                    {sections.map((section: SectionItem) => (
                       <SortableSection
                         key={section.id}
                         section={section}
@@ -222,38 +247,41 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
                 <Label className="text-sm font-medium">{t('events.backgrounds')}</Label>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
                   <Label className="text-xs text-muted-foreground">{t('styles.displayClass.audience')}</Label>
-                  <div className="mt-1">
-                    <BackgroundPicker
-                      value={audienceBgId}
-                      onChange={setAudienceBgId}
-                      placeholder={t('events.usingDefaults')}
-                    />
-                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full mt-1 justify-start"
+                    onClick={() => setPickerOpen('audience')}
+                  >
+                    <ImageIcon className="h-4 w-4 mr-2" />
+                    {getBackgroundLabel(audienceBgId)}
+                  </Button>
                 </div>
 
                 <div>
                   <Label className="text-xs text-muted-foreground">{t('styles.displayClass.stage')}</Label>
-                  <div className="mt-1">
-                    <BackgroundPicker
-                      value={stageBgId}
-                      onChange={setStageBgId}
-                      placeholder={t('events.usingDefaults')}
-                    />
-                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full mt-1 justify-start"
+                    onClick={() => setPickerOpen('stage')}
+                  >
+                    <ImageIcon className="h-4 w-4 mr-2" />
+                    {getBackgroundLabel(stageBgId)}
+                  </Button>
                 </div>
 
                 <div>
                   <Label className="text-xs text-muted-foreground">{t('styles.displayClass.lobby')}</Label>
-                  <div className="mt-1">
-                    <BackgroundPicker
-                      value={lobbyBgId}
-                      onChange={setLobbyBgId}
-                      placeholder={t('events.usingDefaults')}
-                    />
-                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full mt-1 justify-start"
+                    onClick={() => setPickerOpen('lobby')}
+                  >
+                    <ImageIcon className="h-4 w-4 mr-2" />
+                    {getBackgroundLabel(lobbyBgId)}
+                  </Button>
                 </div>
               </div>
             </div>
@@ -283,6 +311,21 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
           {t('events.removeItem')}
         </Button>
       </div>
+
+      {/* Background Picker Dialog */}
+      {pickerOpen && (
+        <BackgroundPicker
+          open={!!pickerOpen}
+          onOpenChange={(open) => !open && setPickerOpen(null)}
+          displayClass={pickerOpen}
+          currentBackgroundId={
+            pickerOpen === 'audience' ? audienceBgId :
+            pickerOpen === 'stage' ? stageBgId :
+            lobbyBgId
+          }
+          onSelect={handleBackgroundSelect}
+        />
+      )}
     </div>
   )
 }
