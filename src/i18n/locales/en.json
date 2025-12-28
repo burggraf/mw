@@ -17,7 +17,8 @@
     "search": "Search",
     "import": "Import",
     "saving": "Saving...",
-    "noChurchSelected": "No church selected"
+    "noChurchSelected": "No church selected",
+    "notFound": "Not found"
   },
   "nav": {
     "dashboard": "Dashboard",

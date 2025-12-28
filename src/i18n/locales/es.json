@@ -17,7 +17,8 @@
     "search": "Buscar",
     "import": "Importar",
     "saving": "Guardando...",
-    "noChurchSelected": "No hay iglesia seleccionada"
+    "noChurchSelected": "No hay iglesia seleccionada",
+    "notFound": "No encontrado"
   },
   "nav": {
     "dashboard": "Panel",
