@@ -11,3 +11,4 @@ mod election_test;
 pub use types::*;
 pub use peer::Peer;
 pub use discovery::{DiscoveryService, DiscoveredLeader};
+pub use election::{ElectionService, ElectionResult};
