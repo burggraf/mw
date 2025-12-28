@@ -12,6 +12,8 @@ import { MediaPage } from '@/pages/Media'
 import { EventsPage } from '@/pages/Events'
 import { EventEditorPage } from '@/pages/EventEditor'
 import { EventDetailPage } from '@/pages/EventDetail'
+import { Controller } from '@/pages/live/Controller'
+import { DisplayPage } from '@/pages/live/Display'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AppLayout } from '@/components/AppLayout'
 import WebRTCDebugPage from '@/routes/webrtc-debug'
@@ -107,6 +109,23 @@ const router = createBrowserRouter([
         element: <WebRTCDebugPage />,
       },
     ],
+  },
+  // Live control routes (standalone, no sidebar)
+  {
+    path: '/live/controller',
+    element: (
+      <ProtectedRoute>
+        <Controller />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/live/display',
+    element: (
+      <ProtectedRoute>
+        <DisplayPage eventId="default" displayName="Display" />
+      </ProtectedRoute>
+    ),
   },
 ])
 
