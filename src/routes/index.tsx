@@ -9,6 +9,9 @@ import { SongsPage } from '@/pages/Songs'
 import { SongEditorPage } from '@/pages/SongEditor'
 import { SongDetailPage } from '@/pages/SongDetail'
 import { MediaPage } from '@/pages/Media'
+import { EventsPage } from '@/pages/Events'
+import { EventEditorPage } from '@/pages/EventEditor'
+import { EventDetailPage } from '@/pages/EventDetail'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AppLayout } from '@/components/AppLayout'
 
@@ -72,7 +75,19 @@ const router = createBrowserRouter([
       },
       {
         path: '/events',
-        element: <div className="p-8"><h1 className="text-2xl font-bold">Events</h1><p className="text-muted-foreground mt-2">Coming soon</p></div>,
+        element: <EventsPage />,
+      },
+      {
+        path: '/events/new',
+        element: <EventEditorPage />,
+      },
+      {
+        path: '/events/:id',
+        element: <EventDetailPage />,
+      },
+      {
+        path: '/events/:id/edit',
+        element: <EventEditorPage />,
       },
       {
         path: '/displays',

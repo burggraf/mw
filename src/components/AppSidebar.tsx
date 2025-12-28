@@ -54,7 +54,7 @@ const navItems = [
   { key: 'dashboard', icon: LayoutDashboard, href: '/dashboard' },
   { key: 'songs', icon: Music, href: '/songs' },
   { key: 'media', icon: ImageIcon, href: '/media' },
-  { key: 'events', icon: Calendar, href: '/events', disabled: true },
+  { key: 'events', icon: Calendar, href: '/events' },
   { key: 'displays', icon: Monitor, href: '/displays', disabled: true },
   { key: 'team', icon: Users, href: '/team', disabled: true },
   { key: 'settings', icon: Settings, href: '/settings', disabled: true },
