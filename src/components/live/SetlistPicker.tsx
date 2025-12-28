@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { Song } from '@/types/song'
 import { cn } from '@/lib/utils'
 
@@ -8,10 +9,12 @@ interface SetlistPickerProps {
 }
 
 export function SetlistPicker({ songs, currentSongId, onSelectSong }: SetlistPickerProps) {
+  const { t } = useTranslation()
+
   if (songs.length === 0) {
     return (
       <div className="text-center text-muted-foreground py-8">
-        No songs in setlist
+        {t('live.noSongsInSetlist')}
       </div>
     )
   }

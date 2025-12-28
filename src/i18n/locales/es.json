@@ -267,6 +267,13 @@
     "usingDefaults": "Usando valores predeterminados"
   },
   "live": {
+    "noSlideSelected": "No hay diapositiva seleccionada",
+    "noSongsInSetlist": "No hay canciones en la lista",
+    "noSongSelected": "No hay canción seleccionada",
+    "noSectionsAvailable": "No hay secciones disponibles",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "noSlides": "No hay diapositivas",
     "display": {
       "waitingForController": "Esperando controlador...",
       "connected": "Conectado ({{count}})",

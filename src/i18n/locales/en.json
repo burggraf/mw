@@ -267,6 +267,13 @@
     "usingDefaults": "Using song defaults"
   },
   "live": {
+    "noSlideSelected": "No slide selected",
+    "noSongsInSetlist": "No songs in setlist",
+    "noSongSelected": "No song selected",
+    "noSectionsAvailable": "No sections available",
+    "previous": "Previous",
+    "next": "Next",
+    "noSlides": "No slides",
     "display": {
       "waitingForController": "Waiting for controller...",
       "connected": "Connected ({{count}})",

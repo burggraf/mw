@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { Slide } from '@/types/live'
 
 interface SlidePreviewProps {
@@ -6,6 +7,7 @@ interface SlidePreviewProps {
 }
 
 export function SlidePreview({ slide, backgroundUrl }: SlidePreviewProps) {
+  const { t } = useTranslation()
   return (
     <div className="aspect-video w-full rounded-lg overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800 relative">
       {/* Background image with gradient fallback */}
@@ -34,7 +36,7 @@ export function SlidePreview({ slide, backgroundUrl }: SlidePreviewProps) {
               {slide.text}
             </div>
           ) : (
-            <div className="text-white/50 text-xl">No slide selected</div>
+            <div className="text-white/50 text-xl">{t('live.noSlideSelected')}</div>
           )}
         </div>
       </div>

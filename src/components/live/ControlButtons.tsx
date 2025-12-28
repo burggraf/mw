@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
@@ -14,6 +15,7 @@ export function ControlButtons({
   onPrevious,
   onNext
 }: ControlButtonsProps) {
+  const { t } = useTranslation()
   const canGoPrevious = currentIndex > 0
   const canGoNext = currentIndex < totalSlides - 1
 
@@ -28,7 +30,7 @@ export function ControlButtons({
         className="flex-1"
       >
         <ChevronLeft className="w-5 h-5 mr-2" />
-        Previous
+        {t('live.previous')}
         <span className="ml-auto text-xs text-muted-foreground hidden sm:inline">
           ←
         </span>
@@ -40,7 +42,7 @@ export function ControlButtons({
           {totalSlides > 0 ? currentIndex + 1 : 0} / {totalSlides}
         </div>
         {totalSlides === 0 && (
-          <div className="text-xs text-muted-foreground">No slides</div>
+          <div className="text-xs text-muted-foreground">{t('live.noSlides')}</div>
         )}
       </div>
 
@@ -55,7 +57,7 @@ export function ControlButtons({
         <span className="mr-auto text-xs text-muted-foreground hidden sm:inline">
           →
         </span>
-        Next
+        {t('live.next')}
         <ChevronRight className="w-5 h-5 ml-2" />
       </Button>
     </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { Song } from '@/types/song'
 import { getSectionLabels } from '@/lib/slide-generator'
 import { cn } from '@/lib/utils'
@@ -9,10 +10,12 @@ interface SlideNavigatorProps {
 }
 
 export function SlideNavigator({ song, currentIndex, onSelectSlide }: SlideNavigatorProps) {
+  const { t } = useTranslation()
+
   if (!song) {
     return (
       <div className="text-center text-muted-foreground py-8">
-        No song selected
+        {t('live.noSongSelected')}
       </div>
     )
   }
@@ -22,7 +25,7 @@ export function SlideNavigator({ song, currentIndex, onSelectSlide }: SlideNavig
   if (sections.length === 0) {
     return (
       <div className="text-center text-muted-foreground py-8">
-        No sections available
+        {t('live.noSectionsAvailable')}
       </div>
     )
   }
