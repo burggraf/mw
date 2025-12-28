@@ -1,14 +1,20 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { v4 as uuidv4 } from 'uuid'
 import type { EventItemWithData, EventItemCustomizations } from '@/types/event'
 import type { DisplayClass } from '@/types/style'
 import { parseSong } from '@/lib/song-parser'
 import { BackgroundPicker } from '@/components/songs/BackgroundPicker'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import { X, GripVertical, RotateCcw, Trash2, ImageIcon } from 'lucide-react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { X, GripVertical, RotateCcw, Trash2, ImageIcon, Copy } from 'lucide-react'
 import {
   DndContext,
   closestCenter,
@@ -35,14 +41,23 @@ interface EventItemPanelProps {
   onRemove: () => void
 }
 
-interface SectionItem {
-  id: string
+// Each item in the arrangement list - instanceId is unique, sectionId references the original section
+interface ArrangementItem {
+  instanceId: string  // Unique ID for this instance (for drag-and-drop)
+  sectionId: string   // Original section ID (can repeat)
   label: string
-  included: boolean
 }
 
-function SortableSection({ section, onToggle }: { section: SectionItem; onToggle: () => void }) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: section.id })
+interface SortableSectionProps {
+  item: ArrangementItem
+  canDelete: boolean
+  onDuplicate: () => void
+  onDelete: () => void
+}
+
+function SortableSection({ item, canDelete, onDuplicate, onDelete }: SortableSectionProps) {
+  const { t } = useTranslation()
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: item.instanceId })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -53,26 +68,61 @@ function SortableSection({ section, onToggle }: { section: SectionItem; onToggle
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-2 p-2 rounded-md bg-muted/50"
+      className="flex items-center gap-2 p-2 rounded-md bg-muted/50 group"
     >
       <button className="touch-none cursor-grab" {...attributes} {...listeners}>
         <GripVertical className="h-4 w-4 text-muted-foreground" />
       </button>
-      <Checkbox
-        id={section.id}
-        checked={section.included}
-        onCheckedChange={onToggle}
-      />
-      <Label htmlFor={section.id} className="flex-1 cursor-pointer">
-        {section.label}
-      </Label>
+
+      <span className="flex-1 text-sm">{item.label}</span>
+
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={onDuplicate}
+              >
+                <Copy className="h-3 w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>{t('events.duplicateSection', 'Duplicate')}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {canDelete && (
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-destructive hover:text-destructive"
+                  onClick={onDelete}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>{t('events.deleteSection', 'Remove')}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
     </div>
   )
 }
 
 export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemPanelProps) {
   const { t } = useTranslation()
-  const [sections, setSections] = useState<SectionItem[]>([])
+  const [arrangement, setArrangement] = useState<ArrangementItem[]>([])
+  const [availableSections, setAvailableSections] = useState<SongSection[]>([])
   const [audienceBgId, setAudienceBgId] = useState<string | null>(null)
   const [stageBgId, setStageBgId] = useState<string | null>(null)
   const [lobbyBgId, setLobbyBgId] = useState<string | null>(null)
@@ -86,31 +136,22 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
   useEffect(() => {
     if (item?.song) {
       const parsed = parseSong(item.song.content)
-      const defaultArrangement = item.song.arrangements?.default || parsed.sections.map((s: SongSection) => s.id)
-      const customArrangement = item.customizations.arrangement
+      setAvailableSections(parsed.sections)
 
-      // Build sections list
-      const sectionList: SectionItem[] = (customArrangement || defaultArrangement).map((id: string) => {
-        const section = parsed.sections.find((s: SongSection) => s.id === id)
+      const defaultArrangement = item.song.arrangements?.default || parsed.sections.map((s: SongSection) => s.id)
+      const customArrangement = item.customizations.arrangement || defaultArrangement
+
+      // Build arrangement list with unique instance IDs
+      const arrangementList: ArrangementItem[] = customArrangement.map((sectionId: string) => {
+        const section = parsed.sections.find((s: SongSection) => s.id === sectionId)
         return {
-          id,
-          label: section?.label || id,
-          included: true,
+          instanceId: uuidv4(),
+          sectionId,
+          label: section?.label || sectionId,
         }
       })
 
-      // Add any sections not in arrangement as unchecked
-      for (const section of parsed.sections) {
-        if (!sectionList.find((s: SectionItem) => s.id === section.id)) {
-          sectionList.push({
-            id: section.id,
-            label: section.label,
-            included: false,
-          })
-        }
-      }
-
-      setSections(sectionList)
+      setArrangement(arrangementList)
 
       // Set backgrounds
       setAudienceBgId(item.customizations.audienceBackgroundId || null)
@@ -123,30 +164,60 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
 
   const isSong = item.itemType === 'song' && item.song
 
-  function handleSectionToggle(id: string) {
-    setSections(prev => prev.map((s: SectionItem) =>
-      s.id === id ? { ...s, included: !s.included } : s
-    ))
-  }
-
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (over && active.id !== over.id) {
-      setSections(prev => {
-        const oldIndex = prev.findIndex((s: SectionItem) => s.id === active.id)
-        const newIndex = prev.findIndex((s: SectionItem) => s.id === over.id)
+      setArrangement(prev => {
+        const oldIndex = prev.findIndex((item: ArrangementItem) => item.instanceId === active.id)
+        const newIndex = prev.findIndex((item: ArrangementItem) => item.instanceId === over.id)
         return arrayMove(prev, oldIndex, newIndex)
       })
     }
+  }
+
+  function handleDuplicate(instanceId: string) {
+    setArrangement(prev => {
+      const index = prev.findIndex((item: ArrangementItem) => item.instanceId === instanceId)
+      if (index === -1) return prev
+
+      const itemToDuplicate = prev[index]
+      const newItem: ArrangementItem = {
+        instanceId: uuidv4(),
+        sectionId: itemToDuplicate.sectionId,
+        label: itemToDuplicate.label,
+      }
+
+      // Insert after the current item
+      const newArr = [...prev]
+      newArr.splice(index + 1, 0, newItem)
+      return newArr
+    })
+  }
+
+  function handleDelete(instanceId: string) {
+    setArrangement(prev => prev.filter((item: ArrangementItem) => item.instanceId !== instanceId))
+  }
+
+  function handleAddSection(sectionId: string) {
+    const section = availableSections.find((s: SongSection) => s.id === sectionId)
+    if (!section) return
+
+    setArrangement(prev => [
+      ...prev,
+      {
+        instanceId: uuidv4(),
+        sectionId,
+        label: section.label,
+      }
+    ])
   }
 
   function handleSave() {
     const customizations: EventItemCustomizations = {}
 
     if (isSong) {
-      // Only save arrangement if different from default
-      const arrangement = sections.filter((s: SectionItem) => s.included).map((s: SectionItem) => s.id)
-      customizations.arrangement = arrangement
+      // Save arrangement as array of section IDs (can have duplicates)
+      customizations.arrangement = arrangement.map((item: ArrangementItem) => item.sectionId)
     }
 
     if (audienceBgId) customizations.audienceBackgroundId = audienceBgId
@@ -164,11 +235,15 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
     if (item?.song) {
       const parsed = parseSong(item.song.content)
       const defaultArrangement = item.song.arrangements?.default || parsed.sections.map((s: SongSection) => s.id)
-      setSections(parsed.sections.map((s: SongSection) => ({
-        id: s.id,
-        label: s.label,
-        included: defaultArrangement.includes(s.id),
-      })))
+
+      setArrangement(defaultArrangement.map((sectionId: string) => {
+        const section = parsed.sections.find((s: SongSection) => s.id === sectionId)
+        return {
+          instanceId: uuidv4(),
+          sectionId,
+          label: section?.label || sectionId,
+        }
+      }))
     }
 
     onUpdate({})
@@ -196,6 +271,15 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
     return t('styles.selectBackground')
   }
 
+  // Check if a section can be deleted (allow deletion as long as there's more than one item)
+  function canDeleteSection(): boolean {
+    return arrangement.length > 1
+  }
+
+  // Find sections not currently in arrangement (for "Add Section" dropdown)
+  const sectionsInArrangement = new Set(arrangement.map((item: ArrangementItem) => item.sectionId))
+  const unusedSections = availableSections.filter((s: SongSection) => !sectionsInArrangement.has(s.id))
+
   return (
     <div className="w-80 border-l bg-card h-full flex flex-col">
       {/* Header */}
@@ -222,21 +306,47 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground mb-3">
-                {t('events.arrangementDescription')}
+                {t('events.arrangementDragDuplicate', 'Drag to reorder. Use icons to duplicate or remove sections.')}
               </p>
+
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={sections.map((s: SectionItem) => s.id)} strategy={verticalListSortingStrategy}>
+                <SortableContext
+                  items={arrangement.map((item: ArrangementItem) => item.instanceId)}
+                  strategy={verticalListSortingStrategy}
+                >
                   <div className="space-y-1">
-                    {sections.map((section: SectionItem) => (
+                    {arrangement.map((item: ArrangementItem) => (
                       <SortableSection
-                        key={section.id}
-                        section={section}
-                        onToggle={() => handleSectionToggle(section.id)}
+                        key={item.instanceId}
+                        item={item}
+                        canDelete={canDeleteSection()}
+                        onDuplicate={() => handleDuplicate(item.instanceId)}
+                        onDelete={() => handleDelete(item.instanceId)}
                       />
                     ))}
                   </div>
                 </SortableContext>
               </DndContext>
+
+              {/* Add section buttons for unused sections */}
+              {unusedSections.length > 0 && (
+                <div className="mt-3 pt-3 border-t">
+                  <p className="text-xs text-muted-foreground mb-2">{t('events.addSection', 'Add section:')}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {unusedSections.map((section: SongSection) => (
+                      <Button
+                        key={section.id}
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7"
+                        onClick={() => handleAddSection(section.id)}
+                      >
+                        + {section.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <Separator />

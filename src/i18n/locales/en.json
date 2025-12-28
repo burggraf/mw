@@ -257,7 +257,11 @@
     "customization": "Customization",
     "arrangement": "Arrangement",
     "arrangementDescription": "Drag sections to reorder, uncheck to exclude",
+    "arrangementDragDuplicate": "Drag to reorder. Use icons to duplicate or remove sections.",
     "resetArrangement": "Reset to Default",
+    "duplicateSection": "Duplicate",
+    "deleteSection": "Remove",
+    "addSection": "Add section:",
     "backgrounds": "Backgrounds",
     "useDefaultBackgrounds": "Use Song Defaults",
     "usingDefaults": "Using song defaults"

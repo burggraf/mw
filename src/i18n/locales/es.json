@@ -257,7 +257,11 @@
     "customization": "Personalización",
     "arrangement": "Arreglo",
     "arrangementDescription": "Arrastra las secciones para reordenar, desmarca para excluir",
+    "arrangementDragDuplicate": "Arrastra para reordenar. Usa los iconos para duplicar o eliminar secciones.",
     "resetArrangement": "Restablecer",
+    "duplicateSection": "Duplicar",
+    "deleteSection": "Eliminar",
+    "addSection": "Agregar sección:",
     "backgrounds": "Fondos",
     "useDefaultBackgrounds": "Usar Fondos de la Canción",
     "usingDefaults": "Usando valores predeterminados"
