@@ -265,5 +265,13 @@
     "backgrounds": "Fondos",
     "useDefaultBackgrounds": "Usar Fondos de la Canción",
     "usingDefaults": "Usando valores predeterminados"
+  },
+  "live": {
+    "display": {
+      "waitingForController": "Esperando controlador...",
+      "connected": "Conectado ({{count}})",
+      "connecting": "Conectando...",
+      "disconnected": "Desconectado"
+    }
   }
 }
