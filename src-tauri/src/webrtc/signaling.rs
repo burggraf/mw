@@ -18,6 +18,9 @@ struct ConnectedClient {
 /// Callback type for handling incoming WebRTC signaling messages locally
 pub type OnSignalingMessage = Arc<Mutex<Option<Box<dyn Fn(SignalingMessage) + Send + Sync>>>>;
 
+/// Callback type for handling incoming data messages
+pub type OnDataMessage = Arc<Mutex<Option<Box<dyn Fn(Uuid, String) + Send + Sync>>>>;
+
 /// WebSocket signaling server
 pub struct SignalingServer {
     clients: Arc<RwLock<HashMap<Uuid, ConnectedClient>>>,
@@ -28,6 +31,7 @@ pub struct SignalingServer {
     on_offer: OnSignalingMessage,
     on_answer: OnSignalingMessage,
     on_ice_candidate: OnSignalingMessage,
+    on_data: OnDataMessage,
 }
 
 impl SignalingServer {
@@ -41,6 +45,7 @@ impl SignalingServer {
             on_offer: Arc::new(Mutex::new(None)),
             on_answer: Arc::new(Mutex::new(None)),
             on_ice_candidate: Arc::new(Mutex::new(None)),
+            on_data: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -73,6 +78,14 @@ impl SignalingServer {
         *self.on_ice_candidate.lock().await = Some(Box::new(callback));
     }
 
+    /// Set callback for handling incoming data messages
+    pub async fn on_data<F>(&self, callback: F)
+    where
+        F: Fn(Uuid, String) + Send + Sync + 'static,
+    {
+        *self.on_data.lock().await = Some(Box::new(callback));
+    }
+
     /// Set the local peer (Tauri app itself) that runs this server
     pub async fn set_local_peer(&self, peer_info: PeerInfo) {
         let leader_id = Uuid::parse_str(&peer_info.id).unwrap();
@@ -101,6 +114,7 @@ impl SignalingServer {
         let on_offer = self.on_offer.clone();
         let on_answer = self.on_answer.clone();
         let on_ice_candidate = self.on_ice_candidate.clone();
+        let on_data = self.on_data.clone();
 
         tokio::spawn(async move {
             while *running.lock().await {
@@ -112,6 +126,7 @@ impl SignalingServer {
                         let on_offer = on_offer.clone();
                         let on_answer = on_answer.clone();
                         let on_ice_candidate = on_ice_candidate.clone();
+                        let on_data = on_data.clone();
                         tokio::spawn(async move {
                             Self::handle_connection(
                                 stream,
@@ -122,6 +137,7 @@ impl SignalingServer {
                                 on_offer,
                                 on_answer,
                                 on_ice_candidate,
+                                on_data,
                             )
                             .await;
                         });
@@ -157,7 +173,13 @@ impl SignalingServer {
         let clients = self.clients.read().await;
 
         if let Some(client) = clients.get(&peer_id) {
+            tracing::info!("Signaling: Sending message to peer {} via WebSocket", peer_id);
             let _ = client.sender.send(Message::Text(msg_json));
+        } else {
+            tracing::warn!("Signaling: Peer {} not found in clients map (has {} clients)", peer_id, clients.len());
+            for (id, client) in clients.iter() {
+                tracing::debug!("  - Client {}: {}", id, client.peer_info.display_name);
+            }
         }
     }
 
@@ -213,6 +235,7 @@ impl SignalingServer {
         on_offer: OnSignalingMessage,
         on_answer: OnSignalingMessage,
         on_ice_candidate: OnSignalingMessage,
+        on_data: OnDataMessage,
     ) {
         let ws_stream = match tokio_tungstenite::accept_async(stream).await {
             Ok(s) => s,
@@ -316,9 +339,17 @@ impl SignalingServer {
                             SignalingMessage::Heartbeat { .. } => {
                                 // Heartbeat received, connection is alive
                             }
-                            SignalingMessage::Data { to_peer_id, .. } => {
-                                // Relay data message to target peer
-                                if let Some(target) = clients.read().await.get(&to_peer_id) {
+                            SignalingMessage::Data { from_peer_id, to_peer_id, message } => {
+                                // Check if this is for the local peer (Tauri app)
+                                let local_id = *local_peer_id.lock().await;
+                                if Some(to_peer_id) == local_id {
+                                    // This is for us - invoke the callback
+                                    tracing::info!("Signaling: Received data for local peer from {}: {}", from_peer_id, message);
+                                    if let Some(ref cb) = *on_data.lock().await {
+                                        cb(from_peer_id, message);
+                                    }
+                                } else if let Some(target) = clients.read().await.get(&to_peer_id) {
+                                    // Relay to target WebSocket client
                                     let _ = target.sender.send(Message::Text(text.clone()));
                                 }
                             }

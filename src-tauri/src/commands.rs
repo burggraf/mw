@@ -122,7 +122,12 @@ async fn connect_to_signaling_server_simple(
                             }
                             SignalingMessage::Data { from_peer_id, message, .. } => {
                                 // Emit data message event (for signaling relay fallback)
-                                let _ = app_handle.emit("webrtc:data_message", (from_peer_id.to_string(), message));
+                                tracing::info!("Signaling: Received data via WebSocket from {}: {}", from_peer_id, message);
+                                let payload = serde_json::json!({
+                                    "from_peer_id": from_peer_id.to_string(),
+                                    "message": message,
+                                });
+                                let _ = app_handle.emit("webrtc:data_received", payload);
                             }
                             _ => {
                                 // Ignore WebRTC-specific messages (Offer, Answer, ICE)
@@ -286,6 +291,21 @@ pub async fn start_peer(
 
             // Try to start signaling server, if port is taken, connect as follower instead
             let signaling_server = SignalingServer::new();
+
+            // Set up data message callback to emit events to frontend
+            let app_handle_for_callback = app_handle.clone();
+            signaling_server.on_data(move |from_peer_id: uuid::Uuid, message: String| {
+                let app_handle = app_handle_for_callback.clone();
+                tauri::async_runtime::spawn(async move {
+                    let payload = serde_json::json!({
+                        "from_peer_id": from_peer_id.to_string(),
+                        "message": message,
+                    });
+                    tracing::info!("Signaling: Emitting webrtc:data_received event: {}", payload);
+                    let _ = app_handle.emit("webrtc:data_received", payload);
+                });
+            }).await;
+
             let server_result = signaling_server.start(3010).await;
 
             // Convert error to String to avoid non-Send type across await
@@ -451,6 +471,21 @@ pub async fn start_peer(
 
             // Try to start signaling server, if port is taken, connect as follower instead
             let signaling_server = SignalingServer::new();
+
+            // Set up data message callback to emit events to frontend
+            let app_handle_for_callback = app_handle.clone();
+            signaling_server.on_data(move |from_peer_id: uuid::Uuid, message: String| {
+                let app_handle = app_handle_for_callback.clone();
+                tauri::async_runtime::spawn(async move {
+                    let payload = serde_json::json!({
+                        "from_peer_id": from_peer_id.to_string(),
+                        "message": message,
+                    });
+                    tracing::info!("Signaling: Emitting webrtc:data_received event: {}", payload);
+                    let _ = app_handle.emit("webrtc:data_received", payload);
+                });
+            }).await;
+
             let server_result = signaling_server.start(3010).await;
 
             // Convert error to String to avoid non-Send type across await
