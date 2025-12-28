@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useChurch } from '@/contexts/ChurchContext'
 import { useWebRTC } from '@/hooks/useWebRTC'
@@ -7,7 +7,7 @@ import { getSong } from '@/services/songs'
 import { generateSlides } from '@/lib/slide-generator'
 import type { Slide } from '@/types/live'
 import type { Song } from '@/types/song'
-import type { EventItemWithData } from '@/types/event'
+import type { Event, EventItemWithData } from '@/types/event'
 import { SlidePreview, SetlistPicker, SlideNavigator, ControlButtons } from '@/components/live'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -33,7 +33,7 @@ export function Controller() {
     sendMessage,
   } = useWebRTC()
 
-  const [events, setEvents] = useState<any[]>([])
+  const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [startingPeer, setStartingPeer] = useState(false)
   const [state, setState] = useState<ControllerState>({
@@ -101,7 +101,7 @@ export function Controller() {
   }, [currentChurch?.id])
 
   // Select event and load setlist
-  const selectEvent = async (eventId: string) => {
+  const selectEvent = useCallback(async (eventId: string) => {
     try {
       const items = await getEventItems(eventId)
       setState(prev => ({
@@ -116,7 +116,7 @@ export function Controller() {
     } catch (error) {
       console.error('Failed to load event items:', error)
     }
-  }
+  }, [])
 
   // Select song from setlist and generate slides
   const selectSong = async (itemId: string) => {
@@ -175,19 +175,19 @@ export function Controller() {
   }
 
   // Navigate to next/previous slide
-  const goToNext = async () => {
+  const goToNext = useCallback(async () => {
     const nextIndex = state.currentSlideIndex + 1
     if (nextIndex < state.slides.length) {
       await goToSlide(nextIndex)
     }
-  }
+  }, [state.currentSlideIndex, state.slides.length])
 
-  const goToPrevious = async () => {
+  const goToPrevious = useCallback(async () => {
     const prevIndex = state.currentSlideIndex - 1
     if (prevIndex >= 0) {
       await goToSlide(prevIndex)
     }
-  }
+  }, [state.currentSlideIndex])
 
   // Keyboard shortcuts
   useEffect(() => {
