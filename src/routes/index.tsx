@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom'
 import { HomePage } from '@/pages/Home'
 import { LoginPage } from '@/pages/Login'
 import { SignUpPage } from '@/pages/SignUp'
@@ -16,108 +16,124 @@ import { Controller } from '@/pages/live/Controller'
 import { DisplayPage } from '@/pages/live/Display'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AppLayout } from '@/components/AppLayout'
+import { AutoStartRedirect } from '@/components/AutoStartRedirect'
 import WebRTCDebugPage from '@/routes/webrtc-debug'
 
+// Layout wrapper that includes auto-redirect
+function RootLayout() {
+  return (
+    <>
+      <AutoStartRedirect />
+      <Outlet />
+    </>
+  )
+}
+
 const router = createBrowserRouter([
-  // Public routes (no sidebar)
   {
-    path: '/',
-    element: <HomePage />,
-  },
-  {
-    path: '/login',
-    element: <LoginPage />,
-  },
-  {
-    path: '/signup',
-    element: <SignUpPage />,
-  },
-  {
-    path: '/auth/callback',
-    element: <AuthCallbackPage />,
-  },
-  {
-    path: '/setup-church',
-    element: (
-      <ProtectedRoute>
-        <SetupChurchPage />
-      </ProtectedRoute>
-    ),
-  },
-  // Protected routes with sidebar layout
-  {
-    element: (
-      <ProtectedRoute>
-        <AppLayout />
-      </ProtectedRoute>
-    ),
+    element: <RootLayout />,
     children: [
+      // Public routes (no sidebar)
       {
-        path: '/dashboard',
-        element: <DashboardPage />,
+        path: '/',
+        element: <HomePage />,
       },
       {
-        path: '/songs',
-        element: <SongsPage />,
+        path: '/login',
+        element: <LoginPage />,
       },
       {
-        path: '/songs/new',
-        element: <SongEditorPage />,
+        path: '/signup',
+        element: <SignUpPage />,
       },
       {
-        path: '/songs/:id',
-        element: <SongDetailPage />,
+        path: '/auth/callback',
+        element: <AuthCallbackPage />,
       },
       {
-        path: '/songs/:id/edit',
-        element: <SongEditorPage />,
+        path: '/setup-church',
+        element: (
+          <ProtectedRoute>
+            <SetupChurchPage />
+          </ProtectedRoute>
+        ),
+      },
+      // Protected routes with sidebar layout
+      {
+        element: (
+          <ProtectedRoute>
+            <AppLayout />
+          </ProtectedRoute>
+        ),
+        children: [
+          {
+            path: '/dashboard',
+            element: <DashboardPage />,
+          },
+          {
+            path: '/songs',
+            element: <SongsPage />,
+          },
+          {
+            path: '/songs/new',
+            element: <SongEditorPage />,
+          },
+          {
+            path: '/songs/:id',
+            element: <SongDetailPage />,
+          },
+          {
+            path: '/songs/:id/edit',
+            element: <SongEditorPage />,
+          },
+          {
+            path: '/media',
+            element: <MediaPage />,
+          },
+          {
+            path: '/events',
+            element: <EventsPage />,
+          },
+          {
+            path: '/events/new',
+            element: <EventEditorPage />,
+          },
+          {
+            path: '/events/:id',
+            element: <EventDetailPage />,
+          },
+          {
+            path: '/events/:id/edit',
+            element: <EventEditorPage />,
+          },
+          {
+            path: '/displays',
+            element: <div className="p-8"><h1 className="text-2xl font-bold">Displays</h1><p className="text-muted-foreground mt-2">Coming soon</p></div>,
+          },
+          {
+            path: '/team',
+            element: <div className="p-8"><h1 className="text-2xl font-bold">Team</h1><p className="text-muted-foreground mt-2">Coming soon</p></div>,
+          },
+          {
+            path: '/settings',
+            element: <div className="p-8"><h1 className="text-2xl font-bold">Settings</h1><p className="text-muted-foreground mt-2">Coming soon</p></div>,
+          },
+          {
+            path: '/debug/webrtc',
+            element: <WebRTCDebugPage />,
+          },
+        ],
+      },
+      // Live control routes (standalone, no sidebar, no auth required)
+      {
+        path: '/live/controller',
+        element: <Controller />,
       },
       {
-        path: '/media',
-        element: <MediaPage />,
-      },
-      {
-        path: '/events',
-        element: <EventsPage />,
-      },
-      {
-        path: '/events/new',
-        element: <EventEditorPage />,
-      },
-      {
-        path: '/events/:id',
-        element: <EventDetailPage />,
-      },
-      {
-        path: '/events/:id/edit',
-        element: <EventEditorPage />,
-      },
-      {
-        path: '/displays',
-        element: <div className="p-8"><h1 className="text-2xl font-bold">Displays</h1><p className="text-muted-foreground mt-2">Coming soon</p></div>,
-      },
-      {
-        path: '/team',
-        element: <div className="p-8"><h1 className="text-2xl font-bold">Team</h1><p className="text-muted-foreground mt-2">Coming soon</p></div>,
-      },
-      {
-        path: '/settings',
-        element: <div className="p-8"><h1 className="text-2xl font-bold">Settings</h1><p className="text-muted-foreground mt-2">Coming soon</p></div>,
-      },
-      {
-        path: '/debug/webrtc',
-        element: <WebRTCDebugPage />,
+        path: '/live/display',
+        element: <DisplayPage eventId="default" displayName="Display" />,
       },
     ],
-  },
-  // Live control routes (standalone, no sidebar, no auth required)
-  {
-    path: '/live/controller',
-    element: <Controller />,
-  },
-  {
-    path: '/live/display',
-    element: <DisplayPage eventId="default" displayName="Display" />,
   },
 ])
 
