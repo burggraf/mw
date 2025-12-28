@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useChurch } from '@/contexts/ChurchContext'
 import { createStyle, updateStyle, getStyleById } from '@/services/styles'
+import { getSignedMediaUrl } from '@/services/media'
 import type { StyleInput } from '@/types/style'
 import type { Media } from '@/types/media'
 import {
@@ -54,6 +55,7 @@ export function StyleEditor({
 
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null)
 
   // Form state
   const [name, setName] = useState('')
@@ -71,6 +73,17 @@ export function StyleEditor({
   const [backgroundOverlay, setBackgroundOverlay] = useState(0.3)
   const [showSectionLabel, setShowSectionLabel] = useState(true)
   const [showCopyright, setShowCopyright] = useState(true)
+
+  // Load background image URL when dialog opens
+  useEffect(() => {
+    if (open && media.storagePath && !media.backgroundColor) {
+      getSignedMediaUrl(media.storagePath)
+        .then(setBackgroundUrl)
+        .catch((err) => console.error('Failed to load background URL:', err))
+    } else {
+      setBackgroundUrl(null)
+    }
+  }, [open, media.storagePath, media.backgroundColor])
 
   useEffect(() => {
     if (open && styleId) {
@@ -171,10 +184,6 @@ export function StyleEditor({
     }
   }
 
-  const backgroundUrl = media.storagePath
-    ? `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/media/${media.storagePath}`
-    : undefined
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -202,7 +211,7 @@ export function StyleEditor({
                   setTextBoxWidth(box.width)
                   setTextBoxHeight(box.height)
                 }}
-                backgroundUrl={backgroundUrl}
+                backgroundUrl={backgroundUrl || undefined}
                 backgroundColor={media.backgroundColor || undefined}
               />
             </div>
