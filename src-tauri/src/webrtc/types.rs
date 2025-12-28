@@ -75,8 +75,27 @@ pub enum SignalingMessage {
 pub type DataChannelMessage = String;
 
 /// Priority for leader election
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Priority {
     pub device_type_score: u8,  // Controller=2, Display=1
     pub startup_time_ms: u64,   // Lower is better (earlier startup)
+}
+
+impl PartialOrd for Priority {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Priority {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // First compare by device_type_score (higher is better)
+        match self.device_type_score.cmp(&other.device_type_score) {
+            std::cmp::Ordering::Equal => {
+                // If equal, compare by startup_time_ms (lower is better, so reverse)
+                other.startup_time_ms.cmp(&self.startup_time_ms)
+            }
+            other => other,
+        }
+    }
 }
