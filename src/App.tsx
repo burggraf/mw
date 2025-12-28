@@ -1,7 +1,13 @@
 import { AppRoutes } from '@/routes'
+import { AutoStartRedirect } from '@/components/AutoStartRedirect'
 
 function App() {
-  return <AppRoutes />
+  return (
+    <>
+      <AutoStartRedirect />
+      <AppRoutes />
+    </>
+  )
 }
 
 export default App

@@ -173,11 +173,15 @@ export function useWebRTC(): UseWebRTCReturn {
   // Bridge Tauri's webrtc:data_received event to window event for pages to listen
   useEffect(() => {
     if (!isTauri) return;
+    console.log('[useWebRTC] Setting up webrtc:data_received bridge');
     const unbind = listenWrapper<{from_peer_id: string, message: string}>('webrtc:data_received', (event) => {
+      console.log('[useWebRTC] Received Tauri event, bridging to window:', event.payload);
       // Dispatch as window CustomEvent so pages can listen via addEventListener
-      window.dispatchEvent(new CustomEvent('webrtc:data_received', {
+      const customEvent = new CustomEvent('webrtc:data_received', {
         detail: event.payload
-      }));
+      });
+      window.dispatchEvent(customEvent);
+      console.log('[useWebRTC] Dispatched window event');
     });
     return () => { unbind.then?.((fn: (() => void) | undefined) => fn?.()); };
   }, []);

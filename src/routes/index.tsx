@@ -110,22 +110,14 @@ const router = createBrowserRouter([
       },
     ],
   },
-  // Live control routes (standalone, no sidebar)
+  // Live control routes (standalone, no sidebar, no auth required)
   {
     path: '/live/controller',
-    element: (
-      <ProtectedRoute>
-        <Controller />
-      </ProtectedRoute>
-    ),
+    element: <Controller />,
   },
   {
     path: '/live/display',
-    element: (
-      <ProtectedRoute>
-        <DisplayPage eventId="default" displayName="Display" />
-      </ProtectedRoute>
-    ),
+    element: <DisplayPage eventId="default" displayName="Display" />,
   },
 ])
 

@@ -174,10 +174,12 @@ pub async fn start_peer(
         let app_handle = app_handle_for_cb.clone();
         tauri::async_runtime::spawn(async move {
             tracing::info!("TCP: Received message from {}: {}", from_peer_id, message);
-            let _ = app_handle.emit("webrtc:data_received", serde_json::json!({
+            let payload = serde_json::json!({
                 "from_peer_id": from_peer_id.to_string(),
                 "message": message,
-            }));
+            });
+            tracing::info!("TCP: Emitting webrtc:data_received event: {}", payload);
+            let _ = app_handle.emit("webrtc:data_received", payload);
         });
     }).await;
 
@@ -762,4 +764,16 @@ pub fn start_auto_test(app_handle: AppHandle, mode: crate::AutoStartMode) {
             }
         }
     });
+}
+
+/// Get the auto-start mode
+#[tauri::command]
+pub fn get_auto_start_mode(app_handle: AppHandle) -> String {
+    let mode = app_handle.state::<Arc<crate::AutoStartMode>>();
+    let mode = **mode.inner();
+    match mode {
+        crate::AutoStartMode::Controller => "controller".to_string(),
+        crate::AutoStartMode::Display => "display".to_string(),
+        crate::AutoStartMode::None => "none".to_string(),
+    }
 }

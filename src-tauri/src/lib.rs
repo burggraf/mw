@@ -68,6 +68,7 @@ pub fn run() {
             commands::send_control_message,
             commands::get_connected_peers,
             commands::get_leader_status,
+            commands::get_auto_start_mode,
         ])
         .setup(|app| {
             // Trigger auto-start if mode is set
