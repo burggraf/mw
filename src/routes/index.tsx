@@ -14,6 +14,7 @@ import { EventEditorPage } from '@/pages/EventEditor'
 import { EventDetailPage } from '@/pages/EventDetail'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AppLayout } from '@/components/AppLayout'
+import WebRTCDebugPage from '@/routes/webrtc-debug'
 
 const router = createBrowserRouter([
   // Public routes (no sidebar)
@@ -100,6 +101,10 @@ const router = createBrowserRouter([
       {
         path: '/settings',
         element: <div className="p-8"><h1 className="text-2xl font-bold">Settings</h1><p className="text-muted-foreground mt-2">Coming soon</p></div>,
+      },
+      {
+        path: '/debug/webrtc',
+        element: <WebRTCDebugPage />,
       },
     ],
   },
