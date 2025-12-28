@@ -40,7 +40,7 @@ impl Peer {
 
     pub fn to_info(&self, is_connected: bool) -> PeerInfo {
         PeerInfo {
-            id: self.id,
+            id: self.id.to_string(),
             peer_type: self.peer_type,
             display_name: self.display_name.clone(),
             is_connected,

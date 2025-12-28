@@ -130,7 +130,7 @@ impl SignalingServer {
                                 tracing::info!("Registered: {} ({:?})", display_name, peer_type);
 
                                 let info = PeerInfo {
-                                    id: pid,
+                                    id: pid.to_string(),
                                     peer_type,
                                     display_name: display_name.clone(),
                                     is_connected: true,

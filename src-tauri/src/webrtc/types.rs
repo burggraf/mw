@@ -21,7 +21,7 @@ pub enum DisplayClass {
 /// Peer information for frontend consumption
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PeerInfo {
-    pub id: Uuid,
+    pub id: String,
     pub peer_type: PeerType,
     pub display_name: String,
     pub is_connected: bool,
@@ -31,7 +31,7 @@ pub struct PeerInfo {
 /// Leader status information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LeaderStatus {
-    pub leader_id: Option<Uuid>,
+    pub leader_id: Option<String>,
     pub am_i_leader: bool,
     pub peer_count: usize,
 }
