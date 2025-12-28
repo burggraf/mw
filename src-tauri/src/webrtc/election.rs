@@ -36,7 +36,7 @@ impl ElectionService {
     /// Run leader election
     pub async fn elect_leader(&self) -> Result<ElectionResult, Box<dyn std::error::Error>> {
         let discovery = self.discovery.lock().await;
-        let discovered_leaders = discovery.browse_for_leaders().unwrap_or_default();
+        let discovered_leaders = discovery.browse_for_leaders().await.unwrap_or_default();
         drop(discovery);
 
         let self_peer = self.self_peer.lock().await;

@@ -1,7 +1,7 @@
 import type { Song } from '@/types/song'
 import type { EventItemWithData } from '@/types/event'
 import type { Slide } from '@/types/live'
-import { parseSongContent } from './song-parser'
+import { parseSong } from './song-parser'
 
 /**
  * Generate slides from a song with event-specific customizations
@@ -10,21 +10,22 @@ export function generateSlides(
   song: Song,
   customizations?: { arrangement?: string[] }
 ): Slide[] {
-  const parsed = parseSongContent(song.content)
+  const parsed = parseSong(song.content)
 
   // Determine which sections to include and in what order
-  const arrangement = customizations?.arrangement || song.arrangements?.default || parsed.sections.map(s => s.id)
+  const arrangement = customizations?.arrangement || song.arrangements?.default || parsed.sections.map((s) => s.id)
 
   const slides: Slide[] = []
 
   for (const sectionId of arrangement) {
-    const section = parsed.sections.find(s => s.id === sectionId)
+    const section = parsed.sections.find((s) => s.id === sectionId)
     if (!section) continue
 
-    // Each line in the section becomes a slide
-    for (const line of section.lines) {
+    // Split content into lines, creating one slide per non-empty line
+    const lines = section.content.split('\n').filter((line) => line.trim())
+    for (const line of lines) {
       slides.push({
-        text: line,
+        text: line.trim(),
         sectionLabel: section.label,
         backgroundId: song.audienceBackgroundId || undefined,
       })

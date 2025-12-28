@@ -29,3 +29,19 @@ export interface DisplayProps {
 
 // Peer type for WebRTC
 export type PeerType = 'controller' | 'display'
+
+// WebRTC Peer information
+export interface PeerInfo {
+  id: string
+  peer_type: PeerType
+  display_name: string
+  is_connected: boolean
+  is_leader: boolean
+}
+
+// Leader election status
+export interface LeaderStatus {
+  leaderId: string | null
+  amILeader: boolean
+  peerCount: number
+}

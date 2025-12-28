@@ -1,6 +1,6 @@
 use crate::webrtc::{
     Peer, PeerType, DiscoveryService, ElectionService, ElectionResult,
-    SignalingServer, PeerInfo, Priority,
+    SignalingServer, PeerInfo, Priority, PeerConnectionManager,
 };
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
@@ -12,6 +12,7 @@ pub struct WebrtcState {
     pub discovery: Arc<Mutex<Option<DiscoveryService>>>,
     pub election: Arc<Mutex<Option<ElectionService>>>,
     pub signaling_server: Arc<Mutex<Option<SignalingServer>>>,
+    pub peer_connection_manager: Arc<PeerConnectionManager>,
     pub connected_peers: Arc<Mutex<Vec<PeerInfo>>>,
     pub leader_id: Arc<Mutex<Option<uuid::Uuid>>>,
     pub is_running: Arc<Mutex<bool>>,
@@ -24,6 +25,7 @@ impl WebrtcState {
             discovery: Arc::new(Mutex::new(None)),
             election: Arc::new(Mutex::new(None)),
             signaling_server: Arc::new(Mutex::new(None)),
+            peer_connection_manager: Arc::new(PeerConnectionManager::new()),
             connected_peers: Arc::new(Mutex::new(Vec::new())),
             leader_id: Arc::new(Mutex::new(None)),
             is_running: Arc::new(Mutex::new(false)),
@@ -71,11 +73,11 @@ pub async fn start_peer(
 
     // Run leader election
     let election_service = state.election.lock().await;
-    let election_result = if let Some(ref election) = *election_service {
+    let election_result = if let Some(ref _election) = *election_service {
         // Browse for leaders
         let discovery_service = state.discovery.lock().await;
         if let Some(ref discovery) = *discovery_service {
-            let discovered = discovery.browse_for_leaders().unwrap_or_default();
+            let discovered = discovery.browse_for_leaders().await.unwrap_or_default();
             drop(discovery_service);
 
             // Check if anyone has higher priority
@@ -97,15 +99,21 @@ pub async fn start_peer(
             if discovered.is_empty() {
                 // No other peers - we become leader
                 *state.leader_id.lock().await = Some(peer.id);
-                let _ = app_handle.emit("webrtc:leader_changed", peer.id.to_string());
+                let peer_id_str = peer.id.to_string();
+                tracing::info!("Election: Became leader, emitting webrtc:leader_changed with {}", peer_id_str);
+                let _ = app_handle.emit("webrtc:leader_changed", peer_id_str);
                 ElectionResult::BecameLeader
             } else if leader_id == peer.id {
                 *state.leader_id.lock().await = Some(peer.id);
-                let _ = app_handle.emit("webrtc:leader_changed", peer.id.to_string());
+                let peer_id_str = peer.id.to_string();
+                tracing::info!("Election: Already leader, emitting webrtc:leader_changed with {}", peer_id_str);
+                let _ = app_handle.emit("webrtc:leader_changed", peer_id_str);
                 ElectionResult::BecameLeader
             } else {
                 *state.leader_id.lock().await = Some(leader_id);
-                let _ = app_handle.emit("webrtc:leader_changed", leader_id.to_string());
+                let leader_str = leader_id.to_string();
+                tracing::info!("Election: Became follower, emitting webrtc:leader_changed with {}", leader_str);
+                let _ = app_handle.emit("webrtc:leader_changed", leader_str);
                 ElectionResult::Follower { leader_id }
             }
         } else {
@@ -126,6 +134,9 @@ pub async fn start_peer(
             let signaling_server = SignalingServer::new();
             signaling_server.start(3010).await
                 .map_err(|e| format!("Failed to start signaling server: {}", e))?;
+
+            // Register local peer with signaling server so browser clients can see it
+            signaling_server.set_local_peer(peer.to_info_with_leader(true, true)).await;
 
             *state.signaling_server.lock().await = Some(signaling_server);
             *state.is_running.lock().await = true;
@@ -156,12 +167,17 @@ pub async fn start_peer(
             signaling_server.start(3010).await
                 .map_err(|e| format!("Failed to start signaling server: {}", e))?;
 
+            // Register local peer with signaling server so browser clients can see it
+            signaling_server.set_local_peer(peer.to_info_with_leader(true, true)).await;
+
             *state.signaling_server.lock().await = Some(signaling_server);
             *state.leader_id.lock().await = Some(peer.id);
             *state.is_running.lock().await = true;
 
-            let _ = app_handle.emit("webrtc:connected", peer_id.to_string());
-            let _ = app_handle.emit("webrtc:leader_changed", peer_id.to_string());
+            let peer_id_str = peer.id.to_string();
+            tracing::info!("First peer - emitting webrtc:leader_changed with {}", peer_id_str);
+            let _ = app_handle.emit("webrtc:connected", peer_id_str.clone());
+            let _ = app_handle.emit("webrtc:leader_changed", peer_id_str);
             let _ = app_handle.emit("webrtc:peer_list_changed", vec![peer.to_info(true)]);
 
             tracing::info!("First peer - signaling server started on port 3010");
@@ -176,18 +192,41 @@ pub async fn start_peer(
 pub async fn send_control_message(
     target_peer_id: String,
     message: String,
-    _app_handle: AppHandle,
+    app_handle: AppHandle,
 ) -> Result<(), String> {
-    // TODO: Implement actual data channel sending
-    // For now, just log
-    tracing::info!("Sending message to {}: {}", target_peer_id, message);
-    Ok(())
+    use uuid::Uuid;
+
+    let state = app_handle.state::<WebrtcState>();
+    let peer_id = state.peer.lock().await
+        .as_ref()
+        .map(|p| p.id)
+        .ok_or("Peer not started")?;
+
+    let to_peer_id = Uuid::parse_str(&target_peer_id)
+        .map_err(|e| format!("Invalid peer ID: {}", e))?;
+
+    // Send via signaling server
+    let signaling_server = state.signaling_server.lock().await;
+    if let Some(server) = signaling_server.as_ref() {
+        server.send_data(peer_id, to_peer_id, message).await;
+        Ok(())
+    } else {
+        Err("Signaling server not running".to_string())
+    }
 }
 
 /// Get all connected peers
 #[tauri::command]
 pub async fn get_connected_peers(app_handle: AppHandle) -> Result<Vec<PeerInfo>, String> {
     let state = app_handle.state::<WebrtcState>();
+
+    // First, try to get the full peer list from the signaling server
+    if let Some(ref signaling_server) = *state.signaling_server.lock().await {
+        let peers = signaling_server.get_peer_list().await;
+        return Ok(peers);
+    }
+
+    // Fallback to local peer list
     let peers = state.connected_peers.lock().await;
     Ok(peers.clone())
 }

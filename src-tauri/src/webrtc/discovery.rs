@@ -42,17 +42,9 @@ impl DiscoveryService {
         Ok(())
     }
 
-    /// Browse for existing leaders
-    pub fn browse_for_leaders(&self) -> Result<Vec<DiscoveredLeader>, Error> {
-        // Use tokio runtime for async discovery
-        let runtime = tokio::runtime::Runtime::new()
-            .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to create runtime: {}", e))))?;
-
-        let leaders = runtime.block_on(async {
-            self.discover_leaders_async().await
-        })?;
-
-        Ok(leaders)
+    /// Browse for existing leaders (async version - use this from async contexts)
+    pub async fn browse_for_leaders(&self) -> Result<Vec<DiscoveredLeader>, Error> {
+        self.discover_leaders_async().await
     }
 
     /// Stop announcing

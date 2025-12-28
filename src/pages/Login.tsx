@@ -9,20 +9,26 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 
 export function LoginPage() {
   const { t } = useTranslation()
-  const { signIn, signInWithGoogle, signInWithMagicLink } = useAuth()
+  const { user, isLoading, signIn, signInWithGoogle, signInWithMagicLink } = useAuth()
   const navigate = useNavigate()
+
+  // If already logged in, redirect to dashboard
+  if (user && !isLoading) {
+    navigate('/dashboard')
+    return null
+  }
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [magicLinkSent, setMagicLinkSent] = useState(false)
   const [showPasswordForm, setShowPasswordForm] = useState(false)
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    setIsLoading(true)
+    setIsSubmitting(true)
 
     try {
       await signIn(email, password)
@@ -30,20 +36,20 @@ export function LoginPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
     } finally {
-      setIsLoading(false)
+      setIsSubmitting(false)
     }
   }
 
   const handleGoogleSignIn = async () => {
     setError(null)
-    setIsLoading(true)
+    setIsSubmitting(true)
 
     try {
       await signInWithGoogle()
       // Redirect happens automatically via OAuth
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Google sign in failed')
-      setIsLoading(false)
+      setIsSubmitting(false)
     }
   }
 
@@ -55,7 +61,7 @@ export function LoginPage() {
     }
 
     setError(null)
-    setIsLoading(true)
+    setIsSubmitting(true)
 
     try {
       await signInWithMagicLink(email)
@@ -63,7 +69,7 @@ export function LoginPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send magic link')
     } finally {
-      setIsLoading(false)
+      setIsSubmitting(false)
     }
   }
 
@@ -120,7 +126,7 @@ export function LoginPage() {
             variant="outline"
             className="w-full"
             onClick={handleGoogleSignIn}
-            disabled={isLoading}
+            disabled={isSubmitting}
           >
             <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
               <path
@@ -168,8 +174,8 @@ export function LoginPage() {
                   required
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? t('common.loading') : t('auth.sendMagicLink')}
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? t('common.loading') : t('auth.sendMagicLink')}
               </Button>
               <Button
                 type="button"
@@ -203,8 +209,8 @@ export function LoginPage() {
                   required
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? t('common.loading') : t('auth.signIn')}
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? t('common.loading') : t('auth.signIn')}
               </Button>
               <Button
                 type="button"

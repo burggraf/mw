@@ -47,4 +47,19 @@ impl Peer {
             is_leader: self.is_leader,
         }
     }
+
+    /// Convert to PeerInfo with explicit leader status override
+    pub fn to_info_with_leader(&self, is_connected: bool, is_leader: bool) -> PeerInfo {
+        PeerInfo {
+            id: self.id.to_string(),
+            peer_type: self.peer_type,
+            display_name: self.display_name.clone(),
+            is_connected,
+            is_leader,
+        }
+    }
+
+    pub fn set_leader(&mut self, is_leader: bool) {
+        self.is_leader = is_leader;
+    }
 }

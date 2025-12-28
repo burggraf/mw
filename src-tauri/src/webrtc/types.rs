@@ -46,6 +46,7 @@ pub enum SignalingMessage {
         peer_type: PeerType,
         display_name: String,
         display_class: Option<DisplayClass>,
+        priority: Option<(u8, u64)>,
     },
     #[serde(rename = "offer")]
     Offer {
@@ -59,16 +60,27 @@ pub enum SignalingMessage {
         to_peer_id: Uuid,
         sdp: String,
     },
-    #[serde(rename = "ice")]
+    #[serde(rename = "ice_candidate")]
     IceCandidate {
         from_peer_id: Uuid,
         to_peer_id: Uuid,
         candidate: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        sdp_mid: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        sdp_mline_index: Option<u16>,
     },
     #[serde(rename = "peer_list")]
     PeerList { peers: Vec<PeerInfo> },
     #[serde(rename = "heartbeat")]
     Heartbeat { peer_id: Uuid },
+    /// Data message relayed through signaling (for MVP, replaces full WebRTC data channel)
+    #[serde(rename = "data")]
+    Data {
+        from_peer_id: Uuid,
+        to_peer_id: Uuid,
+        message: String,
+    },
 }
 
 /// Data channel message types (WebRTC)

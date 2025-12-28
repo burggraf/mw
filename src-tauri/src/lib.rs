@@ -10,6 +10,7 @@ use commands::WebrtcState;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_store::Builder::new().build())
         .manage(WebrtcState::new())
         .invoke_handler(tauri::generate_handler![
             commands::start_peer,

@@ -1,9 +1,17 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 
 export function HomePage() {
   const { t } = useTranslation()
+  const { user, isLoading } = useAuth()
+
+  // If already logged in, redirect to dashboard
+  if (user && !isLoading) {
+    window.location.href = '/dashboard'
+    return null
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">

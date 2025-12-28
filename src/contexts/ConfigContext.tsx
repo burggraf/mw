@@ -27,8 +27,8 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
           return
         }
 
-        // Initialize Supabase
-        initSupabase(loadedConfig)
+        // Initialize Supabase with persistent storage
+        await initSupabase(loadedConfig)
 
         setConfig(loadedConfig)
       } catch (err) {

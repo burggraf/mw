@@ -48,6 +48,7 @@ import {
   Moon,
   Languages,
   Church as ChurchIcon,
+  Bug,
 } from 'lucide-react'
 
 const navItems = [
@@ -58,6 +59,10 @@ const navItems = [
   { key: 'displays', icon: Monitor, href: '/displays', disabled: true },
   { key: 'team', icon: Users, href: '/team', disabled: true },
   { key: 'settings', icon: Settings, href: '/settings', disabled: true },
+]
+
+const devItems = [
+  { key: 'debug', icon: Bug, href: '/debug/webrtc' },
 ]
 
 export function AppSidebar() {
@@ -164,6 +169,27 @@ export function AppSidebar() {
                   >
                     <item.icon className="size-4" />
                     <span>{t(`nav.${item.key}`, item.key.charAt(0).toUpperCase() + item.key.slice(1))}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Dev/Debug Section */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Debug</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {devItems.map((item) => (
+                <SidebarMenuItem key={item.key}>
+                  <SidebarMenuButton
+                    isActive={location.pathname === item.href || location.pathname.startsWith(item.href + '/')}
+                    tooltip={item.key.charAt(0).toUpperCase() + item.key.slice(1)}
+                    onClick={() => navigate(item.href)}
+                  >
+                    <item.icon className="size-4" />
+                    <span>{item.key.charAt(0).toUpperCase() + item.key.slice(1)}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
