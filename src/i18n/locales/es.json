@@ -274,6 +274,9 @@
     "previous": "Anterior",
     "next": "Siguiente",
     "noSlides": "No hay diapositivas",
+    "preview": "Vista previa",
+    "sections": "Secciones",
+    "selectEvent": "Selecciona un evento",
     "display": {
       "waitingForController": "Esperando controlador...",
       "connected": "Conectado ({{count}})",
