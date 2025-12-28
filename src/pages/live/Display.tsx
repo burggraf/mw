@@ -53,7 +53,7 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
     const handleMessage = (event: CustomEvent<DataReceivedEvent>) => {
       try {
         const msg: BroadcastMessage = JSON.parse(event.detail.message)
-        if (msg.type === 'slide' && msg.eventId === eventId) {
+        if (msg.type === 'slide') {
           loadSlide(msg.itemId, msg.slideIndex)
           setIsWaiting(false)
         }
