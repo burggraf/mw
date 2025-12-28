@@ -8,6 +8,7 @@ import { MediaSidebar } from '@/components/media/MediaSidebar'
 import { MediaUploadDialog } from '@/components/media/MediaUploadDialog'
 import { StockMediaDialog } from '@/components/media/StockMediaDialog'
 import { MediaDetailDialog } from '@/components/media/MediaDetailDialog'
+import { SolidColorDialog } from '@/components/media/SolidColorDialog'
 import { StyleEditor } from '@/components/styles'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Upload, Search, Sparkles } from 'lucide-react'
+import { Upload, Search, Sparkles, Palette } from 'lucide-react'
 import { toast } from 'sonner'
 
 type SmartCollection = 'all' | 'recent' | 'images' | 'videos' | 'pexels' | 'unsplash'
@@ -40,6 +41,7 @@ export function MediaPage() {
   // Dialogs
   const [uploadOpen, setUploadOpen] = useState(false)
   const [stockOpen, setStockOpen] = useState(false)
+  const [colorOpen, setColorOpen] = useState(false)
   const [editMedia, setEditMedia] = useState<Media | null>(null)
   const [styleEditorMedia, setStyleEditorMedia] = useState<Media | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Media | null>(null)
@@ -140,6 +142,10 @@ export function MediaPage() {
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold">{t('media.title')}</h1>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setColorOpen(true)}>
+            <Palette className="h-4 w-4 mr-2" />
+            Add Color
+          </Button>
           <Button variant="outline" onClick={() => setStockOpen(true)}>
             <Sparkles className="h-4 w-4 mr-2" />
             {t('media.stockMedia')}
@@ -200,6 +206,14 @@ export function MediaPage() {
         onSuccess={() => {
           loadMedia()
           loadTags()
+        }}
+      />
+
+      <SolidColorDialog
+        open={colorOpen}
+        onOpenChange={setColorOpen}
+        onSuccess={() => {
+          loadMedia()
         }}
       />
 
