@@ -1,8 +1,9 @@
 import { useTranslation } from 'react-i18next'
 import { useChurch } from '@/contexts/ChurchContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Music, Calendar, Monitor, Users } from 'lucide-react'
+import { Music, Calendar, Monitor, Users, Smartphone } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 
 export function DashboardPage() {
   const { t } = useTranslation()
@@ -87,6 +88,42 @@ export function DashboardPage() {
             <p className="text-muted-foreground">No recent activity</p>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="mt-8">
+        <h2 className="text-lg font-semibold mb-4">{t('live.title', 'Live Control')}</h2>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Link to="/live/controller" className="block">
+            <Card className="transition-colors cursor-pointer hover:bg-muted/50 h-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-xl font-bold">
+                  {t('live.controller.title', 'Controller')}
+                </CardTitle>
+                <Smartphone className="h-5 w-5 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <CardDescription>
+                  {t('live.controller.description', 'Control presentations from your device')}
+                </CardDescription>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/live/display" className="block">
+            <Card className="transition-colors cursor-pointer hover:bg-muted/50 h-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-xl font-bold">
+                  {t('live.display.title', 'Display')}
+                </CardTitle>
+                <Monitor className="h-5 w-5 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <CardDescription>
+                  {t('live.display.description', 'Present on this screen')}
+                </CardDescription>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
       </div>
     </div>
   )
