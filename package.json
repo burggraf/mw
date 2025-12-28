@@ -13,6 +13,8 @@
     "tauri:build": "tauri build",
     "desktop": "tauri dev",
     "desktop:build": "tauri build",
+    "test:controller": "MW_AUTO_MODE=controller tauri dev",
+    "test:display": "MW_AUTO_MODE=display tauri dev",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:media": "playwright test e2e/media.spec.ts"

@@ -15,12 +15,19 @@ struct ConnectedClient {
     peer_info: PeerInfo,
 }
 
+/// Callback type for handling incoming WebRTC signaling messages locally
+pub type OnSignalingMessage = Arc<Mutex<Option<Box<dyn Fn(SignalingMessage) + Send + Sync>>>>;
+
 /// WebSocket signaling server
 pub struct SignalingServer {
     clients: Arc<RwLock<HashMap<Uuid, ConnectedClient>>>,
     running: Arc<Mutex<bool>>,
     leader_id: Arc<Mutex<Option<Uuid>>>,
     local_peer: Arc<Mutex<Option<PeerInfo>>>,
+    local_peer_id: Arc<Mutex<Option<Uuid>>>,
+    on_offer: OnSignalingMessage,
+    on_answer: OnSignalingMessage,
+    on_ice_candidate: OnSignalingMessage,
 }
 
 impl SignalingServer {
@@ -30,7 +37,40 @@ impl SignalingServer {
             running: Arc::new(Mutex::new(false)),
             leader_id: Arc::new(Mutex::new(None)),
             local_peer: Arc::new(Mutex::new(None)),
+            local_peer_id: Arc::new(Mutex::new(None)),
+            on_offer: Arc::new(Mutex::new(None)),
+            on_answer: Arc::new(Mutex::new(None)),
+            on_ice_candidate: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// Set the local peer ID (the Tauri app's peer ID)
+    pub async fn set_local_peer_id(&self, peer_id: Uuid) {
+        *self.local_peer_id.lock().await = Some(peer_id);
+    }
+
+    /// Set callback for handling incoming Offer messages
+    pub async fn on_offer<F>(&self, callback: F)
+    where
+        F: Fn(SignalingMessage) + Send + Sync + 'static,
+    {
+        *self.on_offer.lock().await = Some(Box::new(callback));
+    }
+
+    /// Set callback for handling incoming Answer messages
+    pub async fn on_answer<F>(&self, callback: F)
+    where
+        F: Fn(SignalingMessage) + Send + Sync + 'static,
+    {
+        *self.on_answer.lock().await = Some(Box::new(callback));
+    }
+
+    /// Set callback for handling incoming ICE candidates
+    pub async fn on_ice_candidate<F>(&self, callback: F)
+    where
+        F: Fn(SignalingMessage) + Send + Sync + 'static,
+    {
+        *self.on_ice_candidate.lock().await = Some(Box::new(callback));
     }
 
     /// Set the local peer (Tauri app itself) that runs this server
@@ -57,6 +97,10 @@ impl SignalingServer {
         let clients = self.clients.clone();
         let running = self.running.clone();
         let local_peer = self.local_peer.clone();
+        let local_peer_id = self.local_peer_id.clone();
+        let on_offer = self.on_offer.clone();
+        let on_answer = self.on_answer.clone();
+        let on_ice_candidate = self.on_ice_candidate.clone();
 
         tokio::spawn(async move {
             while *running.lock().await {
@@ -64,8 +108,22 @@ impl SignalingServer {
                     Ok((stream, addr)) => {
                         let clients = clients.clone();
                         let local_peer = local_peer.clone();
+                        let local_peer_id = local_peer_id.clone();
+                        let on_offer = on_offer.clone();
+                        let on_answer = on_answer.clone();
+                        let on_ice_candidate = on_ice_candidate.clone();
                         tokio::spawn(async move {
-                            Self::handle_connection(stream, addr, clients, local_peer).await;
+                            Self::handle_connection(
+                                stream,
+                                addr,
+                                clients,
+                                local_peer,
+                                local_peer_id,
+                                on_offer,
+                                on_answer,
+                                on_ice_candidate,
+                            )
+                            .await;
                         });
                     }
                     Err(e) => {
@@ -136,12 +194,25 @@ impl SignalingServer {
         self.send_to(to_peer_id, msg).await;
     }
 
+    /// Send a signaling message from the local peer (leader) to a specific client
+    /// This is used when the local peer's PeerConnectionManager needs to send offers/answers/ICE
+    pub async fn send_message_as_local(&self, msg_json: String, to_peer_id: Uuid) {
+        let clients = self.clients.read().await;
+        if let Some(client) = clients.get(&to_peer_id) {
+            let _ = client.sender.send(Message::Text(msg_json));
+        }
+    }
+
     /// Handle a new WebSocket connection
     async fn handle_connection(
         stream: TcpStream,
         addr: SocketAddr,
         clients: Arc<RwLock<HashMap<Uuid, ConnectedClient>>>,
         local_peer: Arc<Mutex<Option<PeerInfo>>>,
+        local_peer_id: Arc<Mutex<Option<Uuid>>>,
+        on_offer: OnSignalingMessage,
+        on_answer: OnSignalingMessage,
+        on_ice_candidate: OnSignalingMessage,
     ) {
         let ws_stream = match tokio_tungstenite::accept_async(stream).await {
             Ok(s) => s,
@@ -201,17 +272,44 @@ impl SignalingServer {
                                 Self::broadcast_peer_list(&clients, &local_peer).await;
                             }
                             SignalingMessage::Offer { to_peer_id, .. } => {
-                                if let Some(target) = clients.read().await.get(&to_peer_id) {
+                                // Check if this is for the local peer (Tauri app)
+                                let local_id = *local_peer_id.lock().await;
+                                if Some(to_peer_id) == local_id {
+                                    // This is for us - invoke the callback
+                                    if let Ok(msg) = serde_json::from_str::<SignalingMessage>(&text) {
+                                        if let Some(ref cb) = *on_offer.lock().await {
+                                            cb(msg);
+                                        }
+                                    }
+                                } else if let Some(target) = clients.read().await.get(&to_peer_id) {
                                     let _ = target.sender.send(Message::Text(text.clone()));
                                 }
                             }
                             SignalingMessage::Answer { to_peer_id, .. } => {
-                                if let Some(target) = clients.read().await.get(&to_peer_id) {
+                                // Check if this is for the local peer (Tauri app)
+                                let local_id = *local_peer_id.lock().await;
+                                if Some(to_peer_id) == local_id {
+                                    // This is for us - invoke the callback
+                                    if let Ok(msg) = serde_json::from_str::<SignalingMessage>(&text) {
+                                        if let Some(ref cb) = *on_answer.lock().await {
+                                            cb(msg);
+                                        }
+                                    }
+                                } else if let Some(target) = clients.read().await.get(&to_peer_id) {
                                     let _ = target.sender.send(Message::Text(text.clone()));
                                 }
                             }
                             SignalingMessage::IceCandidate { to_peer_id, .. } => {
-                                if let Some(target) = clients.read().await.get(&to_peer_id) {
+                                // Check if this is for the local peer (Tauri app)
+                                let local_id = *local_peer_id.lock().await;
+                                if Some(to_peer_id) == local_id {
+                                    // This is for us - invoke the callback
+                                    if let Ok(msg) = serde_json::from_str::<SignalingMessage>(&text) {
+                                        if let Some(ref cb) = *on_ice_candidate.lock().await {
+                                            cb(msg);
+                                        }
+                                    }
+                                } else if let Some(target) = clients.read().await.get(&to_peer_id) {
                                     let _ = target.sender.send(Message::Text(text.clone()));
                                 }
                             }

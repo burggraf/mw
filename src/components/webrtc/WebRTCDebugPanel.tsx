@@ -16,10 +16,10 @@ export function WebRTCDebugPanel() {
   const [testMessage, setTestMessage] = useState('Hello from WebRTC!');
   const [receivedMessages, setReceivedMessages] = useState<Array<{ from: string; message: string; time: string }>>([]);
 
-  // Handle received messages in browser mode
+  // Handle received messages (both Tauri and browser mode)
   useEffect(() => {
-    if (!isTauri && isConnected) {
-      // Listen for custom message event dispatched by browser client
+    if (isConnected) {
+      // Listen for custom message event dispatched by WebRTC data channel
       const handleMessage = ((event: CustomEvent<{ fromPeerId: string; message: string }>) => {
         setReceivedMessages(prev => [...prev, {
           from: event.detail.fromPeerId,

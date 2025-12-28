@@ -5,6 +5,7 @@ mod election;
 mod signaling;
 mod channel;
 mod peer_connection;
+mod tcp_p2p;
 
 #[cfg(test)]
 mod election_test;
@@ -14,4 +15,4 @@ pub use peer::Peer;
 pub use discovery::DiscoveryService;
 pub use election::{ElectionService, ElectionResult};
 pub use signaling::SignalingServer;
-pub use peer_connection::PeerConnectionManager;
+pub use tcp_p2p::TcpP2pManager;
