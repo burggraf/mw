@@ -8,19 +8,42 @@ interface BoundingBox {
   height: number
 }
 
+interface TextStyle {
+  fontFamily?: string
+  fontSize?: string
+  fontWeight?: string
+  textColor?: string
+  textAlign?: 'left' | 'center' | 'right'
+  verticalAlign?: 'top' | 'center' | 'bottom'
+  lineHeight?: string
+  textShadow?: string
+  maxLines?: number
+}
+
 interface BoundingBoxEditorProps {
   value: BoundingBox
   onChange: (box: BoundingBox) => void
   backgroundUrl?: string
   backgroundColor?: string
+  backgroundOverlay?: number
+  textStyle?: TextStyle
   className?: string
 }
+
+const SAMPLE_LYRICS = [
+  'Amazing grace, how sweet the sound',
+  'That saved a wretch like me',
+  'I once was lost, but now I am found',
+  'Was blind, but now I see',
+]
 
 export function BoundingBoxEditor({
   value,
   onChange,
   backgroundUrl,
   backgroundColor,
+  backgroundOverlay = 0,
+  textStyle,
   className,
 }: BoundingBoxEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -79,17 +102,37 @@ export function BoundingBoxEditor({
     ? { backgroundImage: `url(${backgroundUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
     : { backgroundColor: '#1a1a1a' }
 
+  // Determine how many lines to show based on maxLines
+  const linesToShow = textStyle?.maxLines
+    ? SAMPLE_LYRICS.slice(0, textStyle.maxLines)
+    : SAMPLE_LYRICS
+
+  // Calculate vertical alignment
+  const verticalAlignClass = {
+    top: 'justify-start',
+    center: 'justify-center',
+    bottom: 'justify-end',
+  }[textStyle?.verticalAlign || 'center']
+
   return (
     <div
       ref={containerRef}
       className={cn('relative aspect-video rounded-lg overflow-hidden', className)}
       style={bgStyle}
     >
+      {/* Background overlay */}
+      {backgroundOverlay > 0 && (
+        <div
+          className="absolute inset-0 bg-black pointer-events-none"
+          style={{ opacity: backgroundOverlay }}
+        />
+      )}
+
       {/* Bounding box */}
       <div
         className={cn(
-          'absolute border-2 border-dashed border-blue-400 bg-blue-400/10',
-          dragging && 'border-blue-500 bg-blue-500/20'
+          'absolute border-2 border-dashed border-blue-400',
+          dragging && 'border-blue-500'
         )}
         style={{
           left: `${value.left}%`,
@@ -100,16 +143,34 @@ export function BoundingBoxEditor({
         }}
         onMouseDown={(e) => handleMouseDown(e, 'move')}
       >
+        {/* Styled lyrics preview */}
+        <div
+          className={cn(
+            'absolute inset-0 flex flex-col pointer-events-none overflow-hidden p-2',
+            verticalAlignClass
+          )}
+          style={{
+            fontFamily: textStyle?.fontFamily || 'Inter',
+            fontSize: textStyle?.fontSize || '1rem',
+            fontWeight: textStyle?.fontWeight || '600',
+            color: textStyle?.textColor || '#ffffff',
+            textAlign: textStyle?.textAlign || 'center',
+            lineHeight: textStyle?.lineHeight || '1.4',
+            textShadow: textStyle?.textShadow || 'none',
+          }}
+        >
+          {linesToShow.map((line, i) => (
+            <div key={i} className="whitespace-nowrap overflow-hidden text-ellipsis">
+              {line}
+            </div>
+          ))}
+        </div>
+
         {/* Resize handle */}
         <div
           className="absolute bottom-0 right-0 w-4 h-4 bg-blue-500 cursor-se-resize"
           onMouseDown={(e) => handleMouseDown(e, 'resize')}
         />
-
-        {/* Sample text preview */}
-        <div className="absolute inset-2 flex items-center justify-center text-white/50 text-sm pointer-events-none">
-          Lyrics appear here
-        </div>
       </div>
     </div>
   )

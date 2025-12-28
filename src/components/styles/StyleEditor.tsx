@@ -213,6 +213,18 @@ export function StyleEditor({
                 }}
                 backgroundUrl={backgroundUrl || undefined}
                 backgroundColor={media.backgroundColor || undefined}
+                backgroundOverlay={backgroundOverlay}
+                textStyle={{
+                  fontFamily,
+                  fontSize: `${fontSize}rem`,
+                  fontWeight,
+                  textColor,
+                  textAlign,
+                  verticalAlign,
+                  lineHeight: '1.4',
+                  textShadow: textColor === '#000000' ? 'none' : '0 2px 4px rgba(0,0,0,0.5)',
+                  maxLines,
+                }}
               />
             </div>
 
