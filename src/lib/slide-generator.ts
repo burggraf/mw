@@ -21,11 +21,11 @@ export function generateSlides(
     const section = parsed.sections.find((s) => s.id === sectionId)
     if (!section) continue
 
-    // Split content into lines, creating one slide per non-empty line
-    const lines = section.content.split('\n').filter((line) => line.trim())
-    for (const line of lines) {
+    // Create one slide per section with all content lines joined
+    const text = section.content.split('\n').filter((line) => line.trim()).join('\n')
+    if (text) {
       slides.push({
-        text: line.trim(),
+        text,
         sectionLabel: section.label,
         backgroundId: song.audienceBackgroundId || undefined,
       })
