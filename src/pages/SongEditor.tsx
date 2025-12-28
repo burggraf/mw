@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { StyleSelector } from '@/components/styles'
 import { BackgroundPicker } from '@/components/songs/BackgroundPicker'
 import { getMediaWithStyle } from '@/services/media'
 import type { DisplayClass } from '@/types/style'
@@ -36,7 +35,6 @@ export function SongEditorPage() {
   const [copyright, setCopyright] = useState('')
   const [ccliNumber, setCcliNumber] = useState('')
   const [lyrics, setLyrics] = useState('')
-  const [styleId, setStyleId] = useState<string | null>(null)
 
   // Background state
   const [audienceBackground, setAudienceBackground] = useState<Media | null>(null)
@@ -100,7 +98,6 @@ export function SongEditorPage() {
       setCopyright(song.copyrightInfo || '')
       setCcliNumber(song.ccliNumber || '')
       setLyrics(extractLyricsContent(song.content))
-      setStyleId(song.styleId)
 
       // Load background IDs and media
       setAudienceBackgroundId(song.audienceBackgroundId)
@@ -157,7 +154,6 @@ export function SongEditorPage() {
           copyrightInfo: metadata.copyright,
           ccliNumber: metadata.ccliNumber,
           content,
-          styleId: styleId || undefined,
           audienceBackgroundId: audienceBackgroundId || undefined,
           stageBackgroundId: stageBackgroundId || undefined,
           lobbyBackgroundId: lobbyBackgroundId || undefined,
@@ -170,7 +166,6 @@ export function SongEditorPage() {
           copyrightInfo: metadata.copyright,
           ccliNumber: metadata.ccliNumber,
           content,
-          styleId: styleId || undefined,
           audienceBackgroundId: audienceBackgroundId || undefined,
           stageBackgroundId: stageBackgroundId || undefined,
           lobbyBackgroundId: lobbyBackgroundId || undefined,
@@ -268,14 +263,6 @@ export function SongEditorPage() {
                 placeholder="1234567"
               />
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>{t('styles.title')}</Label>
-            <StyleSelector
-              value={styleId}
-              onChange={setStyleId}
-            />
           </div>
 
           <div className="space-y-2">
