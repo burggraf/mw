@@ -51,14 +51,16 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
     }
 
     const handleMessage = (event: CustomEvent<DataReceivedEvent>) => {
+      console.log('[Display] Received message:', event.detail.message)
       try {
         const msg: BroadcastMessage = JSON.parse(event.detail.message)
+        console.log('[Display] Parsed message:', msg)
         if (msg.type === 'slide') {
           loadSlide(msg.itemId, msg.slideIndex)
           setIsWaiting(false)
         }
       } catch (e) {
-        console.error('Failed to parse message:', e)
+        console.error('[Display] Failed to parse message:', e)
       }
     }
 
@@ -69,16 +71,22 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
   }, [eventId])
 
   const loadSlide = useCallback(async (songId: string, slideIndex: number) => {
+    console.log('[Display] Loading slide:', { songId, slideIndex })
     try {
       const song = await getSong(songId)
       if (!song) {
-        console.warn('Song not found:', songId)
+        console.warn('[Display] Song not found:', songId)
+        setIsWaiting(true)
         return
       }
 
+      console.log('[Display] Song loaded:', song.title)
       const slides = generateSlides(song)
+      console.log('[Display] Generated slides:', slides.length)
+
       if (slideIndex >= 0 && slideIndex < slides.length) {
         const newSlide = slides[slideIndex]
+        console.log('[Display] Showing slide:', newSlide)
 
         // Trigger crossfade
         setOpacity(0)
@@ -95,9 +103,11 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
           // Fade in
           setOpacity(1)
         }, 300)
+      } else {
+        console.warn('[Display] Slide index out of bounds:', { slideIndex, slidesLength: slides.length })
       }
     } catch (error) {
-      console.error('Failed to load slide:', error)
+      console.error('[Display] Failed to load slide:', error)
     }
   }, [])
 

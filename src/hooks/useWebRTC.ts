@@ -170,6 +170,18 @@ export function useWebRTC(): UseWebRTCReturn {
     return () => { unbind.then?.((fn: (() => void) | undefined) => fn?.()); };
   }, []);  // Set up listener immediately, not waiting for myPeerId
 
+  // Bridge Tauri's webrtc:data_received event to window event for pages to listen
+  useEffect(() => {
+    if (!isTauri) return;
+    const unbind = listenWrapper<{from_peer_id: string, message: string}>('webrtc:data_received', (event) => {
+      // Dispatch as window CustomEvent so pages can listen via addEventListener
+      window.dispatchEvent(new CustomEvent('webrtc:data_received', {
+        detail: event.payload
+      }));
+    });
+    return () => { unbind.then?.((fn: (() => void) | undefined) => fn?.()); };
+  }, []);
+
   useEffect(() => {
     if (!isConnected || !isTauri) return;
     const interval = setInterval(async () => {
