@@ -353,6 +353,75 @@ impl SignalingServer {
                                     let _ = target.sender.send(Message::Text(text.clone()));
                                 }
                             }
+                            SignalingMessage::PairingAdvertisement { ref pairing_code, ref device_id } => {
+                                tracing::info!("Received PairingAdvertisement: code={}, device_id={}", pairing_code, device_id);
+
+                                // Broadcast to all clients so controllers can discover displays
+                                let clients_clone = clients.clone();
+                                let msg_json = serde_json::to_string(&signaling_msg).unwrap();
+                                for client in clients_clone.read().await.values() {
+                                    let _ = client.sender.send(Message::Text(msg_json.clone()));
+                                }
+                            }
+                            SignalingMessage::PairingPing { ref pairing_code, ref controller_id } => {
+                                tracing::info!("Received PairingPing: code={}, controller_id={}", pairing_code, controller_id);
+
+                                // Broadcast to all clients - the matching display will respond with PairingPong
+                                let clients_clone = clients.clone();
+                                let msg_json = serde_json::to_string(&signaling_msg).unwrap();
+                                for client in clients_clone.read().await.values() {
+                                    let _ = client.sender.send(Message::Text(msg_json.clone()));
+                                }
+                            }
+                            SignalingMessage::PairingPong { ref pairing_code, ref device_name } => {
+                                tracing::info!("Received PairingPong: code={}, device_name={}", pairing_code, device_name);
+
+                                // Forward to local peer (controller) via on_data callback
+                                if let Some(ref cb) = *on_data.lock().await {
+                                    let payload = serde_json::json!({
+                                        "type": "pairing_pong",
+                                        "pairing_code": pairing_code,
+                                        "device_name": device_name
+                                    });
+                                    if let Ok(payload_str) = serde_json::to_string(&payload) {
+                                        cb(Uuid::nil(), payload_str);
+                                    }
+                                }
+                            }
+                            SignalingMessage::PairingConfirm { ref pairing_code, ref display_name, ref location, ref display_class } => {
+                                tracing::info!("Received PairingConfirm: code={}, name={}", pairing_code, display_name);
+
+                                // Broadcast to all clients - the matching display will receive it
+                                let clients_clone = clients.clone();
+                                let msg_json = serde_json::to_string(&signaling_msg).unwrap();
+                                for client in clients_clone.read().await.values() {
+                                    let _ = client.sender.send(Message::Text(msg_json.clone()));
+                                }
+
+                                // Also notify local peer if it's a display
+                                if let Some(ref cb) = *on_data.lock().await {
+                                    let payload = serde_json::json!({
+                                        "type": "pairing_confirmed",
+                                        "pairing_code": pairing_code,
+                                        "display_name": display_name,
+                                        "location": location,
+                                        "display_class": display_class
+                                    });
+                                    if let Ok(payload_str) = serde_json::to_string(&payload) {
+                                        cb(Uuid::nil(), payload_str);
+                                    }
+                                }
+                            }
+                            SignalingMessage::DisplayHeartbeat { ref pairing_code } => {
+                                tracing::debug!("Received DisplayHeartbeat: code={}", pairing_code);
+
+                                // Broadcast to all clients so controllers know display is still available
+                                let clients_clone = clients.clone();
+                                let msg_json = serde_json::to_string(&signaling_msg).unwrap();
+                                for client in clients_clone.read().await.values() {
+                                    let _ = client.sender.send(Message::Text(msg_json.clone()));
+                                }
+                            }
                             _ => {}
                         }
                     }
