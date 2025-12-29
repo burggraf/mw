@@ -289,6 +289,8 @@
     "title": "Displays",
     "empty": "No displays registered. Click + to add one.",
     "forEvent": "Displays for this event",
+    "selectedCount": "{{count}} display selected",
+    "selectedCount_plural": "{{count}} displays selected",
     "class": {
       "audience": "Audience",
       "stage": "Stage",
