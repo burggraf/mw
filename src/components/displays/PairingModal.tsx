@@ -8,6 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useTranslation } from 'react-i18next';
 import type { DisplayClass } from '@/types/display';
 
+interface VerifyPairingResult {
+  device_name: string;
+  is_reachable: boolean;
+}
+
 interface PairingModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -17,6 +22,8 @@ interface PairingModalProps {
 export function PairingModal({ open, onOpenChange, onPair }: PairingModalProps) {
   const { t } = useTranslation();
   const [code, setCode] = useState('');
+  const [verifiedCode, setVerifiedCode] = useState('');
+  const [discoveredDisplay, setDiscoveredDisplay] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [step, setStep] = useState<'enter-code' | 'register'>('enter-code');
   const [name, setName] = useState('');
@@ -34,16 +41,25 @@ export function PairingModal({ open, onOpenChange, onPair }: PairingModalProps) 
     setError(null);
 
     try {
-      const reachable = await invoke<boolean>('send_pairing_ping', {
+      // Step 1: Verify pairing code
+      const reachable = await invoke<VerifyPairingResult | null>('verify_pairing_code', {
         pairing_code: code.toUpperCase(),
-        controller_id: 'controller', // TODO: get actual controller ID
       });
 
-      if (reachable) {
-        setStep('register');
-      } else {
-        setError(t('displays.pairing.unreachable'));
+      if (!reachable) {
+        setError(t('displays.pairing.notFound'));
+        return;
       }
+
+      if (!reachable.is_reachable) {
+        setError(t('displays.pairing.unreachable'));
+        return;
+      }
+
+      // Show form to enter display details
+      setVerifiedCode(code.toUpperCase());
+      setDiscoveredDisplay(reachable.device_name);
+      setStep('register');
     } catch (err) {
       setError(t('displays.pairing.error'));
     } finally {
@@ -58,9 +74,11 @@ export function PairingModal({ open, onOpenChange, onPair }: PairingModalProps) 
     }
 
     try {
-      await onPair(code.toUpperCase(), name, location, displayClass);
+      await onPair(verifiedCode, name, location, displayClass);
       // Reset form
       setCode('');
+      setVerifiedCode('');
+      setDiscoveredDisplay('');
       setName('');
       setLocation('');
       setDisplayClass('audience');
@@ -76,6 +94,8 @@ export function PairingModal({ open, onOpenChange, onPair }: PairingModalProps) 
     if (!open) {
       // Reset when closing
       setCode('');
+      setVerifiedCode('');
+      setDiscoveredDisplay('');
       setName('');
       setLocation('');
       setDisplayClass('audience');
@@ -125,7 +145,7 @@ export function PairingModal({ open, onOpenChange, onPair }: PairingModalProps) 
                 id="display-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={t('displays.pairing.namePlaceholder')}
+                placeholder={discoveredDisplay || t('displays.pairing.namePlaceholder')}
                 autoFocus
               />
             </div>
