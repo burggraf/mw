@@ -147,30 +147,28 @@ export function DisplayModeSidebar({
                       </SidebarMenuBadge>
                     )}
                   </SidebarMenuButton>
-                  <SidebarMenuAction>
-                    {isPaired ? (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
+                  {isPaired ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <SidebarMenuAction asChild showOnHover={false}>
+                          <button>
                             <MoreHorizontal className="size-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => registered && handleUnpair(registered)}>
-                            {t('displayMode.unpair')}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleStartPairing(target.id)}
-                      >
+                          </button>
+                        </SidebarMenuAction>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => registered && handleUnpair(registered)}>
+                          {t('displayMode.unpair')}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <SidebarMenuAction asChild showOnHover={false}>
+                      <button onClick={() => handleStartPairing(target.id)}>
                         {t('displayMode.pair')}
-                      </Button>
-                    )}
-                  </SidebarMenuAction>
+                      </button>
+                    </SidebarMenuAction>
+                  )}
                 </SidebarMenuItem>
               );
             })}

@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 import { useChurch } from '@/contexts/ChurchContext'
@@ -40,7 +40,7 @@ export function EventCard({ event, itemCounts }: EventCardProps) {
   const handleStart = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    navigate(`/live/controller/${event.id}`)
+    navigate('/live/controller')
   }
 
   return (
