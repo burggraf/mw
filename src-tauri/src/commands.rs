@@ -1408,59 +1408,52 @@ pub async fn open_display_window(
         use objc::{class, msg_send, sel, sel_impl};
 
         unsafe {
-            // Get the NSScreen for the target monitor by position
+            // Get all NSScreens - the monitor_id should match the array index
             let screens: id = msg_send![class!(NSScreen), screens];
             let screen_count: usize = msg_send![screens, count];
 
-            let mut target_screen: id = nil;
+            tracing::info!("macOS: Total screens available: {}, target monitor_id: {}", screen_count, monitor_id);
 
-            for i in 0..screen_count {
-                let screen: id = msg_send![screens, objectAtIndex:i];
-                let frame: NSRect = msg_send![screen, frame];
-
-                // Check if this screen matches our target position (with some tolerance)
-                let screen_x = frame.origin.x as f64;
-                let screen_y = frame.origin.y as f64;
-
-                // Compare screen position (accounting for macOS coordinate system where y=0 is at bottom)
-                if (screen_x - monitor_pos.x as f64).abs() < 10.0 && (screen_y - monitor_pos.y as f64).abs() < 10.0 {
-                    target_screen = screen;
-                    break;
-                }
-            }
+            // Use the monitor_id directly as the screen index
+            let target_screen: id = if (monitor_id as usize) < screen_count {
+                msg_send![screens, objectAtIndex:monitor_id as usize]
+            } else {
+                tracing::warn!("Monitor ID {} out of range ({} screens), using first screen", monitor_id, screen_count);
+                msg_send![screens, objectAtIndex:0]
+            };
 
             if target_screen != nil {
                 // Get the native NSWindow from Tauri's window
                 if let Ok(ns_window_ptr) = display_window.ns_window() {
                     let ns_window: id = ns_window_ptr as id;
 
+                    // Get the screen frame for logging
+                    let screen_frame: NSRect = msg_send![target_screen, frame];
+                    tracing::info!(
+                        "Target screen frame: x={}, y={}, width={}, height={}",
+                        screen_frame.origin.x, screen_frame.origin.y,
+                        screen_frame.size.width, screen_frame.size.height
+                    );
+
                     // Set the window's screen to the target screen
                     let _: () = msg_send![ns_window, setScreen:target_screen];
 
-                    // Set the window to fill the screen
-                    let screen_frame: NSRect = msg_send![target_screen, frame];
-
-                    // Create window frame matching screen dimensions
+                    // Create a frame that fills the target screen
+                    // Position the window at the screen's origin with full size
                     let window_frame = NSRect::new(
-                        NSPoint::new(0.0, 0.0),
+                        NSPoint::new(screen_frame.origin.x, screen_frame.origin.y),
                         NSSize::new(screen_frame.size.width, screen_frame.size.height),
                     );
 
                     let _: () = msg_send![ns_window, setFrame:window_frame display:true];
 
                     // Go fullscreen on the current (target) screen
-                    // Note: toggleFullScreen: takes a sender (usually nil), not a screen
                     let _: () = msg_send![ns_window, toggleFullScreen:nil];
 
-                    tracing::info!("Set window to target screen and entered fullscreen");
+                    tracing::info!("Successfully positioned window and entered fullscreen on screen {}", monitor_id);
                 }
             } else {
-                tracing::warn!("Could not find target screen, falling back to main screen");
-                // Fallback: just go fullscreen on whatever screen we're on
-                if let Ok(ns_window_ptr) = display_window.ns_window() {
-                    let ns_window: id = ns_window_ptr as id;
-                    let _: () = msg_send![ns_window, toggleFullScreen:nil];
-                }
+                tracing::warn!("Could not get target screen, falling back to default behavior");
             }
         }
     }
