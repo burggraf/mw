@@ -23,19 +23,23 @@ const isLocalDisplayWindow = (): boolean => {
   // Check URL parameter first
   const urlParams = new URLSearchParams(window.location.search)
   if (urlParams.get('localMode') === 'true') {
+    console.log('[Display] Detected local mode from URL param')
     return true
   }
 
   // Fallback: check if window label starts with "display-" for auto-started local windows
   // In Tauri, we can get the window label from the window object
   const win = window as any
-  const label = win.__TAURI_INTERNALS__?.windowConfig?.label || win.__TAURI__?.windowLabel
+  const internalsLabel = win.__TAURI_INTERNALS__?.windowConfig?.label
+  const tauriLabel = win.__TAURI__?.windowLabel
+  const label = internalsLabel || tauriLabel
+  console.log('[Display] Checking for local mode. URL params:', urlParams.toString(), '| internalsLabel:', internalsLabel, '| tauriLabel:', tauriLabel)
   if (label && label.startsWith('display-')) {
     console.log('[Display] Detected local mode from window label:', label)
     return true
   }
 
-  console.log('[Display] Not running in local mode, URL params:', urlParams.toString())
+  console.log('[Display] Not running in local mode')
   return false
 }
 
@@ -63,7 +67,6 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
   const [backgroundColor, setBackgroundColor] = useState<string | null>(null)
   const [isWaiting, setIsWaiting] = useState(true)
   const [opacity, setOpacity] = useState(0)
-  const [monitorInfo, setMonitorInfo] = useState<{ name: string; position: string } | null>(null)
 
   // Refs to track current song/slide for refresh when media arrives
   const currentSongIdRef = useRef<string | null>(null)
@@ -206,7 +209,7 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
       console.log('[Display] Fetched', buffer.byteLength, 'bytes for', mediaId)
 
       // Cache to disk via Tauri
-      const filePath = await cacheMediaFromBuffer(mediaId, updatedAt, buffer)
+      await cacheMediaFromBuffer(mediaId, updatedAt, buffer)
 
       // Get data URL for display windows (can't use asset:// protocol)
       const dataUrl = await invoke<string | null>('get_cached_media_data_url', { mediaId })
@@ -387,11 +390,6 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
           {displayName && (
             <div className="text-xl font-medium text-white/60 drop-shadow-lg">
               {displayName}
-              {monitorInfo && (
-                <span className="ml-3 text-white/40">
-                  ({monitorInfo.position})
-                </span>
-              )}
             </div>
           )}
           <div className="text-4xl font-semibold text-white/80 drop-shadow-lg">

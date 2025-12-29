@@ -165,7 +165,7 @@ export function useWebRTC(): UseWebRTCReturn {
       setPeers(event.payload);
     });
     return () => {
-      unbindPromise.then?.(unlisten => unlisten?.()).catch?.(() => {});
+      unbindPromise.then?.((unlisten: (() => void) | undefined) => unlisten?.()).catch?.(() => {});
     };
   }, []);
 
@@ -182,7 +182,7 @@ export function useWebRTC(): UseWebRTCReturn {
       }));
     });
     return () => {
-      unbindPromise.then?.(unlisten => unlisten?.()).catch?.(() => {});
+      unbindPromise.then?.((unlisten: (() => void) | undefined) => unlisten?.()).catch?.(() => {});
     };
   }, []);  // Set up listener immediately, not waiting for myPeerId
 
@@ -221,11 +221,11 @@ export function useWebRTC(): UseWebRTCReturn {
 
     return () => {
       console.log('[useWebRTC] Cleaning up event listener');
-      unbindPromise.then?.(unlisten => unlisten?.()).catch?.(() => {});
+      unbindPromise.then?.((unlisten: (() => void) | undefined) => unlisten?.()).catch?.(() => {});
       // Also clean up test listener
       const testUnbind = (window as any).__testUnbind;
       if (testUnbind) {
-        testUnbind.then?.(unlisten => unlisten?.()).catch?.(() => {});
+        testUnbind.then?.((unlisten: (() => void) | undefined) => unlisten?.()).catch?.(() => {});
         delete (window as any).__testUnbind;
       }
       delete (window as any).__dataReceivedUnbind;

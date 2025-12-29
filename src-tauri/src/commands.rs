@@ -1389,10 +1389,12 @@ pub async fn open_display_window(
     // Create the display window as a borderless window sized to match the target monitor
     // This creates a "presentation mode" style window (like PowerPoint/Keynote)
     // rather than using macOS's native fullscreen which has limitations
-    let display_window = WebviewWindowBuilder::new(
+    // URL encode the display name to handle special characters
+    let encoded_name = urlencoding::encode(&display_name);
+    let _display_window = WebviewWindowBuilder::new(
         &app_handle,
         &window_label,
-        WebviewUrl::App(format!("/live/display?eventId=default&displayName={}&localMode=true", display_name).into())
+        WebviewUrl::App(format!("/live/display?eventId=default&displayName={}&localMode=true", encoded_name).into())
     )
     .title(display_name.clone())
     .position(monitor_pos.x as f64, monitor_pos.y as f64)
@@ -1479,10 +1481,12 @@ pub async fn auto_start_display_windows(app_handle: AppHandle) -> Result<Vec<Mon
         );
 
         // Create the display window
+        // URL encode the display name to handle special characters (spaces, etc.)
+        let encoded_name = urlencoding::encode(&display_name);
         let display_window = WebviewWindowBuilder::new(
             &app_handle,
             &window_label,
-            WebviewUrl::App(format!("/live/display?eventId=default&displayName={}&localMode=true", display_name).into())
+            WebviewUrl::App(format!("/live/display?eventId=default&displayName={}&localMode=true", encoded_name).into())
         )
         .title(display_name.clone())
         .position(monitor_pos.x as f64, monitor_pos.y as f64)

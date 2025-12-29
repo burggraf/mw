@@ -46,7 +46,6 @@ import {
   Calendar,
   Users,
   Settings,
-  Monitor,
   ChevronUp,
   LogOut,
   Sun,

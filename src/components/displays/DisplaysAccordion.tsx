@@ -5,7 +5,6 @@ import type { Display, DisplayClass } from '@/types/display';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { PairingModal } from './PairingModal';
 import { DisplayEditModal } from './DisplayEditModal';
 import {

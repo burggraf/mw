@@ -87,8 +87,8 @@ export function ChurchProvider({ children }: { children: ReactNode }) {
     if (currentChurch) {
       // Auto-open display windows for all external monitors
       invoke('auto_start_display_windows')
-        .then((displays: any[]) => {
-          console.log('[ChurchContext] Auto-started display windows:', displays.length)
+        .then((displays: unknown) => {
+          console.log('[ChurchContext] Auto-started display windows:', Array.isArray(displays) ? displays.length : 0)
         })
         .catch((err) => {
           console.error('[ChurchContext] Failed to auto-start displays:', err)
