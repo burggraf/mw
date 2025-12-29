@@ -332,6 +332,11 @@
     }
   },
   "tv": {
+    "pairing": {
+      "title": "Pair This Display",
+      "enterCode": "Enter this code on your controller",
+      "toPair": "to pair this display"
+    },
     "menu": {
       "title": "Display Menu",
       "resume": "Resume",

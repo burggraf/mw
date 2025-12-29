@@ -332,6 +332,11 @@
     }
   },
   "tv": {
+    "pairing": {
+      "title": "Emparejar Esta Pantalla",
+      "enterCode": "Ingresa este código en tu controlador",
+      "toPair": "para emparejar esta pantalla"
+    },
     "menu": {
       "title": "Menú de Pantalla",
       "resume": "Continuar",
