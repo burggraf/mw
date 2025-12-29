@@ -89,6 +89,7 @@ pub fn run() {
                     commands::close_display_window,
                     commands::auto_start_display_windows,
                     commands::get_platform,
+                    commands::verify_pairing_code,
                 ]
             }
             #[cfg(target_os = "android")]
@@ -112,6 +113,7 @@ pub fn run() {
                     commands::send_pairing_ping,
                     commands::send_display_heartbeat,
                     commands::get_platform,
+                    commands::verify_pairing_code,
                 ]
             }
         })
