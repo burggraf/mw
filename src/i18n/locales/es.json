@@ -331,11 +331,13 @@
   },
   "tv": {
     "menu": {
+      "title": "Menú de Pantalla",
       "resume": "Continuar",
       "pair": "Emparejar",
       "unpair": "Desemparejar",
       "about": "Acerca de",
-      "exit": "Salir"
+      "exit": "Salir",
+      "hint": "Usa las flechas para navegar, Enter para seleccionar, Escape para cerrar"
     }
   },
   "displayMode": {

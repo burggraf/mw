@@ -331,11 +331,13 @@
   },
   "tv": {
     "menu": {
+      "title": "Display Menu",
       "resume": "Resume",
       "pair": "Pair",
       "unpair": "Unpair",
       "about": "About",
-      "exit": "Exit"
+      "exit": "Exit",
+      "hint": "Use arrow keys to navigate, Enter to select, Escape to close"
     }
   },
   "displayMode": {
