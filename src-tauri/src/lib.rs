@@ -80,6 +80,7 @@ pub fn run() {
             commands::send_pairing_advertisement,
             commands::send_pairing_ping,
             commands::send_display_heartbeat,
+            commands::get_available_monitors,
         ])
         .setup(|app| {
             // Trigger auto-start if mode is set

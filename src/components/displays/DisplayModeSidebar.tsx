@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Monitor, MoreHorizontal, Check } from 'lucide-react';
 import type { Display } from '@/types/display';
@@ -42,13 +42,24 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { DisplayClass } from '@/types/display';
+import { invoke } from '@tauri-apps/api/core';
+
+interface MonitorInfo {
+  id: number;
+  name: string;
+  position_x: number;
+  position_y: number;
+  size_x: number;
+  size_y: number;
+  scale_factor: number;
+  is_primary: boolean;
+}
 
 interface DisplayTarget {
   id: string;
   name: string;
   isDefault: boolean;
-  // In a real implementation, this would detect actual screens
-  // For now, we use placeholder values
+  monitor: MonitorInfo;
 }
 
 interface DisplayModeSidebarProps {
@@ -68,11 +79,33 @@ export function DisplayModeSidebar({
   const { t } = useTranslation();
   const { currentChurch } = useChurch();
 
-  // Detect available displays (placeholder - real implementation would use Screen API)
-  const [availableDisplays] = useState<DisplayTarget[]>([
-    { id: 'main', name: 'Main Display', isDefault: true },
-    // { id: 'secondary', name: 'Secondary Display', isDefault: false },
-  ]);
+  // Detect available displays from the system
+  const [availableDisplays, setAvailableDisplays] = useState<DisplayTarget[]>([]);
+
+  useEffect(() => {
+    const fetchMonitors = async () => {
+      try {
+        const monitors = await invoke<MonitorInfo[]>('get_available_monitors');
+        const targets: DisplayTarget[] = monitors.map((m) => ({
+          id: `monitor-${m.id}`,
+          name: m.is_primary ? t('displayMode.mainDisplay') : `${t('displayMode.display')} ${m.id + 1}`,
+          isDefault: m.is_primary,
+          monitor: m,
+        }));
+        setAvailableDisplays(targets);
+      } catch (error) {
+        console.error('Failed to fetch monitors:', error);
+        // Fallback to main display only
+        setAvailableDisplays([{
+          id: 'main',
+          name: t('displayMode.mainDisplay'),
+          isDefault: true,
+        } as DisplayTarget]);
+      }
+    };
+
+    fetchMonitors();
+  }, [t]);
 
   // Pairing dialog state
   const [pairingDisplayId, setPairingDisplayId] = useState<string | null>(null);

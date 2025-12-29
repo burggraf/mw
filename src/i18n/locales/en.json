@@ -350,6 +350,8 @@
   "displayMode": {
     "title": "Display Mode",
     "pair": "Pair",
-    "unpair": "Unpair"
+    "unpair": "Unpair",
+    "mainDisplay": "Main Display",
+    "display": "Display"
   }
 }

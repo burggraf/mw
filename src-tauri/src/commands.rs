@@ -1240,3 +1240,58 @@ pub async fn send_display_heartbeat(
     tracing::debug!("Sending display heartbeat: code={}", pairing_code);
     Ok(())
 }
+
+/// Information about a display/monitor
+#[derive(serde::Serialize, Clone)]
+pub struct MonitorInfo {
+    pub id: i32,
+    pub name: String,
+    pub position_x: i32,
+    pub position_y: i32,
+    pub size_x: u32,
+    pub size_y: u32,
+    pub scale_factor: f64,
+    pub is_primary: bool,
+}
+
+/// Get all available displays/monitors on the system
+#[tauri::command]
+pub async fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<MonitorInfo>, String> {
+    let window = app_handle.get_webview_window("main")
+        .ok_or("No main window found")?;
+
+    let monitors = window.available_monitors()
+        .map_err(|e| format!("Failed to get monitors: {}", e))?;
+
+    // Get the primary monitor to identify which one is primary
+    let primary_monitor = window.primary_monitor()
+        .ok()
+        .flatten();
+
+    let mut result = Vec::new();
+    for (idx, monitor) in monitors.iter().enumerate() {
+        let is_primary = primary_monitor
+            .as_ref()
+            .map(|pm| {
+                pm.name() == monitor.name() &&
+                pm.position() == monitor.position() &&
+                pm.size() == monitor.size()
+            })
+            .unwrap_or(false);
+
+        result.push(MonitorInfo {
+            id: idx as i32,
+            name: monitor.name()
+                .map(|n| n.to_string())
+                .unwrap_or_else(|| format!("Display {}", idx + 1)),
+            position_x: monitor.position().x,
+            position_y: monitor.position().y,
+            size_x: monitor.size().width,
+            size_y: monitor.size().height,
+            scale_factor: monitor.scale_factor(),
+            is_primary,
+        });
+    }
+
+    Ok(result)
+}

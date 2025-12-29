@@ -350,6 +350,8 @@
   "displayMode": {
     "title": "Modo Pantalla",
     "pair": "Emparejar",
-    "unpair": "Desemparejar"
+    "unpair": "Desemparejar",
+    "mainDisplay": "Pantalla Principal",
+    "display": "Pantalla"
   }
 }
