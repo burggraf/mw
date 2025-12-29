@@ -1399,86 +1399,13 @@ pub async fn open_display_window(
     .build()
     .map_err(|e| format!("Failed to create display window: {}", e))?;
 
-    // On macOS, we need to use native APIs to move the window to the correct screen
-    // before entering fullscreen mode
-    #[cfg(target_os = "macos")]
-    {
-        use cocoa::base::{id, nil};
-        use cocoa::foundation::{NSPoint, NSRect, NSSize};
-        use objc::{class, msg_send, sel, sel_impl};
-
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            unsafe {
-                // Get all NSScreens - the monitor_id should match the array index
-                let screens: id = msg_send![class!(NSScreen), screens];
-                let screen_count: usize = msg_send![screens, count];
-
-                tracing::info!("macOS: Total screens available: {}, target monitor_id: {}", screen_count, monitor_id);
-
-                // Use the monitor_id directly as the screen index
-                let target_screen: id = if (monitor_id as usize) < screen_count {
-                    msg_send![screens, objectAtIndex:monitor_id as usize]
-                } else {
-                    tracing::warn!("Monitor ID {} out of range ({} screens), using first screen", monitor_id, screen_count);
-                    msg_send![screens, objectAtIndex:0]
-                };
-
-                if target_screen != nil {
-                    // Get the native NSWindow from Tauri's window
-                    if let Ok(ns_window_ptr) = display_window.ns_window() {
-                        let ns_window: id = ns_window_ptr as id;
-
-                        // Get the screen frame for logging
-                        let screen_frame: NSRect = msg_send![target_screen, frame];
-                        tracing::info!(
-                            "Target screen frame: x={}, y={}, width={}, height={}",
-                            screen_frame.origin.x, screen_frame.origin.y,
-                            screen_frame.size.width, screen_frame.size.height
-                        );
-
-                        // Simply set the window frame to match the screen
-                        // This moves the window to that screen's coordinate space
-                        let window_frame = NSRect::new(
-                            NSPoint::new(screen_frame.origin.x, screen_frame.origin.y),
-                            NSSize::new(screen_frame.size.width, screen_frame.size.height),
-                        );
-
-                        let _: () = msg_send![ns_window, setFrame:window_frame display:true];
-
-                        // Go fullscreen - macOS will fullscreen on whatever screen the window is on
-                        let _: () = msg_send![ns_window, toggleFullScreen:nil];
-
-                        tracing::info!("Successfully positioned window and entered fullscreen on screen {}", monitor_id);
-                        Ok::<(), String>(())
-                    } else {
-                        Err("Could not get NSWindow pointer".to_string())
-                    }
-                } else {
-                    Err("Could not get target screen".to_string())
-                }
-            }
-        }));
-
-        if let Err(e) = result {
-            tracing::error!("macOS screen setup failed: {:?}", e);
-            // Fallback to Tauri's cross-platform approach
-            display_window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
-                x: monitor_pos.x,
-                y: monitor_pos.y,
-            })).ok();
-            display_window.set_fullscreen(true).ok();
-        }
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    {
-        // On non-macOS platforms, use the regular position/fullscreen approach
-        display_window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
-            x: monitor_pos.x as u32,
-            y: monitor_pos.y as u32,
-        }))?;
-        display_window.set_fullscreen(true)?;
-    }
+    // Position window on the target monitor and make it fullscreen
+    // Using Tauri's cross-platform APIs (works on macOS, Windows, Linux)
+    display_window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+        x: monitor_pos.x,
+        y: monitor_pos.y,
+    })).map_err(|e| format!("Failed to set position: {}", e))?;
+    display_window.set_fullscreen(true).map_err(|e| format!("Failed to set fullscreen: {}", e))?;
 
     tracing::info!("Display window '{}' created successfully", display_name);
 
