@@ -280,6 +280,7 @@
     "selectEvent": "Selecciona un evento",
     "display": {
       "waitingForController": "Esperando controlador...",
+      "waitingForEvent": "Esperando evento...",
       "connected": "Conectado ({{count}})",
       "connecting": "Conectando...",
       "disconnected": "Desconectado"

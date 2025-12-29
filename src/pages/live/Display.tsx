@@ -48,6 +48,7 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
   const [backgroundColor, setBackgroundColor] = useState<string | null>(null)
   const [isWaiting, setIsWaiting] = useState(true)
   const [opacity, setOpacity] = useState(0)
+  const [monitorInfo, setMonitorInfo] = useState<{ name: string; position: string } | null>(null)
 
   // Refs to track current song/slide for refresh when media arrives
   const currentSongIdRef = useRef<string | null>(null)
@@ -367,9 +368,19 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
           </div>
         </div>
       ) : isWaiting ? (
-        <div className="relative z-10 text-center">
-          <div className="text-3xl font-semibold text-white/80 drop-shadow-lg">
-            {t('live.display.waitingForController', 'Waiting for controller...')}
+        <div className="relative z-10 text-center space-y-4">
+          {displayName && (
+            <div className="text-xl font-medium text-white/60 drop-shadow-lg">
+              {displayName}
+              {monitorInfo && (
+                <span className="ml-3 text-white/40">
+                  ({monitorInfo.position})
+                </span>
+              )}
+            </div>
+          )}
+          <div className="text-4xl font-semibold text-white/80 drop-shadow-lg">
+            {t('live.display.waitingForEvent', 'Waiting for event...')}
           </div>
         </div>
       ) : null}

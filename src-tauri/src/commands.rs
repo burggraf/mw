@@ -1410,6 +1410,113 @@ pub async fn open_display_window(
     Ok(window_label)
 }
 
+/// Auto-start display windows for all available monitors (except primary)
+#[tauri::command]
+pub async fn auto_start_display_windows(app_handle: AppHandle) -> Result<Vec<MonitorInfo>, String> {
+    use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+
+    let window = app_handle.get_webview_window("main")
+        .ok_or("No main window found")?;
+
+    let monitors = window.available_monitors()
+        .map_err(|e| format!("Failed to get monitors: {}", e))?;
+
+    // Get the primary monitor to exclude it
+    let primary_monitor = window.primary_monitor()
+        .ok()
+        .flatten();
+
+    let mut opened_displays = Vec::new();
+
+    for (idx, monitor) in monitors.iter().enumerate() {
+        // Skip primary monitor (controller runs on main display)
+        let is_primary = primary_monitor
+            .as_ref()
+            .map(|pm| {
+                pm.name() == monitor.name() &&
+                pm.position() == monitor.position() &&
+                pm.size() == monitor.size()
+            })
+            .unwrap_or(false);
+
+        if is_primary {
+            tracing::info!("Skipping primary monitor: {} ({})", monitor.name().unwrap_or(&"?".to_string()), idx);
+            continue;
+        }
+
+        let monitor_size = monitor.size();
+        let monitor_pos = monitor.position();
+        let display_name = monitor.name()
+            .map(|n| n.to_string())
+            .unwrap_or_else(|| format!("Display {}", idx + 1));
+        let window_label = format!("display-{}", idx);
+
+        // Check if window already exists
+        if app_handle.get_webview_window(&window_label).is_some() {
+            tracing::info!("Display window {} already exists", idx);
+            // Add to opened_displays anyway
+            opened_displays.push(MonitorInfo {
+                id: idx as i32,
+                name: display_name.clone(),
+                position_x: monitor_pos.x,
+                position_y: monitor_pos.y,
+                size_x: monitor_size.width,
+                size_y: monitor_size.height,
+                scale_factor: monitor.scale_factor(),
+                is_primary: false,
+            });
+            continue;
+        }
+
+        tracing::info!(
+            "Auto-opening display window '{}' on monitor {} ({}x{} at {},{})",
+            display_name,
+            idx,
+            monitor_size.width,
+            monitor_size.height,
+            monitor_pos.x,
+            monitor_pos.y
+        );
+
+        // Create the display window
+        let display_window = WebviewWindowBuilder::new(
+            &app_handle,
+            &window_label,
+            WebviewUrl::App(format!("/live/display?eventId=default&displayName={}&localMode=true", display_name).into())
+        )
+        .title(display_name.clone())
+        .position(monitor_pos.x as f64, monitor_pos.y as f64)
+        .inner_size(monitor_size.width as f64, monitor_size.height as f64)
+        .resizable(false)
+        .decorations(false)
+        .skip_taskbar(true)
+        .always_on_top(true)
+        .build();
+
+        match display_window {
+            Ok(_) => {
+                tracing::info!("Display window '{}' opened successfully", display_name);
+                opened_displays.push(MonitorInfo {
+                    id: idx as i32,
+                    name: display_name.clone(),
+                    position_x: monitor_pos.x,
+                    position_y: monitor_pos.y,
+                    size_x: monitor_size.width,
+                    size_y: monitor_size.height,
+                    scale_factor: monitor.scale_factor(),
+                    is_primary: false,
+                });
+            }
+            Err(e) => {
+                tracing::error!("Failed to open display window '{}': {}", display_name, e);
+            }
+        }
+    }
+
+    tracing::info!("Auto-started {} display windows", opened_displays.len());
+    Ok(opened_displays)
+}
+
 /// Close a display window
 #[tauri::command]
 pub async fn close_display_window(

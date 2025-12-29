@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { getSupabase } from '@/lib/supabase'
+import { invoke } from '@tauri-apps/api/core'
 
 export interface Church {
   id: string
@@ -80,6 +81,20 @@ export function ChurchProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     loadChurches()
   }, [user])
+
+  // Auto-start display windows when a church is selected
+  useEffect(() => {
+    if (currentChurch) {
+      // Auto-open display windows for all external monitors
+      invoke('auto_start_display_windows')
+        .then((displays: any[]) => {
+          console.log('[ChurchContext] Auto-started display windows:', displays.length)
+        })
+        .catch((err) => {
+          console.error('[ChurchContext] Failed to auto-start displays:', err)
+        })
+    }
+  }, [currentChurch])
 
   const setCurrentChurch = (church: Church) => {
     setCurrentChurchState(church)
