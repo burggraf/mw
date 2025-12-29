@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import QRCode from 'qrcode.react';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface PairingScreenProps {
   onPaired: () => void;
 }
 
-export function PairingScreen({ onPaired }: PairingScreenProps) {
+export function PairingScreen({ onPaired: _onPaired }: PairingScreenProps) {
   const [pairingCode, setPairingCode] = useState('');
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export function PairingScreen({ onPaired }: PairingScreenProps) {
       <p className="text-2xl text-muted-foreground mb-12">Display</p>
 
       <div className="bg-card rounded-lg p-8 shadow-lg border border-border mb-8">
-        <QRCode value={pairingCode} size={256} level="M" />
+        <QRCodeSVG value={pairingCode} size={256} level="M" />
       </div>
 
       <div className="text-center space-y-2">

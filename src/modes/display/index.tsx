@@ -3,34 +3,79 @@
  * Used for Android TV - minimal UI, no auth, WebRTC only
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { PairingScreen } from '@/components/display/PairingScreen';
+import { WaitingScreen } from '@/components/display/WaitingScreen';
+import { ActiveDisplay } from '@/components/display/ActiveDisplay';
 import { TVMenu } from '@/components/display/TVMenu';
 
 type DisplayState = 'pairing' | 'waiting' | 'active';
 
+interface DisplayContent {
+  type: 'lyrics' | 'media' | 'blank';
+  title?: string;
+  lines?: string[];
+  mediaUrl?: string;
+}
+
 export function DisplayApp() {
   const [state, setState] = useState<DisplayState>('pairing');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [displayName, setDisplayName] = useState<string>();
+  const [content, _setContent] = useState<DisplayContent>({ type: 'blank' });
 
-  // TODO: Implement WebRTC connection
-  // TODO: Implement pairing flow
-  // TODO: Implement content display
+  // Handle D-pad menu button (SELECT/BACK)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' || e.key === 'Back' || e.key === 'Enter') {
+        // Only toggle menu if not already in pairing mode
+        if (state !== 'pairing') {
+          setMenuOpen((prev) => !prev);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [state]);
+
+  const handlePaired = () => {
+    setDisplayName('Main Display');
+    setState('waiting');
+  };
+
+  const handleResume = () => setMenuOpen(false);
+  const handlePair = () => setState('pairing');
+  const handleUnpair = () => {
+    setDisplayName(undefined);
+    setState('pairing');
+  };
+  const handleAbout = () => alert('Mobile Worship Display v0.1.0');
+  const handleExit = () => {
+    if (confirm('Exit Mobile Worship?')) {
+      window.close();
+    }
+  };
 
   return (
-    <div className="h-screen w-screen bg-background flex items-center justify-center">
-      <h1 className="text-4xl">Display Mode</h1>
-      <p className="text-xl mt-4">State: {state}</p>
+    <div className="h-screen w-screen bg-background">
+      {state === 'pairing' && <PairingScreen onPaired={handlePaired} />}
 
-      {/* TV Menu - triggered by SELECT/BACK button */}
-      {menuOpen && (
+      {state === 'waiting' && (
+        <WaitingScreen displayName={displayName} />
+      )}
+
+      {state === 'active' && <ActiveDisplay content={content} />}
+
+      {/* TV Menu - not shown during pairing */}
+      {state !== 'pairing' && menuOpen && (
         <TVMenu
-          isPaired={false}
+          isPaired={true}
           onClose={() => setMenuOpen(false)}
-          onResume={() => setMenuOpen(false)}
-          onPair={() => setState('pairing')}
-          onUnpair={() => setState('pairing')}
-          onAbout={() => alert('Mobile Worship Display v0.1.0')}
-          onExit={() => window.close()}
+          onResume={handleResume}
+          onPair={handlePair}
+          onUnpair={handleUnpair}
+          onAbout={handleAbout}
+          onExit={handleExit}
         />
       )}
     </div>
