@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChurch } from '@/contexts/ChurchContext'
 import { useTheme } from '@/contexts/ThemeContext'
+import { DisplaysAccordion } from '@/components/displays/DisplaysAccordion'
 import {
   Sidebar,
   SidebarContent,
@@ -175,6 +176,9 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Displays Section */}
+        <DisplaysAccordion />
 
         {/* Dev/Debug Section */}
         <SidebarGroup>
