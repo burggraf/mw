@@ -4,6 +4,10 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useChurch } from '@/contexts/ChurchContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { DisplaysAccordion } from '@/components/displays/DisplaysAccordion'
+import { DisplayModeSidebar } from '@/components/displays/DisplayModeSidebar'
+import type { Display } from '@/types/display'
+import { getDisplaysForChurch } from '@/services/displays'
+import { useEffect, useState } from 'react'
 import {
   Sidebar,
   SidebarContent,
@@ -57,7 +61,6 @@ const navItems = [
   { key: 'songs', icon: Music, href: '/songs' },
   { key: 'media', icon: ImageIcon, href: '/media' },
   { key: 'events', icon: Calendar, href: '/events' },
-  { key: 'displays', icon: Monitor, href: '/displays', disabled: true },
   { key: 'team', icon: Users, href: '/team', disabled: true },
   { key: 'settings', icon: Settings, href: '/settings', disabled: true },
 ]
@@ -73,6 +76,16 @@ export function AppSidebar() {
   const { user, signOut } = useAuth()
   const { churches, currentChurch, setCurrentChurch } = useChurch()
   const { resolvedTheme, setTheme } = useTheme()
+  const [displays, setDisplays] = useState<Display[]>([])
+
+  // Fetch displays for DisplayModeSidebar
+  useEffect(() => {
+    if (!currentChurch) {
+      setDisplays([])
+      return
+    }
+    getDisplaysForChurch(currentChurch.id).then(setDisplays)
+  }, [currentChurch])
 
   const handleSignOut = async () => {
     await signOut()
@@ -179,6 +192,13 @@ export function AppSidebar() {
 
         {/* Displays Section */}
         <DisplaysAccordion />
+
+        {/* Display Mode Section */}
+        <DisplayModeSidebar
+          displays={displays}
+          onDisplayRegistered={(display) => setDisplays(prev => [...prev, display])}
+          onDisplayUnregistered={(displayId) => setDisplays(prev => prev.filter(d => d.id !== displayId))}
+        />
 
         {/* Dev/Debug Section */}
         <SidebarGroup>
