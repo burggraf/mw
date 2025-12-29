@@ -20,8 +20,23 @@ interface DisplayMessage {
 // Check if we're running as a local display window (same Tauri process as controller)
 // vs a remote display (separate device)
 const isLocalDisplayWindow = (): boolean => {
+  // Check URL parameter first
   const urlParams = new URLSearchParams(window.location.search)
-  return urlParams.get('localMode') === 'true'
+  if (urlParams.get('localMode') === 'true') {
+    return true
+  }
+
+  // Fallback: check if window label starts with "display-" for auto-started local windows
+  // In Tauri, we can get the window label from the window object
+  const win = window as any
+  const label = win.__TAURI_INTERNALS__?.windowConfig?.label || win.__TAURI__?.windowLabel
+  if (label && label.startsWith('display-')) {
+    console.log('[Display] Detected local mode from window label:', label)
+    return true
+  }
+
+  console.log('[Display] Not running in local mode, URL params:', urlParams.toString())
+  return false
 }
 
 interface DisplayPageProps {

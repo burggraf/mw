@@ -13,6 +13,7 @@
     "store:allow-get",
     "store:allow-set",
     "store:allow-delete",
-    "store:allow-keys"
+    "store:allow-keys",
+    "core:webview:allow-webview-url"
   ]
 }
