@@ -1261,11 +1261,22 @@ pub async fn generate_pairing_code() -> Result<String, String> {
 pub async fn send_pairing_advertisement(
     pairing_code: String,
     device_id: String,
-    _app_handle: AppHandle,
+    app_handle: AppHandle,
 ) -> Result<(), String> {
-    // TODO: Send through signaling server to all connected controllers
-    // Implementation depends on signaling server structure
-    tracing::info!("Sending pairing advertisement: code={}, device_id={}", pairing_code, device_id);
+    let state = app_handle.state::<WebrtcState>();
+
+    if let Some(signaling_server) = &*state.signaling_server.lock().await {
+        use crate::webrtc::SignalingMessage;
+        let msg = SignalingMessage::PairingAdvertisement {
+            pairing_code: pairing_code.clone(),
+            device_id,
+        };
+
+        // Broadcast to all connected clients (broadcast method already exists)
+        signaling_server.broadcast(msg).await;
+        tracing::info!("Broadcasting pairing advertisement: code={}", pairing_code);
+    }
+
     Ok(())
 }
 
@@ -1304,7 +1315,8 @@ pub struct MonitorInfo {
     pub is_primary: bool,
 }
 
-/// Get all available displays/monitors on the system
+/// Get all available displays/monitors on the system (desktop only)
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 pub async fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<MonitorInfo>, String> {
     let window = app_handle.get_webview_window("main")
@@ -1346,7 +1358,8 @@ pub async fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<Monitor
     Ok(result)
 }
 
-/// Open a display window on a specific monitor
+/// Open a display window on a specific monitor (desktop only)
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 pub async fn open_display_window(
     app_handle: AppHandle,
@@ -1396,7 +1409,6 @@ pub async fn open_display_window(
         &window_label,
         WebviewUrl::App(format!("/live/display?eventId=default&displayName={}&localMode=true", encoded_name).into())
     )
-    .title(display_name.clone())
     .position(monitor_pos.x as f64, monitor_pos.y as f64)
     .inner_size(monitor_size.width as f64, monitor_size.height as f64)
     .resizable(false)
@@ -1412,7 +1424,8 @@ pub async fn open_display_window(
     Ok(window_label)
 }
 
-/// Auto-start display windows for all available monitors (except primary)
+/// Auto-start display windows for all available monitors (except primary) (desktop only)
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 pub async fn auto_start_display_windows(app_handle: AppHandle) -> Result<Vec<MonitorInfo>, String> {
     use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
@@ -1488,7 +1501,6 @@ pub async fn auto_start_display_windows(app_handle: AppHandle) -> Result<Vec<Mon
             &window_label,
             WebviewUrl::App(format!("/live/display?eventId=default&displayName={}&localMode=true", encoded_name).into())
         )
-        .title(display_name.clone())
         .position(monitor_pos.x as f64, monitor_pos.y as f64)
         .inner_size(monitor_size.width as f64, monitor_size.height as f64)
         .resizable(false)
@@ -1521,7 +1533,8 @@ pub async fn auto_start_display_windows(app_handle: AppHandle) -> Result<Vec<Mon
     Ok(opened_displays)
 }
 
-/// Close a display window
+/// Close a display window (desktop only)
+#[cfg(not(target_os = "android"))]
 #[tauri::command]
 pub async fn close_display_window(
     app_handle: AppHandle,
@@ -1532,7 +1545,7 @@ pub async fn close_display_window(
     let display_window = app_handle.get_webview_window(&window_label)
         .ok_or(format!("Display window {} not found", monitor_id))?;
 
-    display_window.close()
+    display_window.destroy()
         .map_err(|e| format!("Failed to close display window: {}", e))?;
 
     tracing::info!("Display window {} closed", monitor_id);
