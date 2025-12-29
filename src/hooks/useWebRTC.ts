@@ -161,15 +161,17 @@ export function useWebRTC(): UseWebRTCReturn {
   // Tauri-specific event listeners
   useEffect(() => {
     if (!checkIsTauri()) return;
-    const unbind = listenWrapper<PeerInfo[]>('webrtc:peer_list_changed', (event) => {
+    const unbindPromise = listenWrapper<PeerInfo[]>('webrtc:peer_list_changed', (event) => {
       setPeers(event.payload);
     });
-    return () => { unbind.then?.((fn: (() => void) | undefined) => fn?.()); };
+    return () => {
+      unbindPromise.then?.(unlisten => unlisten?.()).catch?.(() => {});
+    };
   }, []);
 
   useEffect(() => {
     if (!checkIsTauri()) return;
-    const unbind = listenWrapper<string>('webrtc:leader_changed', (event) => {
+    const unbindPromise = listenWrapper<string>('webrtc:leader_changed', (event) => {
       const newLeaderId = event.payload;
       const myId = myPeerIdRef.current;
       const amILeader = newLeaderId === myId;
@@ -179,7 +181,9 @@ export function useWebRTC(): UseWebRTCReturn {
         amILeader,
       }));
     });
-    return () => { unbind.then?.((fn: (() => void) | undefined) => fn?.()); };
+    return () => {
+      unbindPromise.then?.(unlisten => unlisten?.()).catch?.(() => {});
+    };
   }, []);  // Set up listener immediately, not waiting for myPeerId
 
   // Bridge Tauri's webrtc:data_received event to window event for pages to listen
@@ -201,7 +205,7 @@ export function useWebRTC(): UseWebRTCReturn {
       (window as any).__testUnbind = testUnbind;
     });
 
-    const unbind = listenWrapper<{from_peer_id: string, message: string}>('webrtc:data_received', (event) => {
+    const unbindPromise = listenWrapper<{from_peer_id: string, message: string}>('webrtc:data_received', (event) => {
       console.log('[useWebRTC] Received Tauri event, bridging to window:', event.payload);
       // Dispatch as window CustomEvent so pages can listen via addEventListener
       const customEvent = new CustomEvent('webrtc:data_received', {
@@ -210,18 +214,18 @@ export function useWebRTC(): UseWebRTCReturn {
       window.dispatchEvent(customEvent);
       console.log('[useWebRTC] Dispatched window event');
     });
-    console.log('[useWebRTC] Event listener registered, unbind:', unbind);
+    console.log('[useWebRTC] Event listener registered, unbindPromise:', unbindPromise);
 
     // Store unbind function for manual debugging
-    (window as any).__dataReceivedUnbind = unbind;
+    (window as any).__dataReceivedUnbind = unbindPromise;
 
     return () => {
       console.log('[useWebRTC] Cleaning up event listener');
-      unbind.then?.((fn: (() => void) | undefined) => fn?.());
+      unbindPromise.then?.(unlisten => unlisten?.()).catch?.(() => {});
       // Also clean up test listener
       const testUnbind = (window as any).__testUnbind;
       if (testUnbind) {
-        testUnbind.then?.((fn: (() => void) | undefined) => fn?.());
+        testUnbind.then?.(unlisten => unlisten?.()).catch?.(() => {});
         delete (window as any).__testUnbind;
       }
       delete (window as any).__dataReceivedUnbind;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Monitor, MoreHorizontal, Check } from 'lucide-react';
+import { Monitor, MoreHorizontal, Check, Cast } from 'lucide-react';
 import type { Display } from '@/types/display';
 import { useChurch } from '@/contexts/ChurchContext';
 import {
@@ -114,6 +114,39 @@ export function DisplayModeSidebar({
   const [pairingClass, setPairingClass] = useState<DisplayClass>('audience');
   const [isPairing, setIsPairing] = useState(false);
 
+  // Track open display windows
+  const [openDisplayWindows, setOpenDisplayWindows] = useState<Set<number>>(new Set());
+
+  // Open a display window on a specific monitor
+  const handleOpenDisplay = async (monitorId: number, displayName: string) => {
+    try {
+      console.log('[DisplayModeSidebar] Opening display window for monitor', monitorId);
+      await invoke('open_display_window', {
+        displayName,
+        monitorId,
+      });
+      setOpenDisplayWindows(prev => new Set(prev).add(monitorId));
+      console.log('[DisplayModeSidebar] Display window opened successfully');
+    } catch (error) {
+      console.error('[DisplayModeSidebar] Failed to open display window:', error);
+    }
+  };
+
+  // Close a display window
+  const handleCloseDisplay = async (monitorId: number) => {
+    try {
+      console.log('[DisplayModeSidebar] Closing display window for monitor', monitorId);
+      await invoke('close_display_window', { monitorId });
+      setOpenDisplayWindows(prev => {
+        const next = new Set(prev);
+        next.delete(monitorId);
+        return next;
+      });
+    } catch (error) {
+      console.error('[DisplayModeSidebar] Failed to close display window:', error);
+    }
+  };
+
   // Get registered display for a target
   const getRegisteredDisplay = (targetId: string): Display | undefined => {
     return displays.find(d => d.deviceId === targetId);
@@ -168,6 +201,7 @@ export function DisplayModeSidebar({
             {availableDisplays.map((target) => {
               const registered = getRegisteredDisplay(target.id);
               const isPaired = !!registered;
+              const isDisplayOpen = openDisplayWindows.has(target.monitor.id);
 
               return (
                 <SidebarMenuItem key={target.id}>
@@ -179,8 +213,19 @@ export function DisplayModeSidebar({
                         <Check className="size-3" />
                       </SidebarMenuBadge>
                     )}
+                    {isDisplayOpen && (
+                      <SidebarMenuBadge>
+                        <Cast className="size-3" />
+                      </SidebarMenuBadge>
+                    )}
                   </SidebarMenuButton>
-                  {isPaired ? (
+                  {isDisplayOpen ? (
+                    <SidebarMenuAction asChild showOnHover={false}>
+                      <button onClick={() => handleCloseDisplay(target.monitor.id)}>
+                        {t('displayMode.close')}
+                      </button>
+                    </SidebarMenuAction>
+                  ) : isPaired ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <SidebarMenuAction asChild showOnHover={false}>
@@ -190,6 +235,10 @@ export function DisplayModeSidebar({
                         </SidebarMenuAction>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleOpenDisplay(target.monitor.id, registered?.name || target.name)}>
+                          <Cast className="mr-2 h-4 w-4" />
+                          {t('displayMode.openDisplay')}
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => registered && handleUnpair(registered)}>
                           {t('displayMode.unpair')}
                         </DropdownMenuItem>

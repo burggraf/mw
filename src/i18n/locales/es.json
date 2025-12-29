@@ -352,6 +352,8 @@
     "pair": "Emparejar",
     "unpair": "Desemparejar",
     "mainDisplay": "Pantalla Principal",
-    "display": "Pantalla"
+    "display": "Pantalla",
+    "openDisplay": "Abrir Pantalla",
+    "close": "Cerrar"
   }
 }

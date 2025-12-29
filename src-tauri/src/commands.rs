@@ -2,6 +2,7 @@ use crate::webrtc::{
     Peer, PeerType, DiscoveryService, ElectionService, ElectionResult,
     SignalingServer, PeerInfo, Priority, SignalingMessage, TcpP2pManager,
 };
+use base64::Engine;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::Mutex;
@@ -1130,6 +1131,55 @@ pub async fn get_cached_media(
     Ok(None)
 }
 
+/// Get cached media as a base64 data URL (for use in display windows that can't access asset://)
+#[tauri::command]
+pub async fn get_cached_media_data_url(
+    app_handle: AppHandle,
+    media_id: String,
+) -> Result<Option<String>, String> {
+    let mut state = load_cache_state(&app_handle).await?;
+
+    if let Some(entry) = state.entries.get(&media_id) {
+        let file_path = entry.file_path.clone();
+
+        // Update last accessed time
+        if let Some(e) = state.entries.get_mut(&media_id) {
+            e.last_accessed = chrono::Utc::now().to_rfc3339();
+        }
+        save_cache_state(&app_handle, &state).await?;
+
+        // Check if file still exists
+        let path = PathBuf::from(&file_path);
+        if path.exists() {
+            // Read file and convert to base64
+            let bytes = fs::read(&path)
+                .map_err(|e| format!("Failed to read cached file: {}", e))?;
+
+            // Detect mime type from extension
+            let mime_type = path
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| match ext.to_lowercase().as_str() {
+                    "jpg" | "jpeg" => "image/jpeg",
+                    "png" => "image/png",
+                    "gif" => "image/gif",
+                    "webp" => "image/webp",
+                    _ => "image/jpeg",
+                })
+                .unwrap_or("image/jpeg");
+
+            // Encode to base64
+            let base64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+            let data_url = format!("data:{};base64,{}", mime_type, base64);
+
+            tracing::info!("Generated data URL for cached media: {} ({} bytes)", media_id, bytes.len());
+            return Ok(Some(data_url));
+        }
+    }
+
+    Ok(None)
+}
+
 /// Clear all cached media
 #[tauri::command]
 pub async fn clear_media_cache(app_handle: AppHandle) -> Result<(), String> {
@@ -1294,4 +1344,84 @@ pub async fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<Monitor
     }
 
     Ok(result)
+}
+
+/// Open a display window on a specific monitor
+#[tauri::command]
+pub async fn open_display_window(
+    app_handle: AppHandle,
+    display_name: String,
+    monitor_id: i32,
+) -> Result<String, String> {
+    use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+
+    let window = app_handle.get_webview_window("main")
+        .ok_or("No main window found")?;
+
+    // Get the target monitor
+    let monitors = window.available_monitors()
+        .map_err(|e| format!("Failed to get monitors: {}", e))?;
+
+    let target_monitor = monitors.get(monitor_id as usize)
+        .ok_or(format!("Monitor {} not found", monitor_id))?;
+
+    // Generate a unique label for the display window
+    let window_label = format!("display-{}", monitor_id);
+
+    // Check if window already exists
+    if app_handle.get_webview_window(&window_label).is_some() {
+        return Err(format!("Display window {} already exists", monitor_id));
+    }
+
+    let monitor_size = target_monitor.size();
+    let monitor_pos = target_monitor.position();
+
+    tracing::info!(
+        "Opening display window '{}' on monitor {} ({}x{} at {},{})",
+        display_name,
+        monitor_id,
+        monitor_size.width,
+        monitor_size.height,
+        monitor_pos.x,
+        monitor_pos.y
+    );
+
+    // Create the display window on the target monitor
+    let display_window = WebviewWindowBuilder::new(
+        &app_handle,
+        &window_label,
+        WebviewUrl::App(format!("/live/display?eventId=default&displayName={}&localMode=true", display_name).into())
+    )
+    .title(display_name.clone())
+    .position(monitor_pos.x as f64, monitor_pos.y as f64)
+    .inner_size(monitor_size.width as f64, monitor_size.height as f64)
+    .fullscreen(true)
+    .resizable(false)
+    .decorations(false)
+    .skip_taskbar(true)
+    .build()
+    .map_err(|e| format!("Failed to create display window: {}", e))?;
+
+    tracing::info!("Display window '{}' created successfully", display_name);
+
+    Ok(window_label)
+}
+
+/// Close a display window
+#[tauri::command]
+pub async fn close_display_window(
+    app_handle: AppHandle,
+    monitor_id: i32,
+) -> Result<(), String> {
+    let window_label = format!("display-{}", monitor_id);
+
+    let display_window = app_handle.get_webview_window(&window_label)
+        .ok_or(format!("Display window {} not found", monitor_id))?;
+
+    display_window.close()
+        .map_err(|e| format!("Failed to close display window: {}", e))?;
+
+    tracing::info!("Display window {} closed", monitor_id);
+
+    Ok(())
 }

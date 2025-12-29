@@ -6,6 +6,7 @@ import { getEventItems } from '@/services/events'
 import { getSong } from '@/services/songs'
 import { getMediaById, getSignedMediaUrl } from '@/services/media'
 import { generateSlides } from '@/lib/slide-generator'
+import { emit } from '@tauri-apps/api/event'
 import type { Slide } from '@/types/live'
 import type { Song } from '@/types/song'
 import type { Event, EventItemWithData } from '@/types/event'
@@ -138,12 +139,45 @@ export function Controller() {
     console.log('[Controller] Sending song data:', song.title, 'with', Object.keys(backgroundSignedUrls).length, 'background URLs')
 
     const displayPeers = peers.filter(p => p.peer_type === 'display' && p.is_connected)
+
+    // Send to WebRTC display peers
     for (const peer of displayPeers) {
       try {
         await sendMessage(peer.id, message)
-        console.log('[Controller] Sent song data to', peer.display_name)
+        console.log('[Controller] Sent song data to WebRTC peer', peer.display_name)
       } catch (error) {
         console.error(`Failed to send song data to ${peer.display_name}:`, error)
+      }
+    }
+
+    // If no WebRTC display peers, emit Tauri event for local displays
+    if (displayPeers.length === 0) {
+      try {
+        // For local displays, fetch images as base64 data URLs
+        const backgroundDataUrls: Record<string, string> = {}
+        for (const [key, signedUrl] of Object.entries(backgroundSignedUrls)) {
+          if (signedUrl) {
+            try {
+              const response = await fetch(signedUrl)
+              const blob = await response.blob()
+              const reader = new FileReader()
+              const dataUrl = await new Promise<string>((resolve) => {
+                reader.onloadend = () => resolve(reader.result as string)
+                reader.readAsDataURL(blob)
+              })
+              backgroundDataUrls[key] = dataUrl
+            } catch (error) {
+              console.error('[Controller] Failed to convert background to data URL:', key, error)
+            }
+          }
+        }
+
+        await emit('display:slide', {
+          songData: { song, backgroundDataUrls },
+        })
+        console.log('[Controller] Sent song data via Tauri event for local displays')
+      } catch (error) {
+        console.error('[Controller] Failed to emit Tauri event:', error)
       }
     }
   }
@@ -279,6 +313,65 @@ export function Controller() {
         await sendMessage(peer.id, message)
       } catch (error) {
         console.error(`Failed to send slide to ${peer.display_name}:`, error)
+      }
+    }
+
+    // If no WebRTC display peers, emit Tauri event for local displays
+    if (displayPeers.length === 0) {
+      try {
+        // For local displays, we need to include song data with background data URLs
+        // since the display windows can't invoke custom commands or use asset:// protocol
+        const song = state.currentSong
+        if (song) {
+          // Fetch background images as base64 data URLs
+          const backgroundDataUrls: Record<string, string> = {}
+          const backgrounds = song.backgrounds || {}
+
+          for (const [key, mediaId] of Object.entries(backgrounds)) {
+            if (mediaId) {
+              try {
+                const media = await getMediaById(mediaId)
+                if (media?.storagePath || media?.thumbnailPath) {
+                  const signedUrl = await getSignedMediaUrl(media.thumbnailPath || media.storagePath!, 3600)
+                  // Fetch the image and convert to base64 data URL
+                  const response = await fetch(signedUrl)
+                  const blob = await response.blob()
+                  const reader = new FileReader()
+                  const dataUrl = await new Promise<string>((resolve) => {
+                    reader.onloadend = () => resolve(reader.result as string)
+                    reader.readAsDataURL(blob)
+                  })
+                  backgroundDataUrls[key] = dataUrl
+                  console.log('[Controller] Fetched background as data URL:', key, dataUrl.substring(0, 50) + '...')
+                }
+              } catch (error) {
+                console.error('[Controller] Failed to get background data URL for', mediaId, ':', error)
+              }
+            }
+          }
+
+          await emit('display:slide', {
+            songData: {
+              song: {
+                ...song,
+                updated_at: song.updatedAt,
+              },
+              backgroundDataUrls,  // Send as base64 data URLs instead of signed URLs
+            },
+            itemId: songId,
+            slideIndex,
+          })
+          console.log('[Controller] Sent slide update via Tauri event for local displays with background data URLs')
+        } else {
+          // No current song, just send slide update
+          await emit('display:slide', {
+            itemId: songId,
+            slideIndex,
+          })
+          console.log('[Controller] Sent slide update via Tauri event for local displays (no song data)')
+        }
+      } catch (error) {
+        console.error('[Controller] Failed to emit Tauri event for slide:', error)
       }
     }
   }

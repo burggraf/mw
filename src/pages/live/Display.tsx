@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { invoke, convertFileSrc } from '@tauri-apps/api/core'
+import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { useWebRTC } from '@/hooks/useWebRTC'
 import { generateSlides } from '@/lib/slide-generator'
 import type { Slide } from '@/types/live'
@@ -14,6 +15,13 @@ interface DisplayMessage {
   // For song_data
   song?: Song & { updated_at: string }
   backgroundSignedUrls?: Record<string, string>  // key -> signed URL
+}
+
+// Check if we're running as a local display window (same Tauri process as controller)
+// vs a remote display (separate device)
+const isLocalDisplayWindow = (): boolean => {
+  const urlParams = new URLSearchParams(window.location.search)
+  return urlParams.get('localMode') === 'true'
 }
 
 interface DisplayPageProps {
@@ -33,6 +41,7 @@ const cacheMediaFromBuffer = async (mediaId: string, updatedAt: string, buffer: 
 export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPageProps) {
   const { t } = useTranslation()
   const { isConnected, connectionState, startPeer, peers } = useWebRTC()
+  const localMode = isLocalDisplayWindow()
 
   const [currentSlide, setCurrentSlide] = useState<Slide | null>(null)
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null)
@@ -47,8 +56,14 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
   const currentSlideRef = useRef<Slide | null>(null)
   const backgroundUrlRef = useRef<string | null>(null)
 
-  // Start WebRTC peer on mount
+  // Start WebRTC peer on mount (only for remote displays)
   useEffect(() => {
+    if (localMode) {
+      console.log('[Display] Running in local mode - using Tauri events instead of WebRTC')
+      setIsWaiting(false)  // Local mode is always "ready"
+      return
+    }
+
     let mounted = true
 
     const initPeer = async () => {
@@ -66,7 +81,7 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
     return () => {
       mounted = false
     }
-  }, [displayName, startPeer])
+  }, [displayName, startPeer, localMode])
 
   // Get background for a song
   const getSongBackground = useCallback((song: Song): { url?: string; color?: string } => {
@@ -89,8 +104,9 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
       console.log('[Display] Using color background:', cached.filePath)
       return { color: cached.filePath }
     }
-    const url = convertFileSrc(cached.filePath)
-    console.log('[Display] Using image background (converted):', url)
+    // filePath now contains a data URL (for display windows)
+    const url = cached.filePath
+    console.log('[Display] Using image background (data URL):', url?.substring(0, 50) + '...')
     return { url }
   }, [])
 
@@ -175,12 +191,24 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
 
       // Cache to disk via Tauri
       const filePath = await cacheMediaFromBuffer(mediaId, updatedAt, buffer)
-      mediaPathCache.set(mediaId, {
-        filePath,
-        updatedAt,
-        isColor: false,
-      })
-      console.log('[Display] Cached media to disk:', mediaId, '->', filePath)
+
+      // Get data URL for display windows (can't use asset:// protocol)
+      const dataUrl = await invoke<string | null>('get_cached_media_data_url', { mediaId })
+      if (dataUrl) {
+        mediaPathCache.set(mediaId, {
+          filePath: dataUrl,  // Store data URL instead of file path
+          updatedAt,
+          isColor: false,
+        })
+        console.log('[Display] Cached media and generated data URL:', mediaId)
+      } else {
+        console.warn('[Display] Failed to get data URL for:', mediaId)
+        mediaPathCache.set(mediaId, {
+          filePath: '',  // No data URL available
+          updatedAt,
+          isColor: false,
+        })
+      }
 
       // Refresh current slide if this is the background for the current song
       const currentSongId = currentSongIdRef.current
@@ -200,58 +228,108 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
     }
   }, [getSongBackground])
 
-  // Listen for WebRTC data messages
+  // Listen for data messages (WebRTC or Tauri events)
   useEffect(() => {
-    console.log('[Display] Registering webrtc:data_received handler')
-    type DataReceivedEvent = {
-      from_peer_id: string
-      message: string
-    }
+    if (localMode) {
+      // Local mode: listen for Tauri events from the controller
+      console.log('[Display] Registering Tauri display:slide event handler (local mode)')
 
-    const handleMessage = async (event: Event) => {
-      const customEvent = event as CustomEvent<DataReceivedEvent>
-      console.log('[Display] Received message from', customEvent.detail.from_peer_id, ':', customEvent.detail.message)
+      const unlistenPromise = listen<{ songData?: { song: Song & { updated_at: string }, backgroundDataUrls?: Record<string, string> }, itemId?: string, slideIndex?: number }>(
+        'display:slide',
+        (event) => {
+          console.log('[Display] Received local Tauri event:', event.payload)
 
-      try {
-        const msg: DisplayMessage = JSON.parse(customEvent.detail.message)
-        console.log('[Display] Parsed message type:', msg.type)
+          const { songData, itemId, slideIndex } = event.payload
 
-        if (msg.type === 'song_data' && msg.song) {
-          // Cache song data with version tracking
-          const cached = songCache.get(msg.song.id)
-          if (!cached || cached.updated_at < msg.song.updated_at) {
-            console.log('[Display] Caching song:', msg.song.title, 'updated:', msg.song.updated_at)
-            console.log('[Display] Song backgrounds:', msg.song.backgrounds)
-            songCache.set(msg.song.id, { song: msg.song, updated_at: msg.song.updated_at })
+          // Handle song data caching
+          if (songData?.song) {
+            const cached = songCache.get(songData.song.id)
+            if (!cached || cached.updated_at < songData.song.updated_at) {
+              console.log('[Display] Caching song:', songData.song.title)
+              songCache.set(songData.song.id, { song: songData.song, updated_at: songData.song.updated_at })
 
-            // Fetch and cache background media from signed URLs
-            if (msg.backgroundSignedUrls) {
-              for (const [key, signedUrl] of Object.entries(msg.backgroundSignedUrls)) {
-                const mediaId = msg.song.backgrounds?.[key]
-                if (mediaId && signedUrl) {
-                  console.log('[Display] Fetching', key, 'background media:', mediaId)
-                  // Fetch in background, don't wait
-                  fetchAndCacheMedia(mediaId, signedUrl, msg.song.updatedAt)
+              // Store background data URLs directly (already base64 encoded from controller)
+              if (songData.backgroundDataUrls) {
+                for (const [key, dataUrl] of Object.entries(songData.backgroundDataUrls)) {
+                  const mediaId = songData.song.backgrounds?.[key]
+                  if (mediaId && dataUrl) {
+                    // Store data URL directly in mediaPathCache
+                    mediaPathCache.set(mediaId, {
+                      filePath: dataUrl,  // data URL can be used directly
+                      updatedAt: songData.song.updatedAt,
+                      isColor: false,
+                    })
+                    console.log('[Display] Stored background data URL for:', key)
+                  }
                 }
               }
             }
-          } else {
-            console.log('[Display] Song already cached with same or newer version')
           }
-        } else if (msg.type === 'slide' && msg.itemId && msg.slideIndex !== undefined) {
-          loadSlide(msg.itemId, msg.slideIndex)
-          setIsWaiting(false)
+
+          // Handle slide display
+          if (itemId && slideIndex !== undefined) {
+            loadSlide(itemId, slideIndex)
+            setIsWaiting(false)
+          }
         }
-      } catch (e) {
-        console.error('[Display] Failed to parse message:', e)
+      )
+
+      return () => {
+        unlistenPromise.then?.(unlisten => unlisten?.()).catch?.(() => {})
+      }
+    } else {
+      // Remote mode: listen for WebRTC events
+      console.log('[Display] Registering webrtc:data_received handler (remote mode)')
+      type DataReceivedEvent = {
+        from_peer_id: string
+        message: string
+      }
+
+      const handleMessage = async (event: Event) => {
+        const customEvent = event as CustomEvent<DataReceivedEvent>
+        console.log('[Display] Received message from', customEvent.detail.from_peer_id, ':', customEvent.detail.message)
+
+        try {
+          const msg: DisplayMessage = JSON.parse(customEvent.detail.message)
+          console.log('[Display] Parsed message type:', msg.type)
+
+          if (msg.type === 'song_data' && msg.song) {
+            // Cache song data with version tracking
+            const cached = songCache.get(msg.song.id)
+            if (!cached || cached.updated_at < msg.song.updated_at) {
+              console.log('[Display] Caching song:', msg.song.title, 'updated:', msg.song.updated_at)
+              console.log('[Display] Song backgrounds:', msg.song.backgrounds)
+              songCache.set(msg.song.id, { song: msg.song, updated_at: msg.song.updated_at })
+
+              // Fetch and cache background media from signed URLs
+              if (msg.backgroundSignedUrls) {
+                for (const [key, signedUrl] of Object.entries(msg.backgroundSignedUrls)) {
+                  const mediaId = msg.song.backgrounds?.[key]
+                  if (mediaId && signedUrl) {
+                    console.log('[Display] Fetching', key, 'background media:', mediaId)
+                    // Fetch in background, don't wait
+                    fetchAndCacheMedia(mediaId, signedUrl, msg.song.updatedAt)
+                  }
+                }
+              }
+            } else {
+              console.log('[Display] Song already cached with same or newer version')
+            }
+          } else if (msg.type === 'slide' && msg.itemId && msg.slideIndex !== undefined) {
+            loadSlide(msg.itemId, msg.slideIndex)
+            setIsWaiting(false)
+          }
+        } catch (e) {
+          console.error('[Display] Failed to parse message:', e)
+        }
+      }
+
+      window.addEventListener('webrtc:data_received', handleMessage)
+      return () => {
+        window.removeEventListener('webrtc:data_received', handleMessage)
       }
     }
-
-    window.addEventListener('webrtc:data_received', handleMessage)
-    return () => {
-      window.removeEventListener('webrtc:data_received', handleMessage)
-    }
-  }, [eventId, loadSlide])
+  }, [eventId, loadSlide, localMode])
 
   // Count connected controllers
   const connectedCount = peers.filter(p => p.is_connected && p.peer_type === 'controller').length

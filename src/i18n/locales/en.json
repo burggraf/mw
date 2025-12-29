@@ -352,6 +352,8 @@
     "pair": "Pair",
     "unpair": "Unpair",
     "mainDisplay": "Main Display",
-    "display": "Display"
+    "display": "Display",
+    "openDisplay": "Open Display",
+    "close": "Close"
   }
 }

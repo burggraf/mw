@@ -72,6 +72,7 @@ pub fn run() {
             commands::cache_media,
             commands::cache_media_from_buffer,
             commands::get_cached_media,
+            commands::get_cached_media_data_url,
             commands::clear_media_cache,
             commands::get_cache_stats,
             commands::test_emit_event,
@@ -81,6 +82,8 @@ pub fn run() {
             commands::send_pairing_ping,
             commands::send_display_heartbeat,
             commands::get_available_monitors,
+            commands::open_display_window,
+            commands::close_display_window,
         ])
         .setup(|app| {
             // Trigger auto-start if mode is set
