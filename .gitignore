@@ -33,3 +33,6 @@ e2e/screenshots/
 
 # Server secrets
 .env.server
+
+# Git worktrees
+.worktrees/
