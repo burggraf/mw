@@ -1351,6 +1351,36 @@ pub struct VerifyPairingResult {
     pub is_reachable: bool,
 }
 
+/// Confirm pairing with a display
+#[tauri::command]
+pub async fn confirm_pairing(
+    pairing_code: String,
+    display_name: String,
+    location: String,
+    display_class: String,
+    app_handle: AppHandle,
+) -> Result<(), String> {
+    let state = app_handle.state::<WebrtcState>();
+
+    tracing::info!("Confirming pairing: code={}, name={}", pairing_code, display_name);
+
+    // Send PairingConfirm via signaling server
+    if let Some(signaling_server) = &*state.signaling_server.lock().await {
+        use crate::webrtc::SignalingMessage;
+
+        let msg = SignalingMessage::PairingConfirm {
+            pairing_code,
+            display_name,
+            location,
+            display_class,
+        };
+
+        signaling_server.broadcast(msg).await;
+    }
+
+    Ok(())
+}
+
 /// Information about a display/monitor
 #[derive(serde::Serialize, Clone)]
 pub struct MonitorInfo {
