@@ -17,7 +17,7 @@ import { Check } from 'lucide-react'
 interface BackgroundPickerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  displayClass: DisplayClass
+  displayClass?: DisplayClass  // Optional - defaults to 'audience'
   currentBackgroundId: string | null
   onSelect: (backgroundId: string | null) => void
 }
@@ -25,7 +25,7 @@ interface BackgroundPickerProps {
 export function BackgroundPicker({
   open,
   onOpenChange,
-  displayClass,
+  displayClass = 'audience',  // Default to audience
   currentBackgroundId,
   onSelect,
 }: BackgroundPickerProps) {

@@ -2,16 +2,24 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api/core'
 
-const isTauri = typeof window !== 'undefined' && (
-  '__TAURI__' in window ||
-  '__TAURI_INTERNALS__' in window
-)
+// Check if running in Tauri (runtime check for dev mode compatibility)
+const checkIsTauri = (): boolean => {
+  if (typeof window === 'undefined') return false
+  // Check for Tauri globals first (production build)
+  if ('__TAURI__' in window || '__TAURI_INTERNALS__' in window) return true
+  // In dev mode, try to detect by checking if invoke is available
+  try {
+    return typeof invoke === 'function' && invoke.name !== 'invoke'
+  } catch {
+    return false
+  }
+}
 
 export function AutoStartRedirect() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (!isTauri) return
+    if (!checkIsTauri()) return
 
     const checkAutoStart = async () => {
       try {

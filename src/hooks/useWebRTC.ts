@@ -4,12 +4,22 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { PeerType, PeerInfo, LeaderStatus } from '@/types/live';
 import { BrowserWebRTCClient } from '@/lib/webrtc-browser';
 
-// Check if running in Tauri
-// Use a more robust check that works in dev mode
-const isTauri = typeof window !== 'undefined' && (
-  '__TAURI__' in window ||
-  '__TAURI_INTERNALS__' in window
-);
+// Check if running in Tauri by trying to access the Tauri API
+// In dev mode, __TAURI__ might not be on window, but the imported APIs should work
+const checkIsTauri = (): boolean => {
+  // Check for Tauri globals first (production build)
+  if (typeof window !== 'undefined' && ('__TAURI__' in window || '__TAURI_INTERNALS__' in window)) {
+    return true;
+  }
+  // In dev mode, try to detect by checking if we can access the Tauri API
+  // The @tauri-apps/api modules will throw when accessed outside Tauri
+  try {
+    // Check if invoke function exists and is the Tauri version
+    return typeof invoke === 'function' && invoke.name !== 'invoke';
+  } catch {
+    return false;
+  }
+};
 
 // Re-export types for convenience
 export type { PeerInfo, LeaderStatus };
@@ -28,6 +38,7 @@ export interface UseWebRTCReturn {
 }
 
 function invokeWrapper<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+  const isTauri = checkIsTauri();
   if (!isTauri) {
     // Browser fallback for testing
     console.log('[Browser Mock] invoke:', command, args);
@@ -37,6 +48,7 @@ function invokeWrapper<T>(command: string, args?: Record<string, unknown>): Prom
 }
 
 function listenWrapper<T>(event: string, handler: (event: { payload: T }) => void) {
+  const isTauri = checkIsTauri();
   if (!isTauri) {
     // Browser fallback - do nothing
     return { then: () => {}, catch: () => {} } as any;
@@ -57,11 +69,11 @@ export function useWebRTC(): UseWebRTCReturn {
     'disconnected' | 'discovering' | 'connected' | 'error'
   >('disconnected');
   const [error, setError] = useState<string | null>(null);
-  const [isRunningInTauri] = useState(isTauri);
+  const [isRunningInTauri] = useState(checkIsTauri());
 
   // Store browser client instance
   const [browserClient] = useState<BrowserWebRTCClient | null>(() =>
-    isTauri ? null : new BrowserWebRTCClient({
+    checkIsTauri() ? null : new BrowserWebRTCClient({
       signalingUrl: 'ws://localhost:3010',
       peerType: 'controller',
       displayName: 'Browser Client',
@@ -86,7 +98,7 @@ export function useWebRTC(): UseWebRTCReturn {
       setConnectionState('discovering');
       setError(null);
 
-      if (isTauri) {
+      if (checkIsTauri()) {
         // Use Tauri backend
         const peerId = await invokeWrapper<string>('start_peer', { peerType, displayName });
         myPeerIdRef.current = peerId;  // Update ref
@@ -132,7 +144,7 @@ export function useWebRTC(): UseWebRTCReturn {
 
   const sendMessage = useCallback(async (targetPeerId: string, message: string) => {
     try {
-      if (isTauri) {
+      if (checkIsTauri()) {
         await invokeWrapper('send_control_message', { targetPeerId, message });
       } else {
         if (!browserClient) {
@@ -148,7 +160,7 @@ export function useWebRTC(): UseWebRTCReturn {
 
   // Tauri-specific event listeners
   useEffect(() => {
-    if (!isTauri) return;
+    if (!checkIsTauri()) return;
     const unbind = listenWrapper<PeerInfo[]>('webrtc:peer_list_changed', (event) => {
       setPeers(event.payload);
     });
@@ -156,7 +168,7 @@ export function useWebRTC(): UseWebRTCReturn {
   }, []);
 
   useEffect(() => {
-    if (!isTauri) return;
+    if (!checkIsTauri()) return;
     const unbind = listenWrapper<string>('webrtc:leader_changed', (event) => {
       const newLeaderId = event.payload;
       const myId = myPeerIdRef.current;
@@ -172,8 +184,23 @@ export function useWebRTC(): UseWebRTCReturn {
 
   // Bridge Tauri's webrtc:data_received event to window event for pages to listen
   useEffect(() => {
-    if (!isTauri) return;
-    console.log('[useWebRTC] Setting up webrtc:data_received bridge');
+    const isTauri = checkIsTauri();
+    console.log('[useWebRTC] Setting up webrtc:data_received bridge, isTauri:', isTauri);
+    if (!isTauri) {
+      console.warn('[useWebRTC] NOT in Tauri - event bridge will NOT work!');
+      return;
+    }
+
+    // Test if Tauri event system is working at all
+    import('@tauri-apps/api/event').then(({ listen }) => {
+      const testUnbind = listen<any>('test-event', (e) => {
+        console.log('[useWebRTC] Test event received:', e.payload);
+      });
+      console.log('[useWebRTC] Test event listener registered');
+      // Store testUnbind for cleanup if needed
+      (window as any).__testUnbind = testUnbind;
+    });
+
     const unbind = listenWrapper<{from_peer_id: string, message: string}>('webrtc:data_received', (event) => {
       console.log('[useWebRTC] Received Tauri event, bridging to window:', event.payload);
       // Dispatch as window CustomEvent so pages can listen via addEventListener
@@ -183,11 +210,26 @@ export function useWebRTC(): UseWebRTCReturn {
       window.dispatchEvent(customEvent);
       console.log('[useWebRTC] Dispatched window event');
     });
-    return () => { unbind.then?.((fn: (() => void) | undefined) => fn?.()); };
+    console.log('[useWebRTC] Event listener registered, unbind:', unbind);
+
+    // Store unbind function for manual debugging
+    (window as any).__dataReceivedUnbind = unbind;
+
+    return () => {
+      console.log('[useWebRTC] Cleaning up event listener');
+      unbind.then?.((fn: (() => void) | undefined) => fn?.());
+      // Also clean up test listener
+      const testUnbind = (window as any).__testUnbind;
+      if (testUnbind) {
+        testUnbind.then?.((fn: (() => void) | undefined) => fn?.());
+        delete (window as any).__testUnbind;
+      }
+      delete (window as any).__dataReceivedUnbind;
+    };
   }, []);
 
   useEffect(() => {
-    if (!isConnected || !isTauri) return;
+    if (!isConnected || !checkIsTauri()) return;
     const interval = setInterval(async () => {
       try {
         // Poll for leader status

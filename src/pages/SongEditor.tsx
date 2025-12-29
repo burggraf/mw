@@ -11,10 +11,9 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { BackgroundPicker } from '@/components/songs/BackgroundPicker'
-import { getMediaWithStyle } from '@/services/media'
-import type { DisplayClass } from '@/types/style'
+import { getMediaWithStyle, getSignedMediaUrl } from '@/services/media'
 import type { Media } from '@/types/media'
-import { ArrowLeft, Save, Eye, Users, Monitor, DoorOpen } from 'lucide-react'
+import { ArrowLeft, Save, Eye, Image } from 'lucide-react'
 import { toast } from 'sonner'
 
 export function SongEditorPage() {
@@ -36,14 +35,11 @@ export function SongEditorPage() {
   const [ccliNumber, setCcliNumber] = useState('')
   const [lyrics, setLyrics] = useState('')
 
-  // Background state
-  const [audienceBackground, setAudienceBackground] = useState<Media | null>(null)
-  const [stageBackground, setStageBackground] = useState<Media | null>(null)
-  const [lobbyBackground, setLobbyBackground] = useState<Media | null>(null)
-  const [audienceBackgroundId, setAudienceBackgroundId] = useState<string | null>(null)
-  const [stageBackgroundId, setStageBackgroundId] = useState<string | null>(null)
-  const [lobbyBackgroundId, setLobbyBackgroundId] = useState<string | null>(null)
-  const [pickerOpen, setPickerOpen] = useState<DisplayClass | null>(null)
+  // Background state - simplified to single default background
+  const [background, setBackground] = useState<Media | null>(null)
+  const [backgroundId, setBackgroundId] = useState<string | null>(null)
+  const [backgroundPreviewUrl, setBackgroundPreviewUrl] = useState<string | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   useEffect(() => {
     if (!isNew && id) {
@@ -99,19 +95,17 @@ export function SongEditorPage() {
       setCcliNumber(song.ccliNumber || '')
       setLyrics(extractLyricsContent(song.content))
 
-      // Load background IDs and media
-      setAudienceBackgroundId(song.audienceBackgroundId)
-      setStageBackgroundId(song.stageBackgroundId)
-      setLobbyBackgroundId(song.lobbyBackgroundId)
-
-      if (song.audienceBackgroundId) {
-        getMediaWithStyle(song.audienceBackgroundId).then(setAudienceBackground)
-      }
-      if (song.stageBackgroundId) {
-        getMediaWithStyle(song.stageBackgroundId).then(setStageBackground)
-      }
-      if (song.lobbyBackgroundId) {
-        getMediaWithStyle(song.lobbyBackgroundId).then(setLobbyBackground)
+      // Load default background from backgrounds.default
+      const defaultBgId = song.backgrounds?.default || null
+      setBackgroundId(defaultBgId)
+      if (defaultBgId) {
+        const bg = await getMediaWithStyle(defaultBgId)
+        setBackground(bg)
+        // Fetch signed URL for preview
+        if (bg && !bg.backgroundColor && (bg.storagePath || bg.thumbnailPath)) {
+          const url = await getSignedMediaUrl(bg.thumbnailPath || bg.storagePath!)
+          setBackgroundPreviewUrl(url)
+        }
       }
     } catch (error) {
       console.error('Failed to load song:', error)
@@ -147,29 +141,27 @@ export function SongEditorPage() {
 
       const content = buildMarkdownFromParts(metadata, lyrics.trim())
 
+      // Build backgrounds object with default background
+      const backgrounds = backgroundId ? { default: backgroundId } : undefined
+      console.log('[SongEditor] Saving song with backgrounds:', backgrounds, 'backgroundId:', backgroundId)
+
+      const songData = {
+        title: metadata.title,
+        author: metadata.author,
+        copyrightInfo: metadata.copyright,
+        ccliNumber: metadata.ccliNumber,
+        content,
+        backgrounds,
+      }
+      console.log('[SongEditor] Song data to save:', songData)
+
       if (isNew) {
-        await createSong(currentChurch.id, {
-          title: metadata.title,
-          author: metadata.author,
-          copyrightInfo: metadata.copyright,
-          ccliNumber: metadata.ccliNumber,
-          content,
-          audienceBackgroundId: audienceBackgroundId || undefined,
-          stageBackgroundId: stageBackgroundId || undefined,
-          lobbyBackgroundId: lobbyBackgroundId || undefined,
-        })
+        const result = await createSong(currentChurch.id, songData)
+        console.log('[SongEditor] Created song result:', result)
         toast.success(t('songs.songCreated'))
       } else if (id) {
-        await updateSong(id, {
-          title: metadata.title,
-          author: metadata.author,
-          copyrightInfo: metadata.copyright,
-          ccliNumber: metadata.ccliNumber,
-          content,
-          audienceBackgroundId: audienceBackgroundId || undefined,
-          stageBackgroundId: stageBackgroundId || undefined,
-          lobbyBackgroundId: lobbyBackgroundId || undefined,
-        })
+        const result = await updateSong(id, songData)
+        console.log('[SongEditor] Updated song result:', result)
         toast.success(t('songs.songUpdated'))
       }
 
@@ -285,77 +277,48 @@ How sweet the sound`}
             />
           </div>
 
-          {/* Display Class Backgrounds */}
+          {/* Default Background */}
           <div className="space-y-4 pt-6 border-t">
-            <h3 className="text-lg font-medium">{t('songs.displayBackgrounds', 'Display Backgrounds')}</h3>
+            <h3 className="text-lg font-medium flex items-center gap-2">
+              <Image className="h-5 w-5" />
+              {t('songs.defaultBackground', 'Default Background')}
+            </h3>
             <p className="text-sm text-muted-foreground">
-              {t('songs.displayBackgroundsHelp', 'Select backgrounds for each display context')}
+              {t('songs.defaultBackgroundHelp', 'Select a background image to display behind lyrics')}
             </p>
 
-            <div className="grid grid-cols-3 gap-4">
-              {/* Audience */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  {t('styles.displayClass.audience', 'Audience')}
-                </Label>
-                <button
-                  type="button"
-                  className="w-full aspect-video rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-muted-foreground/50 flex items-center justify-center overflow-hidden"
-                  style={audienceBackground?.backgroundColor
-                    ? { backgroundColor: audienceBackground.backgroundColor }
-                    : audienceBackground?.thumbnailPath
-                    ? { backgroundImage: `url(${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/media/${audienceBackground.thumbnailPath})`, backgroundSize: 'cover' }
-                    : undefined
-                  }
-                  onClick={() => setPickerOpen('audience')}
-                >
-                  {!audienceBackground && <span className="text-sm text-muted-foreground">{t('common.select', 'Select')}</span>}
-                </button>
-              </div>
-
-              {/* Stage */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Monitor className="h-4 w-4" />
-                  {t('styles.displayClass.stage', 'Stage')}
-                </Label>
-                <button
-                  type="button"
-                  className="w-full aspect-video rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-muted-foreground/50 flex items-center justify-center overflow-hidden"
-                  style={stageBackground?.backgroundColor
-                    ? { backgroundColor: stageBackground.backgroundColor }
-                    : stageBackground?.thumbnailPath
-                    ? { backgroundImage: `url(${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/media/${stageBackground.thumbnailPath})`, backgroundSize: 'cover' }
-                    : undefined
-                  }
-                  onClick={() => setPickerOpen('stage')}
-                >
-                  {!stageBackground && <span className="text-sm text-muted-foreground">{t('common.select', 'Select')}</span>}
-                </button>
-              </div>
-
-              {/* Lobby */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <DoorOpen className="h-4 w-4" />
-                  {t('styles.displayClass.lobby', 'Lobby')}
-                </Label>
-                <button
-                  type="button"
-                  className="w-full aspect-video rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-muted-foreground/50 flex items-center justify-center overflow-hidden"
-                  style={lobbyBackground?.backgroundColor
-                    ? { backgroundColor: lobbyBackground.backgroundColor }
-                    : lobbyBackground?.thumbnailPath
-                    ? { backgroundImage: `url(${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/media/${lobbyBackground.thumbnailPath})`, backgroundSize: 'cover' }
-                    : undefined
-                  }
-                  onClick={() => setPickerOpen('lobby')}
-                >
-                  {!lobbyBackground && <span className="text-sm text-muted-foreground">{t('common.select', 'Select')}</span>}
-                </button>
-              </div>
-            </div>
+            <button
+              type="button"
+              className="w-full max-w-xs aspect-video rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-muted-foreground/50 flex items-center justify-center overflow-hidden transition-colors relative"
+              style={background?.backgroundColor
+                ? { backgroundColor: background.backgroundColor }
+                : backgroundPreviewUrl
+                ? { backgroundImage: `url(${backgroundPreviewUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                : undefined
+              }
+              onClick={() => setPickerOpen(true)}
+            >
+              {!background && <span className="text-sm text-muted-foreground">{t('common.select', 'Select Background')}</span>}
+              {background && !background.backgroundColor && (
+                <span className="absolute bottom-1 right-1 text-xs bg-black/60 text-white px-2 py-0.5 rounded">
+                  {background.name}
+                </span>
+              )}
+            </button>
+            {background && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setBackground(null)
+                  setBackgroundId(null)
+                  setBackgroundPreviewUrl(null)
+                }}
+              >
+                {t('common.remove', 'Remove')}
+              </Button>
+            )}
           </div>
 
           <div className="flex gap-4">
@@ -414,31 +377,27 @@ How sweet the sound`}
       </div>
 
       {/* Background Picker Dialog */}
-      {pickerOpen && (
-        <BackgroundPicker
-          open={!!pickerOpen}
-          onOpenChange={(open) => !open && setPickerOpen(null)}
-          displayClass={pickerOpen}
-          currentBackgroundId={
-            pickerOpen === 'audience' ? audienceBackgroundId :
-            pickerOpen === 'stage' ? stageBackgroundId :
-            lobbyBackgroundId
+      <BackgroundPicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        currentBackgroundId={backgroundId}
+        onSelect={async (bgId) => {
+          console.log('[SongEditor] Background selected:', bgId)
+          const bg = bgId ? await getMediaWithStyle(bgId) : null
+          console.log('[SongEditor] Fetched background media:', bg)
+          setBackground(bg)
+          setBackgroundId(bgId)
+          // Fetch signed URL for preview
+          if (bg && !bg.backgroundColor && (bg.storagePath || bg.thumbnailPath)) {
+            const url = await getSignedMediaUrl(bg.thumbnailPath || bg.storagePath!)
+            setBackgroundPreviewUrl(url)
+            console.log('[SongEditor] Background preview URL:', url)
+          } else {
+            setBackgroundPreviewUrl(null)
           }
-          onSelect={async (bgId) => {
-            const bg = bgId ? await getMediaWithStyle(bgId) : null
-            if (pickerOpen === 'audience') {
-              setAudienceBackground(bg)
-              setAudienceBackgroundId(bgId)
-            } else if (pickerOpen === 'stage') {
-              setStageBackground(bg)
-              setStageBackgroundId(bgId)
-            } else {
-              setLobbyBackground(bg)
-              setLobbyBackgroundId(bgId)
-            }
-          }}
-        />
-      )}
+          console.log('[SongEditor] State updated - backgroundId:', bgId, 'background:', bg)
+        }}
+      />
     </div>
   )
 }

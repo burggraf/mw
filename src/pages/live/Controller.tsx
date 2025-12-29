@@ -4,6 +4,7 @@ import { useChurch } from '@/contexts/ChurchContext'
 import { useWebRTC } from '@/hooks/useWebRTC'
 import { getEventItems } from '@/services/events'
 import { getSong } from '@/services/songs'
+import { getMediaById, getSignedMediaUrl } from '@/services/media'
 import { generateSlides } from '@/lib/slide-generator'
 import type { Slide } from '@/types/live'
 import type { Song } from '@/types/song'
@@ -17,7 +18,8 @@ import { Wifi, WifiOff, Loader2 } from 'lucide-react'
 interface ControllerState {
   currentEventId: string | null
   currentSong: Song | null
-  currentItemId: string | null
+  currentSongId: string | null  // Actual song ID, not event item ID
+  currentItemId: string | null  // Event item ID
   currentSlideIndex: number
   slides: Slide[]
   setlist: EventItemWithData[]
@@ -36,9 +38,12 @@ export function Controller() {
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [startingPeer, setStartingPeer] = useState(false)
+  const [prefetching, setPrefetching] = useState(false)
+  const [currentBackgroundUrl, setCurrentBackgroundUrl] = useState<string | null>(null)
   const [state, setState] = useState<ControllerState>({
     currentEventId: null,
     currentSong: null,
+    currentSongId: null,
     currentItemId: null,
     currentSlideIndex: 0,
     slides: [],
@@ -98,7 +103,78 @@ export function Controller() {
     }
 
     startControllerPeer()
-  }, [currentChurch?.id])
+  }, [currentChurch?.id, startPeer])
+
+  // Send song data to all connected displays
+  const sendSongData = async (song: Song & { updated_at: string }) => {
+    // Fetch signed URLs for backgrounds
+    const backgroundSignedUrls: Record<string, string> = {}
+    const backgrounds = song.backgrounds || {}
+
+    for (const [key, mediaId] of Object.entries(backgrounds)) {
+      if (mediaId) {
+        try {
+          const media = await getMediaById(mediaId)
+          if (media?.storagePath) {
+            const signedUrl = await getSignedMediaUrl(media.storagePath, 3600) // 1 hour
+            backgroundSignedUrls[key] = signedUrl
+            console.log('[Controller] Fetched signed URL for', key, 'background:', mediaId)
+          }
+        } catch (error) {
+          console.error('[Controller] Failed to get signed URL for background', mediaId, ':', error)
+        }
+      }
+    }
+
+    const message = JSON.stringify({
+      type: 'song_data',
+      song: {
+        ...song,
+        updated_at: song.updated_at,
+      },
+      backgroundSignedUrls,
+    })
+
+    console.log('[Controller] Sending song data:', song.title, 'with', Object.keys(backgroundSignedUrls).length, 'background URLs')
+
+    const displayPeers = peers.filter(p => p.peer_type === 'display' && p.is_connected)
+    for (const peer of displayPeers) {
+      try {
+        await sendMessage(peer.id, message)
+        console.log('[Controller] Sent song data to', peer.display_name)
+      } catch (error) {
+        console.error(`Failed to send song data to ${peer.display_name}:`, error)
+      }
+    }
+  }
+
+  // Pre-fetch all songs for the event and send to displays
+  const prefetchSongs = async (setlist: EventItemWithData[]) => {
+    const songItems = setlist.filter(item => item.itemType === 'song')
+    if (songItems.length === 0) return
+
+    setPrefetching(true)
+    console.log('[Controller] Pre-fetching', songItems.length, 'songs for displays')
+
+    for (const item of songItems) {
+      try {
+        const song = await getSong(item.itemId)
+        if (song) {
+          console.log('[Controller] Pre-fetching song:', song.title)
+          // sendSongData now includes signed URLs for backgrounds
+          await sendSongData({
+            ...song,
+            updated_at: song.updatedAt,
+          } as Song & { updated_at: string })
+        }
+      } catch (error) {
+        console.error('[Controller] Failed to prefetch song:', item.itemId, error)
+      }
+    }
+
+    setPrefetching(false)
+    console.log('[Controller] Pre-fetch complete')
+  }
 
   // Select event and load setlist
   const selectEvent = useCallback(async (eventId: string) => {
@@ -109,10 +185,14 @@ export function Controller() {
         currentEventId: eventId,
         setlist: items,
         currentSong: null,
+        currentSongId: null,
         currentItemId: null,
         currentSlideIndex: 0,
         slides: [],
       }))
+
+      // Pre-fetch all songs for displays
+      await prefetchSongs(items)
     } catch (error) {
       console.error('Failed to load event items:', error)
     }
@@ -132,20 +212,49 @@ export function Controller() {
       setState(prev => ({
         ...prev,
         currentSong: song,
+        currentSongId: song.id,
         currentItemId: itemId,
         currentSlideIndex: 0,
         slides,
       }))
 
+      // Fetch background URL for preview
+      const bgId = song.backgrounds?.default
+      if (bgId) {
+        try {
+          const media = await getMediaById(bgId)
+          if (media && media.backgroundColor) {
+            // Solid color background
+            setCurrentBackgroundUrl(null) // Handle colors separately if needed
+          } else if (media && (media.storagePath || media.thumbnailPath)) {
+            const url = await getSignedMediaUrl(media.thumbnailPath || media.storagePath!)
+            setCurrentBackgroundUrl(url)
+          } else {
+            setCurrentBackgroundUrl(null)
+          }
+        } catch (e) {
+          console.error('[Controller] Failed to load background:', e)
+          setCurrentBackgroundUrl(null)
+        }
+      } else {
+        setCurrentBackgroundUrl(null)
+      }
+
+      // Ensure displays have this song (send data if needed)
+      await sendSongData({
+        ...song,
+        updated_at: song.updatedAt,
+      } as Song & { updated_at: string })
+
       // Send first slide to displays
-      await sendSlideUpdate(itemId, 0)
+      await sendSlideUpdate(song.id, 0)
     } catch (error) {
       console.error('Failed to select song:', error)
     }
   }
 
   // Send slide update to all connected displays
-  const sendSlideUpdate = async (itemId: string, slideIndex: number) => {
+  const sendSlideUpdate = async (songId: string, slideIndex: number) => {
     if (!state.currentEventId) {
       console.warn('[Controller] Cannot send slide: no currentEventId')
       return
@@ -154,7 +263,7 @@ export function Controller() {
     const message = JSON.stringify({
       type: 'slide',
       eventId: state.currentEventId,
-      itemId,
+      itemId: songId,  // This is now the song ID, not event item ID
       slideIndex,
     })
 
@@ -176,10 +285,10 @@ export function Controller() {
 
   // Navigate to specific slide
   const goToSlide = async (index: number) => {
-    if (!state.currentItemId || index < 0 || index >= state.slides.length) return
+    if (!state.currentSongId || index < 0 || index >= state.slides.length) return
 
     setState(prev => ({ ...prev, currentSlideIndex: index }))
-    await sendSlideUpdate(state.currentItemId, index)
+    await sendSlideUpdate(state.currentSongId, index)
   }
 
   // Navigate to next/previous slide
@@ -211,7 +320,7 @@ export function Controller() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [state.currentSlideIndex, state.slides.length, state.currentItemId])
+  }, [state.currentSlideIndex, state.slides.length, state.currentSongId])
 
   // Get current slide
   const currentSlide = state.slides[state.currentSlideIndex] || null
@@ -255,6 +364,12 @@ export function Controller() {
 
         {/* Connection status */}
         <div className="flex items-center gap-2">
+          {prefetching ? (
+            <Badge variant="outline" className="gap-1">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Syncing...
+            </Badge>
+          ) : null}
           {startingPeer ? (
             <Badge variant="outline" className="gap-1">
               <Loader2 className="w-3 h-3 animate-spin" />
@@ -284,7 +399,7 @@ export function Controller() {
               <CardTitle>{t('live.preview')}</CardTitle>
             </CardHeader>
             <CardContent>
-              <SlidePreview slide={currentSlide} />
+              <SlidePreview slide={currentSlide} backgroundUrl={currentBackgroundUrl} />
             </CardContent>
           </Card>
 

@@ -332,6 +332,8 @@ impl TcpP2pManager {
         let peer_info_clone = peer_info.clone();
 
         tokio::spawn(async move {
+            tracing::info!("TCP P2P: Controller connection task started for {}", peer_id);
+
             // Create channel for sending
             let (tx, mut rx) = mpsc::unbounded_channel::<String>();
 
@@ -350,6 +352,8 @@ impl TcpP2pManager {
                 cb(peer_id);
             }
 
+            tracing::info!("TCP P2P: Controller connection task entering loop for {}", peer_id);
+
             // Use select! to handle both reading from network and writing from channel
             loop {
                 tokio::select! {
@@ -366,6 +370,7 @@ impl TcpP2pManager {
                             }
                             None => {
                                 // Channel closed, exit loop
+                                tracing::warn!("TCP P2P: Channel closed for {}, exiting loop", peer_id);
                                 break;
                             }
                         }
@@ -396,13 +401,15 @@ impl TcpP2pManager {
                                 }
                             }
                             Err(e) => {
-                                tracing::info!("TCP P2P: Connection to {} closed: {}", peer_id, e);
+                                tracing::warn!("TCP P2P: Connection to {} closed, exiting loop: {}", peer_id, e);
                                 break;
                             }
                         }
                     }
                 }
             }
+
+            tracing::warn!("TCP P2P: Controller connection task loop ended for {}", peer_id);
 
             // Cleanup
             {

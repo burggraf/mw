@@ -160,13 +160,27 @@ pub async fn start_peer(
     display_name: String,
     app_handle: AppHandle,
 ) -> Result<String, String> {
+    let state = app_handle.state::<WebrtcState>();
+
+    // Check if a peer already exists - return its ID instead of creating a new one
+    // This prevents multiple calls from creating duplicate peers/trying to bind the same port
+    {
+        let existing_peer = state.peer.lock().await;
+        if let Some(ref peer) = *existing_peer {
+            let peer_id = peer.id.to_string();
+            tracing::info!("Peer already exists with ID {}, reusing existing peer", peer_id);
+            // Drop the lock before returning
+            drop(existing_peer);
+            return Ok(peer_id);
+        }
+    }
+
     let peer = Peer::new(peer_type, display_name);
     let peer_id = peer.id;
 
     tracing::info!("Starting peer: {} ({:?})", peer.display_name, peer.peer_type);
 
     // Store the peer
-    let state = app_handle.state::<WebrtcState>();
     *state.peer.lock().await = Some(peer.clone());
 
     // Initialize the TCP P2P manager
@@ -811,4 +825,361 @@ pub fn get_auto_start_mode(app_handle: AppHandle) -> String {
         crate::AutoStartMode::Display => "display".to_string(),
         crate::AutoStartMode::None => "none".to_string(),
     }
+}
+
+// ============================================================================
+// Media Cache Commands
+// ============================================================================
+
+use std::path::PathBuf;
+use std::fs;
+use std::io::Write;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+const MAX_CACHE_SIZE_MB: u64 = 500; // 500 MB max cache
+const CACHE_DIR_NAME: &str = "media_cache";
+
+/// Metadata for a cached media file
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MediaCacheEntry {
+    file_path: String,
+    updated_at: String,  // ISO 8601 timestamp
+    last_accessed: String,  // ISO 8601 timestamp
+    size: u64,
+}
+
+/// Cache state stored in Tauri Store
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MediaCacheState {
+    entries: HashMap<String, MediaCacheEntry>,
+    total_size: u64,
+}
+
+impl Default for MediaCacheState {
+    fn default() -> Self {
+        Self {
+            entries: HashMap::new(),
+            total_size: 0,
+        }
+    }
+}
+
+/// Get the cache directory path
+fn get_cache_dir(app_handle: &AppHandle) -> Result<PathBuf, String> {
+    let cache_dir = app_handle
+        .path()
+        .app_cache_dir()
+        .map_err(|e| format!("Failed to get cache dir: {}", e))?
+        .join(CACHE_DIR_NAME);
+
+    // Create directory if it doesn't exist
+    fs::create_dir_all(&cache_dir)
+        .map_err(|e| format!("Failed to create cache dir: {}", e))?;
+
+    Ok(cache_dir)
+}
+
+/// Load cache state from Tauri Store
+async fn load_cache_state(app_handle: &AppHandle) -> Result<MediaCacheState, String> {
+    use tauri_plugin_store::StoreExt;
+
+    let store = app_handle.store("media_cache.json")
+        .map_err(|e| format!("Failed to get store: {}", e))?;
+
+    let entries: HashMap<String, MediaCacheEntry> = store
+        .get("entries")
+        .and_then(|v| serde_json::from_value(v).ok())
+        .unwrap_or_default();
+
+    let total_size = store
+        .get("total_size")
+        .and_then(|v| serde_json::from_value(v).ok())
+        .unwrap_or(0u64);
+
+    Ok(MediaCacheState { entries, total_size })
+}
+
+/// Save cache state to Tauri Store
+async fn save_cache_state(app_handle: &AppHandle, state: &MediaCacheState) -> Result<(), String> {
+    use tauri_plugin_store::StoreExt;
+
+    let store = app_handle.store("media_cache.json")
+        .map_err(|e| format!("Failed to get store: {}", e))?;
+
+    store.set("entries", serde_json::to_value(&state.entries).unwrap());
+    store.set("total_size", serde_json::to_value(state.total_size).unwrap());
+    store.save().map_err(|e| format!("Failed to save store: {}", e))?;
+
+    Ok(())
+}
+
+/// Evict least recently used entries until cache is under limit
+async fn evict_lru(
+    app_handle: &AppHandle,
+    mut state: MediaCacheState,
+    _cache_dir: &PathBuf,
+) -> Result<MediaCacheState, String> {
+    const MAX_SIZE: u64 = MAX_CACHE_SIZE_MB * 1024 * 1024;
+
+    while state.total_size > MAX_SIZE && !state.entries.is_empty() {
+        // Find LRU entry
+        let lru_id = state.entries
+            .iter()
+            .min_by_key(|(_, e)| e.last_accessed.clone())
+            .map(|(id, _)| id.clone());
+
+        if let Some(id) = lru_id {
+            if let Some(entry) = state.entries.remove(&id) {
+                // Delete file
+                let _ = fs::remove_file(&entry.file_path);
+                state.total_size = state.total_size.saturating_sub(entry.size);
+                tracing::info!("Evicted media from cache: {} ({} bytes)", id, entry.size);
+            }
+        }
+    }
+
+    save_cache_state(app_handle, &state).await?;
+    Ok(state)
+}
+
+/// Store a media file in the cache
+#[tauri::command]
+pub async fn cache_media(
+    app_handle: AppHandle,
+    media_id: String,
+    updated_at: String,
+    data: String,  // base64 encoded
+) -> Result<String, String> {
+    let cache_dir = get_cache_dir(&app_handle)?;
+
+    // Decode base64 data
+    let file_data = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &data)
+        .map_err(|e| format!("Failed to decode base64: {}", e))?;
+
+    let file_size = file_data.len() as u64;
+
+    // Determine file extension from media_id or detect from base64 data
+    let ext = if media_id.contains(".") {
+        media_id.rsplit('.').next().unwrap_or("bin")
+    } else {
+        // Detect image type from base64 data signature (magic bytes)
+        if data.starts_with("/9j/") {
+            "jpg"      // JPEG
+        } else if data.starts_with("iVBORw0K") {
+            "png"      // PNG
+        } else if data.starts_with("R0lGODlh") {
+            "gif"      // GIF
+        } else if data.starts_with("UklGR") {
+            "webp"     // WebP
+        } else {
+            "bin"      // Unknown
+        }
+    };
+
+    // Generate safe filename - only alphanumeric, dash, underscore, dot
+    let safe_id = media_id.replace(|c: char| !c.is_alphanumeric() && c != '-' && c != '.', "_");
+    // Sanitize timestamp: replace special chars with safe alternatives
+    let safe_timestamp = updated_at
+        .replace(':', "-")
+        .replace('+', "_")
+        .replace('.', "-");
+    let file_path = cache_dir.join(format!("{}_{}.{}", safe_id, safe_timestamp, ext));
+
+    tracing::info!("Caching media: {} with extension: {} -> {}", media_id, ext, file_path.display());
+
+    // Check if already cached with same or newer version
+    let mut state = load_cache_state(&app_handle).await?;
+
+    if let Some(existing) = state.entries.get(&media_id) {
+        if existing.updated_at >= updated_at && existing.file_path == file_path.to_string_lossy() {
+            // Already have this version or newer
+            tracing::info!("Media already cached with current or newer version: {}", media_id);
+            return Ok(existing.file_path.clone());
+        }
+        // Remove old version
+        let _ = fs::remove_file(&existing.file_path);
+        state.total_size = state.total_size.saturating_sub(existing.size);
+        state.entries.remove(&media_id);
+    }
+
+    // Write file
+    let mut file = fs::File::create(&file_path)
+        .map_err(|e| format!("Failed to create file: {}", e))?;
+    file.write_all(&file_data)
+        .map_err(|e| format!("Failed to write file: {}", e))?;
+
+    // Update cache state
+    let now = chrono::Utc::now().to_rfc3339();
+    let entry = MediaCacheEntry {
+        file_path: file_path.to_string_lossy().to_string(),
+        updated_at: updated_at.clone(),
+        last_accessed: now.clone(),
+        size: file_size,
+    };
+
+    state.entries.insert(media_id.clone(), entry);
+    state.total_size += file_size;
+
+    // Evict if needed
+    let _ = evict_lru(&app_handle, state, &cache_dir).await?;
+
+    Ok(file_path.to_string_lossy().to_string())
+}
+
+/// Cache media from binary buffer (fetched from URL)
+#[tauri::command]
+pub async fn cache_media_from_buffer(
+    app_handle: AppHandle,
+    media_id: String,
+    updated_at: String,
+    buffer: Vec<u8>,
+) -> Result<String, String> {
+    let cache_dir = get_cache_dir(&app_handle)?;
+
+    let file_size = buffer.len() as u64;
+
+    // Determine file extension from binary data magic bytes
+    let ext = if media_id.contains(".") {
+        media_id.rsplit('.').next().unwrap_or("bin").to_string()
+    } else {
+        // Detect image type from binary magic bytes
+        match buffer.get(0..4) {
+            Some([0xFF, 0xD8, 0xFF, ..]) => "jpg",   // JPEG
+            Some([0x89, 0x50, 0x4E, 0x47]) => "png",  // PNG
+            Some([0x47, 0x49, 0x46, 0x38]) => "gif",  // GIF
+            Some([0x52, 0x49, 0x46, 0x46]) => "webp", // WebP (RIFF)
+            Some(b"WEBP") => "webp",
+            _ => "bin",
+        }.to_string()
+    };
+
+    // Generate safe filename - only alphanumeric, dash, underscore, dot
+    let safe_id = media_id.replace(|c: char| !c.is_alphanumeric() && c != '-' && c != '.', "_");
+    // Sanitize timestamp: replace special chars with safe alternatives
+    let safe_timestamp = updated_at
+        .replace(':', "-")
+        .replace('+', "_")
+        .replace('.', "-");
+    let file_path = cache_dir.join(format!("{}_{}.{}", safe_id, safe_timestamp, ext));
+
+    tracing::info!("Caching media from buffer: {} with extension: {} -> {}", media_id, ext, file_path.display());
+
+    // Check if already cached with same or newer version
+    let mut state = load_cache_state(&app_handle).await?;
+
+    if let Some(existing) = state.entries.get(&media_id) {
+        if existing.updated_at >= updated_at && existing.file_path == file_path.to_string_lossy() {
+            // Already have this version or newer
+            tracing::info!("Media already cached with current or newer version: {}", media_id);
+            return Ok(existing.file_path.clone());
+        }
+        // Remove old version
+        let _ = fs::remove_file(&existing.file_path);
+        state.total_size = state.total_size.saturating_sub(existing.size);
+        state.entries.remove(&media_id);
+    }
+
+    // Write file
+    let mut file = fs::File::create(&file_path)
+        .map_err(|e| format!("Failed to create file: {}", e))?;
+    file.write_all(&buffer)
+        .map_err(|e| format!("Failed to write file: {}", e))?;
+
+    // Update cache state
+    let now = chrono::Utc::now().to_rfc3339();
+    let entry = MediaCacheEntry {
+        file_path: file_path.to_string_lossy().to_string(),
+        updated_at: updated_at.clone(),
+        last_accessed: now.clone(),
+        size: file_size,
+    };
+
+    state.entries.insert(media_id.clone(), entry);
+    state.total_size += file_size;
+
+    // Evict if needed
+    let _ = evict_lru(&app_handle, state, &cache_dir).await?;
+
+    Ok(file_path.to_string_lossy().to_string())
+}
+
+/// Get a cached media file path
+#[tauri::command]
+pub async fn get_cached_media(
+    app_handle: AppHandle,
+    media_id: String,
+) -> Result<Option<String>, String> {
+    let mut state = load_cache_state(&app_handle).await?;
+
+    if let Some(entry) = state.entries.get(&media_id) {
+        let file_path = entry.file_path.clone();
+
+        // Update last accessed time
+        if let Some(e) = state.entries.get_mut(&media_id) {
+            e.last_accessed = chrono::Utc::now().to_rfc3339();
+        }
+        save_cache_state(&app_handle, &state).await?;
+
+        // Check if file still exists
+        if PathBuf::from(&file_path).exists() {
+            return Ok(Some(file_path));
+        }
+    }
+
+    Ok(None)
+}
+
+/// Clear all cached media
+#[tauri::command]
+pub async fn clear_media_cache(app_handle: AppHandle) -> Result<(), String> {
+    let cache_dir = get_cache_dir(&app_handle)?;
+
+    // Remove all files in cache directory
+    for entry in fs::read_dir(&cache_dir)
+        .map_err(|e| format!("Failed to read cache dir: {}", e))?
+    {
+        let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
+        fs::remove_file(entry.path())
+            .map_err(|e| format!("Failed to remove file: {}", e))?;
+    }
+
+    // Clear state
+    let state = MediaCacheState::default();
+    save_cache_state(&app_handle, &state).await?;
+
+    tracing::info!("Media cache cleared");
+    Ok(())
+}
+
+/// Get cache statistics
+#[tauri::command]
+pub async fn get_cache_stats(app_handle: AppHandle) -> Result<CacheStats, String> {
+    let state = load_cache_state(&app_handle).await?;
+
+    Ok(CacheStats {
+        entry_count: state.entries.len(),
+        total_size: state.total_size,
+        max_size: MAX_CACHE_SIZE_MB * 1024 * 1024,
+    })
+}
+
+/// Test command to emit an event to the frontend (for debugging event system)
+#[tauri::command]
+pub async fn test_emit_event(app_handle: AppHandle, message: String) -> Result<(), String> {
+    tracing::info!("test_emit_event called with message: {}", message);
+    let payload = serde_json::json!({
+        "message": message,
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+    });
+    tracing::info!("Emitting test-event: {}", payload);
+    let _ = app_handle.emit("test-event", payload);
+    Ok(())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CacheStats {
+    pub entry_count: usize,
+    pub total_size: u64,
+    pub max_size: u64,
 }

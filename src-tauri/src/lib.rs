@@ -69,6 +69,12 @@ pub fn run() {
             commands::get_connected_peers,
             commands::get_leader_status,
             commands::get_auto_start_mode,
+            commands::cache_media,
+            commands::cache_media_from_buffer,
+            commands::get_cached_media,
+            commands::clear_media_cache,
+            commands::get_cache_stats,
+            commands::test_emit_event,
         ])
         .setup(|app| {
             // Trigger auto-start if mode is set
