@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { useChurch } from '@/contexts/ChurchContext';
 import { getDisplaysForChurch, createDisplay, updateDisplay, deleteDisplay } from '@/services/displays';
 import type { Display, DisplayClass } from '@/types/display';
@@ -53,6 +54,16 @@ export function DisplaysAccordion({ onDisplayClick }: DisplaysAccordionProps) {
 
   const handlePair = async (code: string, name: string, location: string, displayClass: DisplayClass) => {
     if (!currentChurch) throw new Error('No church selected');
+
+    // Confirm pairing with the display
+    await invoke('confirm_pairing', {
+      pairing_code: code,
+      display_name: name,
+      location,
+      display_class: displayClass,
+    });
+
+    // Create display record in Supabase
     await createDisplay(currentChurch.id, {
       pairingCode: code,
       name,
@@ -60,6 +71,10 @@ export function DisplaysAccordion({ onDisplayClick }: DisplaysAccordionProps) {
       displayClass,
       deviceId: null, // Will be set by the display during pairing
     });
+
+    // Refresh displays list
+    const updated = await getDisplaysForChurch(currentChurch.id);
+    setDisplays(updated);
   };
 
   const handleUpdate = async (id: string, name: string, location: string, displayClass: DisplayClass) => {
