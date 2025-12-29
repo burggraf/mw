@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 
 interface PairingScreenProps {
   onPaired: () => void;
 }
 
-export function PairingScreen({ onPaired: _onPaired }: PairingScreenProps) {
+export function PairingScreen({ onPaired }: PairingScreenProps) {
   const { t } = useTranslation();
   const [pairingCode, setPairingCode] = useState('');
+  const [heartbeatInterval, setHeartbeatInterval] = useState<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     // Generate a random 6-character pairing code
@@ -19,9 +22,49 @@ export function PairingScreen({ onPaired: _onPaired }: PairingScreenProps) {
     }
     setPairingCode(code);
 
-    // TODO: Send pairing advertisement via WebRTC
-    // TODO: Start heartbeat interval
-  }, []);
+    // Send pairing advertisement and start heartbeat
+    const setupPairing = async () => {
+      try {
+        // Get or generate device ID
+        const deviceId = localStorage.getItem('device_id') || crypto.randomUUID();
+        localStorage.setItem('device_id', deviceId);
+
+        // Send pairing advertisement
+        await invoke('send_pairing_advertisement', {
+          pairing_code: code,
+          device_id: deviceId,
+        });
+
+        // Start heartbeat interval (every 5 seconds)
+        const heartbeatInterval = setInterval(async () => {
+          try {
+            await invoke('send_display_heartbeat', { pairing_code: code });
+          } catch (err) {
+            console.error('Heartbeat failed:', err);
+          }
+        }, 5000);
+
+        setHeartbeatInterval(heartbeatInterval);
+      } catch (err) {
+        console.error('Failed to send pairing advertisement:', err);
+      }
+    };
+
+    setupPairing();
+
+    // Listen for pairing confirmation
+    const unlisten = listen<{ display_name: string; location?: string }>(
+      'webrtc:pairing_confirmed',
+      () => {
+        onPaired();
+      }
+    );
+
+    return () => {
+      unlisten.then(fn => fn());
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+    };
+  }, [onPaired]);
 
   return (
     <div className="h-screen w-screen bg-background flex flex-col items-center justify-center p-8">
