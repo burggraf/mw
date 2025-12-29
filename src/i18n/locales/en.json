@@ -333,19 +333,23 @@
     }
   },
   "tv": {
-    "pairing": {
-      "title": "Pair This Display",
-      "enterCode": "Enter this code on your controller",
-      "toPair": "to pair this display"
-    },
     "menu": {
-      "title": "Display Menu",
       "resume": "Resume",
-      "pair": "Pair",
-      "unpair": "Unpair",
+      "pair": "Pair Display",
+      "unpair": "Unpair Display",
       "about": "About",
-      "exit": "Exit",
-      "hint": "Use arrow keys to navigate, Enter to select, Escape to close"
+      "exit": "Exit"
+    },
+    "pairing": {
+      "title": "Mobile Worship",
+      "subtitle": "Display",
+      "enterCode": "Enter this code on your controller",
+      "toPair": "to pair this display",
+      "menuHint": "Press MENU or BACK for options"
+    },
+    "waiting": {
+      "waitingForEvent": "Waiting for event...",
+      "menuHint": "Press MENU or BACK for options"
     }
   },
   "displayMode": {

@@ -333,19 +333,23 @@
     }
   },
   "tv": {
-    "pairing": {
-      "title": "Emparejar Esta Pantalla",
-      "enterCode": "Ingresa este código en tu controlador",
-      "toPair": "para emparejar esta pantalla"
-    },
     "menu": {
-      "title": "Menú de Pantalla",
       "resume": "Continuar",
-      "pair": "Emparejar",
-      "unpair": "Desemparejar",
+      "pair": "Emparejar Pantalla",
+      "unpair": "Desemparejar Pantalla",
       "about": "Acerca de",
-      "exit": "Salir",
-      "hint": "Usa las flechas para navegar, Enter para seleccionar, Escape para cerrar"
+      "exit": "Salir"
+    },
+    "pairing": {
+      "title": "Mobile Worship",
+      "subtitle": "Pantalla",
+      "enterCode": "Ingresa este código en tu controlador",
+      "toPair": "para emparejar esta pantalla",
+      "menuHint": "Presiona MENÚ o ATRÁS para opciones"
+    },
+    "waiting": {
+      "waitingForEvent": "Esperando evento...",
+      "menuHint": "Presiona MENÚ o ATRÁS para opciones"
     }
   },
   "displayMode": {
