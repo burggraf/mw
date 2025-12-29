@@ -284,5 +284,63 @@
       "connecting": "Conectando...",
       "disconnected": "Desconectado"
     }
+  },
+  "displays": {
+    "title": "Pantallas",
+    "empty": "No hay pantallas registradas. Haz clic en + para agregar una.",
+    "forEvent": "Pantallas para este evento",
+    "class": {
+      "audience": "Audiencia",
+      "stage": "Escenario",
+      "lobby": "Lobby"
+    },
+    "status": {
+      "online": "En línea",
+      "offline": "Fuera de línea"
+    },
+    "pairing": {
+      "enterCodeTitle": "Emparejar Pantalla",
+      "enterCodeDescription": "Ingresa el código de 6 dígitos que se muestra en la pantalla.",
+      "registerTitle": "Registrar Pantalla",
+      "registerDescription": "Ingresa un nombre y ubicación para esta pantalla.",
+      "codeLabel": "Código de Emparejamiento",
+      "nameLabel": "Nombre de la Pantalla",
+      "namePlaceholder": "Pantalla Principal del Santuario",
+      "locationLabel": "Ubicación",
+      "locationPlaceholder": "Frente del santuario",
+      "classLabel": "Clase",
+      "verify": "Verificar",
+      "verifying": "Verificando...",
+      "pair": "Emparejar",
+      "invalidCode": "Por favor ingresa un código válido de 6 dígitos.",
+      "unreachable": "No se puede alcanzar la pantalla. Asegúrate de que esté en la misma red.",
+      "error": "Ocurrió un error. Por favor intenta de nuevo.",
+      "nameRequired": "El nombre de la pantalla es requerido."
+    },
+    "edit": {
+      "title": "Editar Pantalla",
+      "description": "Actualiza los detalles de la pantalla o desregístrala de tu iglesia.",
+      "save": "Guardar",
+      "unregister": "Desregistrar",
+      "unregistering": "Desregistrando...",
+      "unregisterConfirm": "¿Estás seguro de que quieres desregistrar esta pantalla? Necesitará ser emparejada de nuevo.",
+      "confirmUnregister": "Confirmar",
+      "error": "Falló al actualizar la pantalla.",
+      "unregisterError": "Falló al desregistrar la pantalla."
+    }
+  },
+  "tv": {
+    "menu": {
+      "resume": "Continuar",
+      "pair": "Emparejar",
+      "unpair": "Desemparejar",
+      "about": "Acerca de",
+      "exit": "Salir"
+    }
+  },
+  "displayMode": {
+    "title": "Modo Pantalla",
+    "pair": "Emparejar",
+    "unpair": "Desemparejar"
   }
 }
