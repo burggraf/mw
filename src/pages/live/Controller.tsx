@@ -146,7 +146,10 @@ export function Controller() {
 
   // Send slide update to all connected displays
   const sendSlideUpdate = async (itemId: string, slideIndex: number) => {
-    if (!state.currentEventId) return
+    if (!state.currentEventId) {
+      console.warn('[Controller] Cannot send slide: no currentEventId')
+      return
+    }
 
     const message = JSON.stringify({
       type: 'slide',
@@ -155,10 +158,15 @@ export function Controller() {
       slideIndex,
     })
 
+    console.log('[Controller] Sending slide update:', message)
+
     // Send to all display peers
     const displayPeers = peers.filter(p => p.peer_type === 'display' && p.is_connected)
+    console.log('[Controller] Display peers:', displayPeers.length, displayPeers.map(p => ({ id: p.id, name: p.display_name })))
+
     for (const peer of displayPeers) {
       try {
+        console.log('[Controller] Sending to peer:', peer.display_name, 'message:', message)
         await sendMessage(peer.id, message)
       } catch (error) {
         console.error(`Failed to send slide to ${peer.display_name}:`, error)

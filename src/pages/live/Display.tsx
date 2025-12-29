@@ -12,7 +12,7 @@ interface DisplayPageProps {
 
 export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPageProps) {
   const { t } = useTranslation()
-  const { isConnected, connectionState, startPeer, peers } = useWebRTC()
+  const { isConnected, connectionState, startPeer, peers, myPeerId } = useWebRTC()
 
   const [currentSlide, setCurrentSlide] = useState<Slide | null>(null)
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null)
@@ -51,7 +51,8 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
     }
 
     const handleMessage = (event: CustomEvent<DataReceivedEvent>) => {
-      console.log('[Display] Received message:', event.detail.message)
+      console.log('[Display] Received message from', event.detail.from_peer_id, ':', event.detail.message)
+      console.log('[Display] My peer ID:', myPeerId)
       try {
         const msg: BroadcastMessage = JSON.parse(event.detail.message)
         console.log('[Display] Parsed message:', msg)
