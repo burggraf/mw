@@ -1313,6 +1313,44 @@ pub async fn send_display_heartbeat(
     Ok(())
 }
 
+/// Verify a pairing code by sending ping and waiting for pong response
+#[tauri::command]
+pub async fn verify_pairing_code(
+    pairing_code: String,
+    app_handle: AppHandle,
+) -> Result<Option<VerifyPairingResult>, String> {
+    let state = app_handle.state::<WebrtcState>();
+
+    tracing::info!("Verifying pairing code: {}", pairing_code);
+
+    // Send PairingPing via signaling server
+    if let Some(signaling_server) = &*state.signaling_server.lock().await {
+        use crate::webrtc::SignalingMessage;
+
+        // Generate a controller ID for this session
+        let controller_id = uuid::Uuid::new_v4().to_string();
+
+        let msg = SignalingMessage::PairingPing {
+            pairing_code: pairing_code.clone(),
+            controller_id,
+        };
+
+        signaling_server.broadcast(msg).await;
+
+        // TODO: Wait for PairingPong response
+        // For now, return None (not found) to force the user to verify the display is on
+        // In full implementation, we'd use a timeout channel to wait for response
+    }
+
+    Ok(None)
+}
+
+#[derive(serde::Serialize)]
+pub struct VerifyPairingResult {
+    pub device_name: String,
+    pub is_reachable: bool,
+}
+
 /// Information about a display/monitor
 #[derive(serde::Serialize, Clone)]
 pub struct MonitorInfo {
