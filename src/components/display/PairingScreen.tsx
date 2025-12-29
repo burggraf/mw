@@ -36,7 +36,7 @@ export function PairingScreen({ onPaired }: PairingScreenProps) {
         });
 
         // Start heartbeat interval (every 5 seconds)
-        const heartbeatInterval = setInterval(async () => {
+        const interval = setInterval(async () => {
           try {
             await invoke('send_display_heartbeat', { pairing_code: code });
           } catch (err) {
@@ -44,7 +44,7 @@ export function PairingScreen({ onPaired }: PairingScreenProps) {
           }
         }, 5000);
 
-        setHeartbeatInterval(heartbeatInterval);
+        setHeartbeatInterval(interval);
       } catch (err) {
         console.error('Failed to send pairing advertisement:', err);
       }
