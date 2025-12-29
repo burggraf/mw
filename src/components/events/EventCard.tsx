@@ -1,8 +1,10 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
+import { useTranslation } from 'react-i18next'
 import type { Event } from '@/types/event'
 import { Card, CardContent } from '@/components/ui/card'
-import { Calendar, Music, Image } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Calendar, Music, Image, Play } from 'lucide-react'
 
 interface EventCardProps {
   event: Event
@@ -10,9 +12,16 @@ interface EventCardProps {
 }
 
 export function EventCard({ event, itemCounts }: EventCardProps) {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
   const totalItems = (itemCounts?.songs || 0) + (itemCounts?.media || 0)
   const scheduledDate = new Date(event.scheduledAt)
   const isPast = scheduledDate < new Date()
+
+  const handleStart = (e: React.MouseEvent) => {
+    e.preventDefault()
+    navigate(`/live/controller/${event.id}`)
+  }
 
   return (
     <Link to={`/events/${event.id}`}>
@@ -28,13 +37,25 @@ export function EventCard({ event, itemCounts }: EventCardProps) {
               )}
             </div>
 
-            <div className={`text-right shrink-0 ${isPast ? 'text-muted-foreground' : ''}`}>
-              <div className="flex items-center gap-1.5 text-sm">
-                <Calendar className="h-4 w-4" />
-                <span>{format(scheduledDate, 'MMM d, yyyy')}</span>
-              </div>
-              <div className="text-sm text-muted-foreground mt-0.5">
-                {format(scheduledDate, 'h:mm a')}
+            <div className="flex items-center gap-3">
+              <Button
+                size="sm"
+                variant="default"
+                onClick={handleStart}
+                className="shrink-0"
+              >
+                <Play className="h-4 w-4 mr-1" />
+                {t('events.start')}
+              </Button>
+
+              <div className={`text-right shrink-0 ${isPast ? 'text-muted-foreground' : ''}`}>
+                <div className="flex items-center gap-1.5 text-sm">
+                  <Calendar className="h-4 w-4" />
+                  <span>{format(scheduledDate, 'MMM d, yyyy')}</span>
+                </div>
+                <div className="text-sm text-muted-foreground mt-0.5">
+                  {format(scheduledDate, 'h:mm a')}
+                </div>
               </div>
             </div>
           </div>

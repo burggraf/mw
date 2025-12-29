@@ -214,6 +214,7 @@
   },
   "events": {
     "title": "Eventos",
+    "start": "Iniciar",
     "newEvent": "Nuevo Evento",
     "editEvent": "Editar Evento",
     "upcomingEvents": "Próximos",
