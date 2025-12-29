@@ -75,6 +75,11 @@ pub fn run() {
             commands::clear_media_cache,
             commands::get_cache_stats,
             commands::test_emit_event,
+            // Display pairing commands
+            commands::generate_pairing_code,
+            commands::send_pairing_advertisement,
+            commands::send_pairing_ping,
+            commands::send_display_heartbeat,
         ])
         .setup(|app| {
             // Trigger auto-start if mode is set

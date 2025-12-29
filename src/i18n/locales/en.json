@@ -214,6 +214,7 @@
   },
   "events": {
     "title": "Events",
+    "start": "Start",
     "newEvent": "New Event",
     "editEvent": "Edit Event",
     "upcomingEvents": "Upcoming",
@@ -283,5 +284,72 @@
       "connecting": "Connecting...",
       "disconnected": "Disconnected"
     }
+  },
+  "displays": {
+    "title": "Displays",
+    "empty": "No displays registered. Click + to add one.",
+    "forEvent": "Displays for this event",
+    "selectedCount": "{{count}} display selected",
+    "selectedCount_plural": "{{count}} displays selected",
+    "class": {
+      "audience": "Audience",
+      "stage": "Stage",
+      "lobby": "Lobby"
+    },
+    "status": {
+      "online": "Online",
+      "offline": "Offline"
+    },
+    "pairing": {
+      "enterCodeTitle": "Pair a Display",
+      "enterCodeDescription": "Enter the 6-digit code shown on the display.",
+      "registerTitle": "Register Display",
+      "registerDescription": "Enter a name and location for this display.",
+      "codeLabel": "Pairing Code",
+      "nameLabel": "Display Name",
+      "namePlaceholder": "Main Sanctuary Screen",
+      "locationLabel": "Location",
+      "locationPlaceholder": "Front of sanctuary",
+      "classLabel": "Class",
+      "verify": "Verify",
+      "verifying": "Verifying...",
+      "pair": "Pair Display",
+      "invalidCode": "Please enter a valid 6-digit code.",
+      "unreachable": "Unable to reach the display. Make sure it's on the same network.",
+      "error": "An error occurred. Please try again.",
+      "nameRequired": "Display name is required."
+    },
+    "edit": {
+      "title": "Edit Display",
+      "description": "Update the display details or unregister it from your church.",
+      "save": "Save",
+      "unregister": "Unregister",
+      "unregistering": "Unregistering...",
+      "unregisterConfirm": "Are you sure you want to unregister this display? It will need to be paired again.",
+      "confirmUnregister": "Confirm",
+      "error": "Failed to update display.",
+      "unregisterError": "Failed to unregister display."
+    }
+  },
+  "tv": {
+    "pairing": {
+      "title": "Pair This Display",
+      "enterCode": "Enter this code on your controller",
+      "toPair": "to pair this display"
+    },
+    "menu": {
+      "title": "Display Menu",
+      "resume": "Resume",
+      "pair": "Pair",
+      "unpair": "Unpair",
+      "about": "About",
+      "exit": "Exit",
+      "hint": "Use arrow keys to navigate, Enter to select, Escape to close"
+    }
+  },
+  "displayMode": {
+    "title": "Display Mode",
+    "pair": "Pair",
+    "unpair": "Unpair"
   }
 }

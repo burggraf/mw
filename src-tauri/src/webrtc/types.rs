@@ -81,6 +81,37 @@ pub enum SignalingMessage {
         to_peer_id: Uuid,
         message: String,
     },
+    /// Display broadcasts availability with pairing code
+    #[serde(rename = "pairing_advertisement")]
+    PairingAdvertisement {
+        pairing_code: String,
+        device_id: String,
+    },
+    /// Controller pings to discover displays
+    #[serde(rename = "pairing_ping")]
+    PairingPing {
+        pairing_code: String,
+        controller_id: String,
+    },
+    /// Display responds to ping
+    #[serde(rename = "pairing_pong")]
+    PairingPong {
+        pairing_code: String,
+        device_name: String,
+    },
+    /// User confirms pairing on controller
+    #[serde(rename = "pairing_confirm")]
+    PairingConfirm {
+        pairing_code: String,
+        display_name: String,
+        location: String,
+        display_class: String,
+    },
+    /// Display heartbeat to maintain pairing
+    #[serde(rename = "display_heartbeat")]
+    DisplayHeartbeat {
+        pairing_code: String,
+    },
 }
 
 /// Data channel message types (WebRTC)
