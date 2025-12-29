@@ -1386,28 +1386,26 @@ pub async fn open_display_window(
         monitor_pos.y
     );
 
-    // Create the display window on the target monitor
+    // Create the display window as a borderless window sized to match the target monitor
+    // This creates a "presentation mode" style window (like PowerPoint/Keynote)
+    // rather than using macOS's native fullscreen which has limitations
     let display_window = WebviewWindowBuilder::new(
         &app_handle,
         &window_label,
         WebviewUrl::App(format!("/live/display?eventId=default&displayName={}&localMode=true", display_name).into())
     )
     .title(display_name.clone())
+    .position(monitor_pos.x as f64, monitor_pos.y as f64)
+    .inner_size(monitor_size.width as f64, monitor_size.height as f64)
     .resizable(false)
     .decorations(false)
     .skip_taskbar(true)
+    .always_on_top(true)
     .build()
     .map_err(|e| format!("Failed to create display window: {}", e))?;
 
-    // Position window on the target monitor and make it fullscreen
-    // Using Tauri's cross-platform APIs (works on macOS, Windows, Linux)
-    display_window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
-        x: monitor_pos.x,
-        y: monitor_pos.y,
-    })).map_err(|e| format!("Failed to set position: {}", e))?;
-    display_window.set_fullscreen(true).map_err(|e| format!("Failed to set fullscreen: {}", e))?;
-
-    tracing::info!("Display window '{}' created successfully", display_name);
+    tracing::info!("Display window '{}' created at ({},{}) size {}x{}",
+        display_name, monitor_pos.x, monitor_pos.y, monitor_size.width, monitor_size.height);
 
     Ok(window_label)
 }
