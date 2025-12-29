@@ -1183,3 +1183,60 @@ pub struct CacheStats {
     pub total_size: u64,
     pub max_size: u64,
 }
+
+// ============================================================================
+// Display Pairing Commands
+// ============================================================================
+
+/// Generate a random 6-character pairing code (helper function)
+fn generate_pairing_code_internal() -> String {
+    let chars = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let mut code = String::new();
+
+    for _ in 0..6 {
+        code.push(chars[rand::random::<usize>() % chars.len()] as char);
+    }
+
+    code
+}
+
+/// Generate a pairing code for display discovery
+#[tauri::command]
+pub async fn generate_pairing_code() -> Result<String, String> {
+    Ok(generate_pairing_code_internal())
+}
+
+/// Send a pairing advertisement through the signaling server
+#[tauri::command]
+pub async fn send_pairing_advertisement(
+    pairing_code: String,
+    device_id: String,
+    _app_handle: AppHandle,
+) -> Result<(), String> {
+    // TODO: Send through signaling server to all connected controllers
+    // Implementation depends on signaling server structure
+    tracing::info!("Sending pairing advertisement: code={}, device_id={}", pairing_code, device_id);
+    Ok(())
+}
+
+/// Send a pairing ping and wait for pong response
+#[tauri::command]
+pub async fn send_pairing_ping(
+    pairing_code: String,
+    controller_id: String,
+) -> Result<bool, String> {
+    // TODO: Send ping and wait for pong response
+    // Returns true if display is reachable
+    tracing::info!("Sending pairing ping: code={}, controller_id={}", pairing_code, controller_id);
+    Ok(true)
+}
+
+/// Send a heartbeat message to keep display connection alive
+#[tauri::command]
+pub async fn send_display_heartbeat(
+    pairing_code: String,
+) -> Result<(), String> {
+    // TODO: Send heartbeat through signaling server
+    tracing::debug!("Sending display heartbeat: code={}", pairing_code);
+    Ok(())
+}
