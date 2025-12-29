@@ -85,6 +85,7 @@ pub fn run() {
             commands::open_display_window,
             commands::close_display_window,
             commands::auto_start_display_windows,
+            commands::get_platform,
         ])
         .setup(|app| {
             // Trigger auto-start if mode is set

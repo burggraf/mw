@@ -1539,3 +1539,13 @@ pub async fn close_display_window(
 
     Ok(())
 }
+
+/// Get the current platform (desktop or android)
+#[tauri::command]
+pub async fn get_platform() -> String {
+    #[cfg(target_os = "android")]
+    return "android".to_string();
+
+    #[cfg(not(target_os = "android"))]
+    return "desktop".to_string();
+}
