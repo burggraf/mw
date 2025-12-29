@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
 
 interface EventDisplaysAccordionProps {
   /** Available displays for the church */
@@ -62,75 +63,77 @@ export function EventDisplaysAccordion({
   };
 
   return (
-    <div className="space-y-3">
-      <Accordion type="single" value={open ? 'displays' : undefined} onValueChange={(v) => setOpen(v === 'displays')}>
-        <AccordionItem value="displays" className="border-none">
-          <AccordionTrigger className="py-2 hover:no-underline">
-            {label || t('displays.forEvent', 'Displays for this event')}
-          </AccordionTrigger>
-          <AccordionContent className="pt-2 pb-0">
-            {displays.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                {t('displays.empty', 'No displays registered. Click + to add one.')}
-              </p>
-            ) : (
-              <div className="space-y-1">
-                {displays.map((display) => {
-                  const isSelected = selectedDisplayIds.includes(display.id);
+    <ErrorBoundary errorMessage="Failed to load displays">
+      <div className="space-y-3">
+        <Accordion type="single" value={open ? 'displays' : undefined} onValueChange={(v) => setOpen(v === 'displays')}>
+          <AccordionItem value="displays" className="border-none">
+            <AccordionTrigger className="py-2 hover:no-underline">
+              {label || t('displays.forEvent', 'Displays for this event')}
+            </AccordionTrigger>
+            <AccordionContent className="pt-2 pb-0">
+              {displays.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {t('displays.empty', 'No displays registered. Click + to add one.')}
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  {displays.map((display) => {
+                    const isSelected = selectedDisplayIds.includes(display.id);
 
-                  return (
-                    <div
-                      key={display.id}
-                      className={`flex items-start gap-3 p-3 rounded-md border transition-colors ${
-                        isSelected
-                          ? 'bg-primary/5 border-primary/20'
-                          : 'bg-card hover:bg-accent'
-                      }`}
-                    >
-                      <Checkbox
-                        id={`display-${display.id}`}
-                        checked={isSelected}
-                        onCheckedChange={() => handleToggle(display.id)}
-                        className="mt-0.5"
-                      />
+                    return (
+                      <div
+                        key={display.id}
+                        className={`flex items-start gap-3 p-3 rounded-md border transition-colors ${
+                          isSelected
+                            ? 'bg-primary/5 border-primary/20'
+                            : 'bg-card hover:bg-accent'
+                        }`}
+                      >
+                        <Checkbox
+                          id={`display-${display.id}`}
+                          checked={isSelected}
+                          onCheckedChange={() => handleToggle(display.id)}
+                          className="mt-0.5"
+                        />
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <label
-                            htmlFor={`display-${display.id}`}
-                            className="text-sm font-medium truncate cursor-pointer"
-                          >
-                            {display.name}
-                          </label>
-                          <Badge variant={getClassBadgeVariant(display.displayClass)} className="text-xs">
-                            {getClassLabel(display.displayClass)}
-                          </Badge>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <label
+                              htmlFor={`display-${display.id}`}
+                              className="text-sm font-medium truncate cursor-pointer"
+                            >
+                              {display.name}
+                            </label>
+                            <Badge variant={getClassBadgeVariant(display.displayClass)} className="text-xs">
+                              {getClassLabel(display.displayClass)}
+                            </Badge>
+                          </div>
+                          {display.location && (
+                            <p className="text-xs text-muted-foreground truncate">
+                              {display.location}
+                            </p>
+                          )}
                         </div>
-                        {display.location && (
-                          <p className="text-xs text-muted-foreground truncate">
-                            {display.location}
-                          </p>
-                        )}
+
+                        <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1.5 ${
+                          display.isOnline ? 'bg-green-500' : 'bg-red-500'
+                        }`} />
                       </div>
+                    );
+                  })}
+                </div>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
 
-                      <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1.5 ${
-                        display.isOnline ? 'bg-green-500' : 'bg-red-500'
-                      }`} />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
-
-      {/* Selection summary */}
-      {selectedDisplayIds.length > 0 && (
-        <p className="text-xs text-muted-foreground">
-          {t('displays.selectedCount', { count: selectedDisplayIds.length })}
-        </p>
-      )}
-    </div>
+        {/* Selection summary */}
+        {selectedDisplayIds.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            {t('displays.selectedCount', { count: selectedDisplayIds.length })}
+          </p>
+        )}
+      </div>
+    </ErrorBoundary>
   );
 }

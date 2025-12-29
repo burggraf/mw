@@ -6,6 +6,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { PairingModal } from './PairingModal';
 import { DisplayEditModal } from './DisplayEditModal';
 
@@ -72,7 +73,7 @@ export function DisplaysAccordion({ onDisplayClick }: DisplaysAccordionProps) {
   };
 
   return (
-    <>
+    <ErrorBoundary errorMessage="Failed to load displays">
       <div className="flex items-center justify-between pr-2">
         <Accordion type="single" className="flex-1">
           <AccordionItem value="displays" className="border-none">
@@ -134,6 +135,6 @@ export function DisplaysAccordion({ onDisplayClick }: DisplaysAccordionProps) {
         onUpdate={handleUpdate}
         onUnregister={handleUnregister}
       />
-    </>
+    </ErrorBoundary>
   );
 }
