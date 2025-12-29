@@ -1296,9 +1296,20 @@ pub async fn send_pairing_ping(
 #[tauri::command]
 pub async fn send_display_heartbeat(
     pairing_code: String,
+    app_handle: AppHandle,
 ) -> Result<(), String> {
-    // TODO: Send heartbeat through signaling server
-    tracing::debug!("Sending display heartbeat: code={}", pairing_code);
+    let state = app_handle.state::<WebrtcState>();
+
+    if let Some(signaling_server) = &*state.signaling_server.lock().await {
+        use crate::webrtc::SignalingMessage;
+        let msg = SignalingMessage::DisplayHeartbeat {
+            pairing_code: pairing_code.clone(),
+        };
+
+        signaling_server.broadcast(msg).await;
+        tracing::debug!("Sent display heartbeat: code={}", pairing_code);
+    }
+
     Ok(())
 }
 

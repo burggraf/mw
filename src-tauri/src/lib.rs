@@ -63,30 +63,58 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .manage(WebrtcState::new())
         .manage(Arc::new(auto_start_mode))
-        .invoke_handler(tauri::generate_handler![
-            commands::start_peer,
-            commands::send_control_message,
-            commands::get_connected_peers,
-            commands::get_leader_status,
-            commands::get_auto_start_mode,
-            commands::cache_media,
-            commands::cache_media_from_buffer,
-            commands::get_cached_media,
-            commands::get_cached_media_data_url,
-            commands::clear_media_cache,
-            commands::get_cache_stats,
-            commands::test_emit_event,
-            // Display pairing commands
-            commands::generate_pairing_code,
-            commands::send_pairing_advertisement,
-            commands::send_pairing_ping,
-            commands::send_display_heartbeat,
-            commands::get_available_monitors,
-            commands::open_display_window,
-            commands::close_display_window,
-            commands::auto_start_display_windows,
-            commands::get_platform,
-        ])
+        .invoke_handler({
+            #[cfg(not(target_os = "android"))]
+            {
+                tauri::generate_handler![
+                    commands::start_peer,
+                    commands::send_control_message,
+                    commands::get_connected_peers,
+                    commands::get_leader_status,
+                    commands::get_auto_start_mode,
+                    commands::cache_media,
+                    commands::cache_media_from_buffer,
+                    commands::get_cached_media,
+                    commands::get_cached_media_data_url,
+                    commands::clear_media_cache,
+                    commands::get_cache_stats,
+                    commands::test_emit_event,
+                    // Display pairing commands
+                    commands::generate_pairing_code,
+                    commands::send_pairing_advertisement,
+                    commands::send_pairing_ping,
+                    commands::send_display_heartbeat,
+                    commands::get_available_monitors,
+                    commands::open_display_window,
+                    commands::close_display_window,
+                    commands::auto_start_display_windows,
+                    commands::get_platform,
+                ]
+            }
+            #[cfg(target_os = "android")]
+            {
+                tauri::generate_handler![
+                    commands::start_peer,
+                    commands::send_control_message,
+                    commands::get_connected_peers,
+                    commands::get_leader_status,
+                    commands::get_auto_start_mode,
+                    commands::cache_media,
+                    commands::cache_media_from_buffer,
+                    commands::get_cached_media,
+                    commands::get_cached_media_data_url,
+                    commands::clear_media_cache,
+                    commands::get_cache_stats,
+                    commands::test_emit_event,
+                    // Display pairing commands
+                    commands::generate_pairing_code,
+                    commands::send_pairing_advertisement,
+                    commands::send_pairing_ping,
+                    commands::send_display_heartbeat,
+                    commands::get_platform,
+                ]
+            }
+        })
         .setup(|app| {
             // Trigger auto-start if mode is set
             let auto_start_mode = app.state::<Arc<AutoStartMode>>();

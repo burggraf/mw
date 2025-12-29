@@ -15,11 +15,11 @@
 ### Task 1.1: Implement send_pairing_advertisement in Rust
 
 **Files:**
-- Modify: `src-tauri/src/commands.rs` (add function near line 1260)
+- Modify: `src-tauri/src/commands.rs` (function around line 1260)
 
-**Step 1: Add the Rust command**
+**Step 1: Replace TODO implementation**
 
-Find the `send_pairing_advertisement` function (around line 1260) and replace the TODO implementation with:
+Find the `send_pairing_advertisement` function and replace with:
 
 ```rust
 /// Send a pairing advertisement through the signaling server
@@ -31,7 +31,6 @@ pub async fn send_pairing_advertisement(
 ) -> Result<(), String> {
     let state = app_handle.state::<WebrtcState>();
 
-    // Broadcast pairing advertisement via signaling server
     if let Some(signaling_server) = &*state.signaling_server.lock().await {
         use crate::webrtc::SignalingMessage;
         let msg = SignalingMessage::PairingAdvertisement {
@@ -39,12 +38,9 @@ pub async fn send_pairing_advertisement(
             device_id,
         };
 
-        // Broadcast to all connected clients
-        tracing::info!("Broadcasting pairing advertisement: code={}, device_id={}", pairing_code, device_id);
-
-        // The signaling server needs to be able to broadcast this message
-        // For now, log it - the actual broadcast will be added when we implement the full flow
-        drop(msg);
+        // Broadcast to all connected clients (broadcast method already exists)
+        signaling_server.broadcast(msg).await;
+        tracing::info!("Broadcasting pairing advertisement: code={}", pairing_code);
     }
 
     Ok(())
@@ -79,10 +75,20 @@ Find the `send_display_heartbeat` function (around line 1284) and replace with:
 #[tauri::command]
 pub async fn send_display_heartbeat(
     pairing_code: String,
+    app_handle: AppHandle,
 ) -> Result<(), String> {
-    // Send heartbeat via signaling server
-    // This keeps the pairing alive and announces the display is still available
-    tracing::debug!("Sending display heartbeat: code={}", pairing_code);
+    let state = app_handle.state::<WebrtcState>();
+
+    if let Some(signaling_server) = &*state.signaling_server.lock().await {
+        use crate::webrtc::SignalingMessage;
+        let msg = SignalingMessage::DisplayHeartbeat {
+            pairing_code,
+        };
+
+        signaling_server.broadcast(msg).await;
+        tracing::debug!("Sent display heartbeat: code={}", pairing_code);
+    }
+
     Ok(())
 }
 ```
@@ -190,106 +196,64 @@ git commit -m "feat: wire up PairingScreen to send advertisements"
 
 ## Phase 2: Signaling Server Enhancement
 
-### Task 2.1: Add broadcast method to SignalingServer
+### Task 2.1: Add pairing message handlers to signaling server
 
 **Files:**
 - Modify: `src-tauri/src/webrtc/signaling.rs`
 
-**Step 1: Add broadcast method**
+**Step 1: Add pairing message handlers**
 
-Add this method to the `SignalingServer` impl (after the `get_peer_list` method):
+Find the `handle_connection` function and locate the message handling match statement (around line 268). Add handlers for pairing messages before the `_ => {}` catch-all:
 
 ```rust
-/// Broadcast a message to all connected clients
-pub async fn broadcast(&self, message: SignalingMessage) {
-    use tokio_tungstenite::tungstenite::Message;
+SignalingMessage::PairingAdvertisement { pairing_code, device_id } => {
+    tracing::info!("Received PairingAdvertisement: code={}, device_id={}", pairing_code, device_id);
 
-    let clients = self.clients.read().await;
-    for (_peer_id, client) in clients.iter() {
-        if let Err(e) = client.sender.send(Message::Text(serde_json::to_string(&message).unwrap())) {
-            tracing::error!("Failed to send broadcast message: {}", e);
+    // Broadcast to all clients so controllers can discover displays
+    let clients_clone = clients.clone();
+    let msg_json = serde_json::to_string(&signaling_msg).unwrap();
+    for client in clients_clone.read().await.values() {
+        let _ = client.sender.send(Message::Text(msg_json.clone()));
+    }
+}
+SignalingMessage::PairingPing { pairing_code, controller_id } => {
+    tracing::info!("Received PairingPing: code={}, controller_id={}", pairing_code, controller_id);
+
+    // Broadcast to all clients - the matching display will respond with PairingPong
+    let clients_clone = clients.clone();
+    let msg_json = serde_json::to_string(&signaling_msg).unwrap();
+    for client in clients_clone.read().await.values() {
+        let _ = client.sender.send(Message::Text(msg_json.clone()));
+    }
+}
+SignalingMessage::PairingPong { pairing_code, device_name } => {
+    tracing::info!("Received PairingPong: code={}, device_name={}", pairing_code, device_name);
+
+    // Forward to local peer (controller) if the pairing code matches
+    if let Some(ref cb) = *on_data.lock().await {
+        let payload = serde_json::json!({
+            "type": "pairing_pong",
+            "pairing_code": pairing_code,
+            "device_name": device_name
+        });
+        if let Ok(payload_str) = serde_json::to_string(&payload) {
+            // Use Uuid::nil() as sender ID for broadcast messages
+            cb(Uuid::nil(), payload_str);
         }
     }
 }
-```
-
-**Step 2: Build to verify**
-
-Run: `cd src-tauri && cargo check`
-Expected: No errors
-
-**Step 3: Commit**
-
-```bash
-git add src-tauri/src/webrtc/signaling.rs
-git commit -m "feat: add broadcast method to SignalingServer"
-```
-
----
-
-### Task 2.2: Complete send_pairing_advertisement to use broadcast
-
-**Files:**
-- Modify: `src-tauri/src/commands.rs`
-
-**Step 1: Update send_pairing_advertisement to broadcast**
-
-Replace the temporary implementation in `send_pairing_advertisement` with:
-
-```rust
-/// Send a pairing advertisement through the signaling server
-#[tauri::command]
-pub async fn send_pairing_advertisement(
-    pairing_code: String,
-    device_id: String,
-    app_handle: AppHandle,
-) -> Result<(), String> {
-    let state = app_handle.state::<WebrtcState>();
-
-    if let Some(signaling_server) = &*state.signaling_server.lock().await {
-        use crate::webrtc::SignalingMessage;
-        let msg = SignalingMessage::PairingAdvertisement {
-            pairing_code,
-            device_id,
-        };
-
-        signaling_server.broadcast(msg).await;
-        tracing::info!("Broadcast pairing advertisement: code={}", pairing_code);
-    }
-
-    Ok(())
-}
-```
-
-**Step 2: Build to verify**
-
-Run: `cd src-tauri && cargo check`
-Expected: No errors
-
-**Step 3: Commit**
-
-```bash
-git add src-tauri/src/commands.rs
-git commit -m "feat: broadcast pairing advertisement via signaling server"
-```
-
----
-
-### Task 2.3: Handle PairingConfirm in signaling server
-
-**Files:**
-- Modify: `src-tauri/src/webrtc/signaling.rs`
-
-**Step 1: Add PairingConfirm handling in handle_connection_message**
-
-Find the `handle_connection_message` function and add handling for `PairingConfirm`. In the message handling match statement, add:
-
-```rust
 SignalingMessage::PairingConfirm { pairing_code, display_name, location, display_class } => {
     tracing::info!("Received PairingConfirm: code={}, name={}", pairing_code, display_name);
 
-    // Emit event to frontend that pairing is confirmed
-    if let Some(ref on_data) = *self.on_data.lock().await {
+    // Broadcast to all clients - the matching display will receive it
+    let clients_clone = clients.clone();
+    let msg_json = serde_json::to_string(&signaling_msg).unwrap();
+    for client in clients_clone.read().await.values() {
+        let _ = client.sender.send(Message::Text(msg_json.clone()));
+    }
+
+    // Also notify local peer if it's a display
+    if let Some(ref cb) = *on_data.lock().await {
         let payload = serde_json::json!({
             "type": "pairing_confirmed",
             "pairing_code": pairing_code,
@@ -298,9 +262,18 @@ SignalingMessage::PairingConfirm { pairing_code, display_name, location, display
             "display_class": display_class
         });
         if let Ok(payload_str) = serde_json::to_string(&payload) {
-            // Use Uuid::nil() for broadcast (no specific sender)
-            on_data(Uuid::nil(), payload_str);
+            cb(Uuid::nil(), payload_str);
         }
+    }
+}
+SignalingMessage::DisplayHeartbeat { pairing_code } => {
+    tracing::debug!("Received DisplayHeartbeat: code={}", pairing_code);
+
+    // Broadcast to all clients so controllers know display is still available
+    let clients_clone = clients.clone();
+    let msg_json = serde_json::to_string(&signaling_msg).unwrap();
+    for client in clients_clone.read().await.values() {
+        let _ = client.sender.send(Message::Text(msg_json.clone()));
     }
 }
 ```
@@ -314,7 +287,7 @@ Expected: No errors
 
 ```bash
 git add src-tauri/src/webrtc/signaling.rs
-git commit -m "feat: handle PairingConfirm in signaling server"
+git commit -m "feat: handle pairing messages in signaling server"
 ```
 
 ---
@@ -328,10 +301,10 @@ git commit -m "feat: handle PairingConfirm in signaling server"
 
 **Step 1: Add verify_pairing_code command**
 
-Add after the `send_pairing_ping` function:
+Add after the `send_display_heartbeat` function:
 
 ```rust
-/// Verify a pairing code by sending ping and waiting for pong
+/// Verify a pairing code by sending ping and waiting for pong response
 #[tauri::command]
 pub async fn verify_pairing_code(
     pairing_code: String,
@@ -339,20 +312,28 @@ pub async fn verify_pairing_code(
 ) -> Result<Option<VerifyPairingResult>, String> {
     let state = app_handle.state::<WebrtcState>();
 
-    // For now, return a placeholder result
-    // In full implementation, this would:
-    // 1. Send PairingPing via signaling
-    // 2. Wait for PairingPong response
-    // 3. Return display info if found
-
     tracing::info!("Verifying pairing code: {}", pairing_code);
 
-    // TODO: Implement actual ping/pong flow
-    // For now, return success with placeholder info to test UI flow
-    Ok(Some(VerifyPairingResult {
-        device_name: "Test Display".to_string(),
-        is_reachable: true,
-    }))
+    // Send PairingPing via signaling server
+    if let Some(signaling_server) = &*state.signaling_server.lock().await {
+        use crate::webrtc::SignalingMessage;
+
+        // Generate a controller ID for this session
+        let controller_id = Uuid::new_v4().to_string();
+
+        let msg = SignalingMessage::PairingPing {
+            pairing_code: pairing_code.clone(),
+            controller_id,
+        };
+
+        signaling_server.broadcast(msg).await;
+
+        // TODO: Wait for PairingPong response
+        // For now, return None (not found) to force the user to verify the display is on
+        // In full implementation, we'd use a timeout channel to wait for response
+    }
+
+    Ok(None)
 }
 
 #[derive(serde::Serialize)]
@@ -383,7 +364,7 @@ git commit -m "feat: add verify_pairing_code command"
 
 **Step 1: Add to invoke_handler**
 
-Add `commands::verify_pairing_code,` to the invoke_handler list (around line 67).
+Add `commands::verify_pairing_code,` to the invoke_handler list (around line 83 in desktop section, line 110 in Android section).
 
 **Step 2: Build to verify**
 
@@ -524,7 +505,7 @@ git commit -m "feat: add confirm_pairing command"
 
 **Step 1: Add to invoke_handler**
 
-Add `commands::confirm_pairing,` to the invoke_handler list.
+Add `commands::confirm_pairing,` to the invoke_handler list (both desktop and Android sections).
 
 **Step 2: Build to verify**
 
@@ -543,55 +524,55 @@ git commit -m "feat: register confirm_pairing command"
 ### Task 4.3: Wire up PairingModal to call confirm_pairing
 
 **Files:**
-- Modify: `src/components/displays/PairingModal.tsx`
+- Modify: `src/components/displays/DisplaysAccordion.tsx`
 
 **Step 1: Update handlePair to call confirm_pairing**
 
-Find the `handlePair` function call (after line 68) and add the confirmation call before creating the display:
+Find the `handlePair` function (around line 54-63) and update:
 
 ```typescript
 const handlePair = async (code: string, name: string, location: string, displayClass: DisplayClass) => {
-  setLoading(true);
+  if (!currentChurch) throw new Error('No church selected');
 
-  try {
-    // Confirm pairing with the display
-    await invoke('confirm_pairing', {
-      pairing_code: code,
-      display_name: name,
-      location,
-      display_class: displayClass,
-    });
+  // Confirm pairing with the display
+  await invoke('confirm_pairing', {
+    pairing_code: code,
+    display_name: name,
+    location,
+    display_class: displayClass,
+  });
 
-    // Create display record in Supabase
-    if (!currentChurch) throw new Error('No church selected');
+  // Create display record in Supabase
+  await createDisplay(currentChurch.id, {
+    pairingCode: code,
+    name,
+    location,
+    displayClass,
+    deviceId: null, // Will be set by the display during pairing
+  });
 
-    await createDisplay(currentChurch.id, {
-      pairingCode: code,
-      name,
-      location,
-      displayClass,
-      deviceId: null, // Will be set by the display during pairing
-    });
-
-    onPair();
-  } catch (err) {
-    console.error('Pairing failed:', err);
-    setError(err instanceof Error ? err.message : t('displays.pairing.error'));
-  } finally {
-    setLoading(false);
-  }
+  // Refresh displays list
+  const updated = await getDisplaysForChurch(currentChurch.id);
+  setDisplays(updated);
 };
 ```
 
-**Step 2: Build to verify**
+**Step 2: Add invoke import**
+
+Add to imports at top of file:
+```typescript
+import { invoke } from '@tauri-apps/api/core';
+```
+
+**Step 3: Build to verify**
 
 Run: `pnpm build`
 Expected: Successful build
 
-**Step 3: Commit**
+**Step 4: Commit**
 
 ```bash
-git add src/components/displays/PairingModal.tsx
+git add src/components/displays/DisplaysAccordion.tsx
 git commit -m "feat: call confirm_pairing before creating display record"
 ```
 
@@ -660,8 +641,8 @@ This implementation plan creates a functional pairing flow:
 3. TCP P2P connection established (already implemented)
 4. Display content flows from controller to TV
 
-**Total tasks:** 17
-**Estimated commits:** 17
+**Total tasks:** 16
+**Estimated commits:** 16
 
 **Success criteria:**
 - ✅ TV generates and advertises pairing code
