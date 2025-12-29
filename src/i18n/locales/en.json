@@ -318,7 +318,8 @@
       "invalidCode": "Please enter a valid 6-digit code.",
       "unreachable": "Unable to reach the display. Make sure it's on the same network.",
       "error": "An error occurred. Please try again.",
-      "nameRequired": "Display name is required."
+      "nameRequired": "Display name is required.",
+      "notFound": "Unable to find a display with that code."
     },
     "edit": {
       "title": "Edit Display",

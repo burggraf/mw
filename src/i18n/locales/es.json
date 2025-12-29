@@ -318,7 +318,8 @@
       "invalidCode": "Por favor ingresa un código válido de 6 dígitos.",
       "unreachable": "No se puede alcanzar la pantalla. Asegúrate de que esté en la misma red.",
       "error": "Ocurrió un error. Por favor intenta de nuevo.",
-      "nameRequired": "El nombre de la pantalla es requerido."
+      "nameRequired": "El nombre de la pantalla es requerido.",
+      "notFound": "No se pudo encontrar una pantalla con ese código."
     },
     "edit": {
       "title": "Editar Pantalla",
