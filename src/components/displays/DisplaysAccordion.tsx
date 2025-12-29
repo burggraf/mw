@@ -46,11 +46,12 @@ export function DisplaysAccordion({ onDisplayClick }: DisplaysAccordionProps) {
 
   const handlePair = async (code: string, name: string, location: string, displayClass: DisplayClass) => {
     if (!currentChurch) throw new Error('No church selected');
-    return createDisplay(currentChurch.id, {
+    await createDisplay(currentChurch.id, {
       pairingCode: code,
       name,
       location,
       displayClass,
+      deviceId: null, // Will be set by the display during pairing
     });
   };
 
