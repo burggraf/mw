@@ -1393,14 +1393,87 @@ pub async fn open_display_window(
         WebviewUrl::App(format!("/live/display?eventId=default&displayName={}&localMode=true", display_name).into())
     )
     .title(display_name.clone())
-    .position(monitor_pos.x as f64, monitor_pos.y as f64)
-    .inner_size(monitor_size.width as f64, monitor_size.height as f64)
-    .fullscreen(true)
     .resizable(false)
     .decorations(false)
     .skip_taskbar(true)
     .build()
     .map_err(|e| format!("Failed to create display window: {}", e))?;
+
+    // On macOS, we need to use native APIs to move the window to the correct screen
+    // before entering fullscreen mode
+    #[cfg(target_os = "macos")]
+    {
+        use cocoa::base::{id, nil};
+        use cocoa::foundation::{NSPoint, NSRect, NSSize};
+        use objc::{class, msg_send, sel, sel_impl};
+
+        unsafe {
+            // Get the NSScreen for the target monitor by position
+            let screens: id = msg_send![class!(NSScreen), screens];
+            let screen_count: usize = msg_send![screens, count];
+
+            let mut target_screen: id = nil;
+
+            for i in 0..screen_count {
+                let screen: id = msg_send![screens, objectAtIndex:i];
+                let frame: NSRect = msg_send![screen, frame];
+
+                // Check if this screen matches our target position (with some tolerance)
+                let screen_x = frame.origin.x as f64;
+                let screen_y = frame.origin.y as f64;
+
+                // Compare screen position (accounting for macOS coordinate system where y=0 is at bottom)
+                if (screen_x - monitor_pos.x as f64).abs() < 10.0 && (screen_y - monitor_pos.y as f64).abs() < 10.0 {
+                    target_screen = screen;
+                    break;
+                }
+            }
+
+            if target_screen != nil {
+                // Get the native NSWindow from Tauri's window
+                if let Ok(ns_window_ptr) = display_window.ns_window() {
+                    let ns_window: id = ns_window_ptr as id;
+
+                    // Set the window's screen to the target screen
+                    let _: () = msg_send![ns_window, setScreen:target_screen];
+
+                    // Set the window to fill the screen
+                    let screen_frame: NSRect = msg_send![target_screen, frame];
+
+                    // Create window frame matching screen dimensions
+                    let window_frame = NSRect::new(
+                        NSPoint::new(0.0, 0.0),
+                        NSSize::new(screen_frame.size.width, screen_frame.size.height),
+                    );
+
+                    let _: () = msg_send![ns_window, setFrame:window_frame display:true];
+
+                    // Go fullscreen on the current (target) screen
+                    // Note: toggleFullScreen: takes a sender (usually nil), not a screen
+                    let _: () = msg_send![ns_window, toggleFullScreen:nil];
+
+                    tracing::info!("Set window to target screen and entered fullscreen");
+                }
+            } else {
+                tracing::warn!("Could not find target screen, falling back to main screen");
+                // Fallback: just go fullscreen on whatever screen we're on
+                if let Ok(ns_window_ptr) = display_window.ns_window() {
+                    let ns_window: id = ns_window_ptr as id;
+                    let _: () = msg_send![ns_window, toggleFullScreen:nil];
+                }
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        // On non-macOS platforms, use the regular position/fullscreen approach
+        display_window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+            x: monitor_pos.x as u32,
+            y: monitor_pos.y as u32,
+        }))?;
+        display_window.set_fullscreen(true)?;
+    }
 
     tracing::info!("Display window '{}' created successfully", display_name);
 
