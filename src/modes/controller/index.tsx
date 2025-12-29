@@ -4,5 +4,5 @@
  */
 
 // Export the existing App component as controller mode
-// We'll move the existing App logic here
-export { App as ControllerApp } from '../../App';
+// The App component uses default export
+export { default as ControllerApp } from '../../App';
