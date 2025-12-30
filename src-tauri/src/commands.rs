@@ -681,3 +681,79 @@ pub fn start_auto_test(_app_handle: AppHandle, mode: crate::AutoStartMode) {
     tracing::info!("AUTO-START: Mode {:?}", mode);
     // TODO: Implement WebSocket auto-start logic
 }
+
+// ============================================================================
+// WebSocket Commands
+// ============================================================================
+
+use crate::websocket::{WebSocketServer, WsMessage, LyricsData, SlideData};
+
+/// Start the WebSocket server
+#[tauri::command]
+pub async fn start_websocket_server(app: tauri::AppHandle) -> Result<u16, String> {
+    tracing::info!("start_websocket_server called");
+
+    let ws_state = app.state::<Arc<tokio::sync::Mutex<WebSocketServer>>>();
+    let mut server = ws_state.lock().await;
+
+    let port = server.start(0).await?;  // 0 = auto-assign port
+    tracing::info!("WebSocket server started on port {}", port);
+
+    Ok(port)
+}
+
+/// Publish lyrics to connected displays
+#[tauri::command]
+pub async fn publish_lyrics(
+    app: tauri::AppHandle,
+    church_id: String,
+    event_id: String,
+    song_id: String,
+    title: String,
+    lyrics: String,
+    background_url: Option<String>,
+) -> Result<(), String> {
+    let ws_state = app.state::<Arc<tokio::sync::Mutex<WebSocketServer>>>();
+    let server = ws_state.lock().await;
+
+    let message = WsMessage::Lyrics(LyricsData {
+        church_id,
+        event_id,
+        song_id,
+        title,
+        lyrics,
+        background_url,
+        timestamp: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64,
+    });
+
+    server.broadcast(message).await
+}
+
+/// Publish slide change to connected displays
+#[tauri::command]
+pub async fn publish_slide(
+    app: tauri::AppHandle,
+    church_id: String,
+    event_id: String,
+    song_id: String,
+    slide_index: usize,
+) -> Result<(), String> {
+    let ws_state = app.state::<Arc<tokio::sync::Mutex<WebSocketServer>>>();
+    let server = ws_state.lock().await;
+
+    let message = WsMessage::Slide(SlideData {
+        church_id,
+        event_id,
+        song_id,
+        slide_index,
+        timestamp: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64,
+    });
+
+    server.broadcast(message).await
+}

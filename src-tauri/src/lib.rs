@@ -80,6 +80,9 @@ pub fn run() {
                     commands::close_display_window,
                     commands::auto_start_display_windows,
                     commands::get_platform,
+                    commands::start_websocket_server,
+                    commands::publish_lyrics,
+                    commands::publish_slide,
                 ]
             }
             #[cfg(target_os = "android")]
@@ -94,6 +97,9 @@ pub fn run() {
                     commands::get_cache_stats,
                     commands::test_emit_event,
                     commands::get_platform,
+                    commands::start_websocket_server,
+                    commands::publish_lyrics,
+                    commands::publish_slide,
                 ]
             }
         })
