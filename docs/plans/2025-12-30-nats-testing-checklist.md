@@ -11,10 +11,10 @@
 
 **Goal:** Verify NATS server can start and is accessible
 
-- [ ] **1.1** Start dev server with `pnpm tauri:dev`
-- [ ] **1.2** Look for `[AutoStart] Starting NATS server in background` in console
-- [ ] **1.3** Note the assigned port from logs (e.g., "NATS server started on port 12345")
-- [ ] **1.4** Verify `nats-jetstream/` directory was created in the project root
+- [x] **1.1** Start dev server with `pnpm tauri:dev`
+- [x] **1.2** Look for `[AutoStart] Starting NATS server in background` in console
+- [x] **1.3** Note the assigned port from logs (e.g., "NATS server started on port 12345")
+- [ ] **1.4** Verify NATS data is stored in app data directory (not project root)
 - [ ] **1.5** Verify server is listening: `lsof -i :<port>` or `netstat -an | grep <port>`
 
 **Expected Result:** NATS server spawns successfully on a random port
@@ -26,13 +26,13 @@
 **Goal:** Verify controller can connect to a NATS server
 
 ### Prerequisites
-- [ ] **2.1** App builds and runs without errors
+- [x] **2.1** App builds and runs without errors
 - [ ] **2.2** Have two machines available OR use localhost for testing
 
 ### Connection Test
 - [ ] **2.3** Add debug connection UI to Controller (or use browser console)
-- [ ] **2.4** Get the server IP and port from Phase 1
-- [ ] **2.5** Call `connect('<ip>', <port>)` from console or debug UI
+- [ ] **2.4** Get the server IP and port from Phase 1 (localhost + port for same-machine testing)
+- [ ] **2.5** Call `connect('127.0.0.1', <port>)` from browser console
 - [ ] **2.6** Verify `is_nats_connected` becomes `true`
 - [ ] **2.7** Verify `serverUrl` returns the correct NATS URL
 
@@ -66,18 +66,18 @@
 
 ### Setup
 - [ ] **4.1** Implement Phase 3 (Display subscription) first
-- [ ] **4.2** Start app in display mode on same machine
+- [ ] **4.2** Start app in controller mode on same machine
 
 ### Test Lyrics Publishing
 - [ ] **4.3** From browser console, call:
   ```javascript
-  publishLyrics({
-    church_id: 'test',
-    event_id: 'test',
-    song_id: 'test',
+  await invoke('publish_nats_lyrics', {
+    churchId: 'test',
+    eventId: 'test',
+    songId: 'test',
     title: 'Test Song',
     lyrics: '# Verse 1\nTest lyrics',
-    timestamp: Date.now()
+    backgroundUrl: null
   })
   ```
 - [ ] **4.4** Verify Display receives the lyrics
@@ -86,12 +86,11 @@
 ### Test Slide Publishing
 - [ ] **4.6** From browser console, call:
   ```javascript
-  publishSlide({
-    church_id: 'test',
-    event_id: 'test',
-    song_id: 'test',
-    slide_index: 1,
-    timestamp: Date.now()
+  await invoke('publish_nats_slide', {
+    churchId: 'test',
+    eventId: 'test',
+    songId: 'test',
+    slideIndex: 1
   })
   ```
 - [ ] **4.7** Verify Display receives the slide update
@@ -159,8 +158,8 @@ await invoke('is_nats_connected')
 // Get server URL
 await invoke('get_nats_server_url')
 
-// Connect to server
-await invoke('connect_nats_server', { host: '192.168.1.x', port: 4222 })
+// Connect to server (localhost for same-machine testing)
+await invoke('connect_nats_server', { host: '127.0.0.1', port: 4222 })
 
 // Publish test lyrics
 await invoke('publish_nats_lyrics', {
@@ -182,15 +181,36 @@ await invoke('publish_nats_slide', {
 ```
 
 ### Terminal
+
+#### Check if NATS server is listening
 ```bash
-# Check if NATS server is listening
-lsof -i :<port>
+lsof -i :4222
+# or
+netstat -an | grep 4222
+```
 
-# View NATS logs
-cat nats-jetstream/nats.log
+#### View NATS logs (app data directory)
+```bash
+# macOS
+cat ~/Library/Application\ Support/mobile-worship/nats-jetstream/nats.log
 
-# Clean up JetStream data
-rm -rf nats-jetstream/
+# Windows
+type %APPDATA%\mobile-worship\nats-jetstream\nats.log
+
+# Linux
+cat ~/.local/share/mobile-worship/nats-jetstream/nats.log
+```
+
+#### Clean up JetStream data
+```bash
+# macOS
+rm -rf ~/Library/Application\ Support/mobile-worship/nats-jetstream/
+
+# Windows
+rmdir /s %APPDATA%\mobile-worship\nats-jetstream
+
+# Linux
+rm -rf ~/.local/share/mobile-worship/nats-jetstream/
 ```
 
 ---

@@ -30,19 +30,26 @@ impl NatsServer {
         let binary_path = Self::get_nats_binary()?;
 
         // Build arguments for NATS server
-        // Pre-compute strings to avoid lifetime issues
         let port_str = config.server_port.to_string();
         let log_file = format!("{}/nats.log", jetstream_dir_str);
-        let args: Vec<&str> = vec![
-            "--port", &port_str,
-            "--pid", "0", // No PID file
-            "--cluster_name", &config.cluster_name,
-            "--cluster", "nats://0.0.0.0:6222",
-            "--routes", "auto",
-            "--jetstream",
-            "--store_dir", &jetstream_dir_str,
-            "--log_file", &log_file,
-            "--logtime",
+
+        let args: Vec<String> = vec![
+            "--port".to_string(),
+            port_str.clone(),
+            "--pid".to_string(),
+            "0".to_string(),
+            "--cluster_name".to_string(),
+            config.cluster_name.clone(),
+            "--cluster".to_string(),
+            "nats://0.0.0.0:6222".to_string(),
+            "--routes".to_string(),
+            "auto".to_string(),
+            "--jetstream".to_string(),
+            "--store_dir".to_string(),
+            jetstream_dir_str.clone(),
+            "--log_file".to_string(),
+            log_file,
+            "--logtime".to_string(),
         ];
 
         info!("Spawning NATS server: {:?} {:?}", binary_path, args);
