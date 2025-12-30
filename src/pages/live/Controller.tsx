@@ -6,6 +6,7 @@ import { getSong } from '@/services/songs'
 import { getMediaById, getSignedMediaUrl } from '@/services/media'
 import { generateSlides } from '@/lib/slide-generator'
 import { emit } from '@tauri-apps/api/event'
+import { useWebSocket, type LyricsMessage, type SlideMessage } from '@/hooks/useWebSocket'
 import type { Slide } from '@/types/live'
 import type { Song } from '@/types/song'
 import type { Event, EventItemWithData } from '@/types/event'
@@ -13,7 +14,8 @@ import { SlidePreview, SetlistPicker, SlideNavigator, ControlButtons } from '@/c
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Loader2, Wifi, WifiOff, RefreshCw } from 'lucide-react'
 
 interface ControllerState {
   currentEventId: string | null
@@ -28,6 +30,17 @@ interface ControllerState {
 export function Controller() {
   const { t } = useTranslation()
   const { currentChurch } = useChurch()
+
+  // WebSocket hook for remote displays
+  const {
+    devices,
+    connections,
+    discoverDevices,
+    connectToDevice,
+    disconnectFromDevice,
+    broadcastLyrics,
+    broadcastSlide,
+  } = useWebSocket()
 
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
@@ -77,7 +90,7 @@ export function Controller() {
     loadEvents()
   }, [currentChurch?.id])
 
-  // Send song data to all connected displays via Tauri events (local displays)
+  // Send song data to all connected displays via Tauri events (local displays) and WebSocket (remote displays)
   const sendSongData = async (song: Song & { updated_at: string }) => {
     // Fetch background images as base64 data URLs
     const backgroundDataUrls: Record<string, string> = {}
@@ -118,6 +131,19 @@ export function Controller() {
     } catch (error) {
       console.error('[Controller] Failed to emit Tauri event:', error)
     }
+
+    // Broadcast to remote displays via WebSocket
+    const lyricsMessage: LyricsMessage = {
+      church_id: currentChurch?.id || '',
+      event_id: state.currentEventId || '',
+      song_id: song.id,
+      title: song.title,
+      lyrics: song.content,
+      background_url: undefined, // Backgrounds are sent separately in Tauri events
+      timestamp: Date.now(),
+    }
+    broadcastLyrics(lyricsMessage)
+    console.log('[Controller] Broadcast song data to', connections.size, 'WebSocket connections')
   }
 
   // Pre-fetch all songs for the event and send to displays
@@ -272,6 +298,17 @@ export function Controller() {
     } catch (error) {
       console.error('[Controller] Failed to emit Tauri event for slide:', error)
     }
+
+    // Broadcast slide update to remote displays via WebSocket
+    const slideMessage: SlideMessage = {
+      church_id: currentChurch?.id || '',
+      event_id: state.currentEventId || '',
+      song_id: songId,
+      slide_index: slideIndex,
+      timestamp: Date.now(),
+    }
+    broadcastSlide(slideMessage)
+    console.log('[Controller] Broadcast slide update to', connections.size, 'WebSocket connections')
   }
 
   // Navigate to specific slide
@@ -355,12 +392,56 @@ export function Controller() {
 
         {/* Connection status */}
         <div className="flex items-center gap-2">
+          {/* WebSocket connection status */}
+          {connections.size > 0 ? (
+            <Badge variant="outline" className="gap-1">
+              <Wifi className="w-3 h-3" />
+              {connections.size} {connections.size === 1 ? 'display' : 'displays'}
+            </Badge>
+          ) : null}
           {prefetching ? (
             <Badge variant="outline" className="gap-1">
               <Loader2 className="w-3 h-3 animate-spin" />
               Syncing...
             </Badge>
           ) : null}
+        </div>
+
+        {/* Device discovery */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => discoverDevices()}
+            disabled={devices.length === 0}
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Discover ({devices.length})
+          </Button>
+          {devices.map((device) => {
+            const key = `${device.host}:${device.port}`
+            const isConnected = connections.has(key)
+            return (
+              <Button
+                key={key}
+                variant={isConnected ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => isConnected ? disconnectFromDevice(device) : connectToDevice(device)}
+              >
+                {isConnected ? (
+                  <>
+                    <Wifi className="w-4 h-4 mr-2" />
+                    {device.name.split('.')[0]}
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="w-4 h-4 mr-2" />
+                    {device.name.split('.')[0]}
+                  </>
+                )}
+              </Button>
+            )
+          })}
         </div>
       </div>
 
