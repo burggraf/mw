@@ -142,6 +142,31 @@ async fn accept_loop(listener: TcpListener, clients: Arc<Mutex<HashMap<SocketAdd
     }
 }
 
+/// Broadcast a message to ALL clients (including the sender for local setups)
+async fn broadcast_to_all(
+    clients: &Arc<Mutex<HashMap<SocketAddr, Tx>>>,
+    message: Message,
+) {
+    let mut clients_guard = clients.lock().await;
+    let mut disconnected = Vec::new();
+
+    tracing::info!("Broadcasting to {} total clients", clients_guard.len());
+
+    for (addr, tx) in clients_guard.iter() {
+        tracing::info!("Sending to client: {}", addr);
+        if let Err(e) = tx.unbounded_send(message.clone()) {
+            tracing::error!("Failed to send to {}: {:?}", addr, e);
+            disconnected.push(*addr);
+        }
+    }
+
+    // Remove disconnected clients
+    for addr in disconnected {
+        tracing::info!("Removing disconnected client: {}", addr);
+        clients_guard.remove(&addr);
+    }
+}
+
 /// Handle a single WebSocket connection
 async fn handle_connection(
     stream: tokio::net::TcpStream,
@@ -195,8 +220,9 @@ async fn handle_connection(
                 break;
             }
             Ok(Message::Text(text)) => {
-                tracing::trace!("Received text from {}: {}", addr, text);
-                // We don't expect clients to send text messages in this implementation
+                tracing::info!("Received text message from {}: {} bytes", addr, text.len());
+                // Broadcast this message to ALL connected clients (including sender for local setups)
+                broadcast_to_all(&clients, Message::Text(text)).await;
             }
             Ok(Message::Binary(data)) => {
                 tracing::trace!("Received binary data from {}: {} bytes", addr, data.len());

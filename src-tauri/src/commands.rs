@@ -862,3 +862,69 @@ pub async fn get_device_id(app: tauri::AppHandle) -> Result<String, String> {
 
     Ok(new_device_id)
 }
+
+/// Get all local IP addresses for this machine
+/// Used to update the database with the display's current IP and port
+#[tauri::command]
+pub async fn get_local_ip_addresses() -> Result<Vec<String>, String> {
+    use std::net::{UdpSocket, Ipv4Addr};
+
+    let mut addresses = Vec::new();
+
+    // Best method: connect a UDP socket (doesn't actually send anything)
+    // and see what local address was chosen for routing
+    if let Ok(socket) = UdpSocket::bind("0.0.0.0:0") {
+        // Connect to Google's DNS - this doesn't send anything, just sets the route
+        if socket.connect("8.8.8.8:80").is_ok() {
+            if let Ok(local_addr) = socket.local_addr() {
+                let ip = local_addr.ip().to_string();
+                if !ip.starts_with("127.") {
+                    addresses.push(ip);
+                }
+            }
+        }
+    }
+
+    // macOS/Linux fallback using ifconfig
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    {
+        use std::process::Command;
+
+        #[cfg(target_os = "macos")]
+        let output = Command::new("ifconfig").output();
+
+        #[cfg(target_os = "linux")]
+        let output = Command::new("ip").args(["addr", "show"]).output();
+
+        if let Ok(output) = output {
+            if output.status.success() {
+                let text = String::from_utf8_lossy(&output.stdout);
+                // Simple regex-free extraction of IPv4 addresses
+                for line in text.lines() {
+                    let line = line.trim();
+                    // Look for "inet " followed by an IP address
+                    if let Some(idx) = line.find("inet ") {
+                        let rest = &line[idx + 5..];
+                        let ip_str: String = rest.chars()
+                            .take_while(|c| c.is_ascii_digit() || *c == '.')
+                            .collect();
+                        if let Ok(ip) = ip_str.parse::<Ipv4Addr>() {
+                            let ip_string = ip.to_string();
+                            if !ip_string.starts_with("127.") && !addresses.contains(&ip_string) {
+                                addresses.push(ip_string);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // If we still have no addresses, add localhost as fallback
+    if addresses.is_empty() {
+        addresses.push("127.0.0.1".to_string());
+    }
+
+    tracing::info!("Found local IP addresses: {:?}", addresses);
+    Ok(addresses)
+}

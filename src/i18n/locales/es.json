@@ -215,6 +215,11 @@
   "events": {
     "title": "Eventos",
     "start": "Iniciar",
+    "starting": "Iniciando...",
+    "connecting": "Conectando...",
+    "loadingMedia": "Cargando medios...",
+    "sendingToDisplays": "Sincronizando pantallas...",
+    "startFailed": "Error al iniciar evento",
     "newEvent": "Nuevo Evento",
     "editEvent": "Editar Evento",
     "upcomingEvents": "Próximos",
@@ -283,12 +288,18 @@
       "waitingForEvent": "Esperando evento...",
       "connected": "Conectado ({{count}})",
       "connecting": "Conectando...",
-      "disconnected": "Desconectado"
+      "disconnected": "Desconectado",
+      "cachingMedia": "Almacenando medios...",
+      "cachingProgress": "Almacenando {{current}}/{{total}}",
+      "cacheReady": "Listo",
+      "cacheError": "Error de caché",
+      "pleaseWait": "Por favor espera..."
     }
   },
   "displays": {
     "title": "Pantallas",
     "empty": "No hay pantallas registradas. Haz clic en + para agregar una.",
+    "noOnlineDisplays": "No hay pantallas en línea seleccionadas",
     "forEvent": "Pantallas para este evento",
     "selectedCount": "{{count}} pantalla seleccionada",
     "selectedCount_plural": "{{count}} pantallas seleccionadas",

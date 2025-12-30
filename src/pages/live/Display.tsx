@@ -4,12 +4,20 @@ import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { useChurch } from '@/contexts/ChurchContext'
 import { generateSlides } from '@/lib/slide-generator'
-import type { Slide } from '@/types/live'
+import type { Slide, PrecacheMessage, PrecacheAck } from '@/types/live'
 import type { Song } from '@/types/song'
+import {
+  precacheMedia,
+  precacheSongs,
+  getCachedMediaUrl,
+  getAllStatuses,
+} from '@/services/media-cache'
+import { updateDisplayConnection } from '@/services/displays'
 
 type WsMessage =
   | { type: 'lyrics'; data: { church_id: string; event_id: string; song_id: string; title: string; lyrics: string; background_url?: string; timestamp: number } }
   | { type: 'slide'; data: { church_id: string; event_id: string; song_id: string; slide_index: number; timestamp: number } }
+  | { type: 'precache'; data: PrecacheMessage }
   | { type: 'ping' }
 
 // Check if we're running as a local display window (same Tauri process as controller)
@@ -54,6 +62,8 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
   const [backgroundColor, setBackgroundColor] = useState<string | null>(null)
   const [isWaiting, setIsWaiting] = useState(true)
   const [opacity, setOpacity] = useState(0)
+  const [isCaching, setIsCaching] = useState(false)
+  const [cacheProgress, setCacheProgress] = useState<string>('')
 
   // Refs to track current song/slide for refresh when media arrives
   const currentSongIdRef = useRef<string | null>(null)
@@ -62,6 +72,90 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
   const backgroundUrlRef = useRef<string | null>(null)
   const serverPortRef = useRef<number | null>(null)
   const isInitializingRef = useRef<boolean>(false)
+  const wsConnectionRef = useRef<WebSocket | null>(null)
+
+  // Handle precache message from controller
+  const handlePrecache = useCallback(async (data: PrecacheMessage, ws?: WebSocket) => {
+    console.log('[Display] Received precache message:', {
+      mediaCount: data.media.length,
+      songCount: data.songs.length,
+    })
+
+    setIsCaching(true)
+    setCacheProgress(t('live.display.cachingMedia', 'Caching media...'))
+
+    try {
+      // Cache songs first (fast, in-memory)
+      if (data.songs.length > 0) {
+        precacheSongs(data.songs)
+
+        // Also update the local songCache for backward compatibility
+        for (const songItem of data.songs) {
+          const song: Song = {
+            id: songItem.songId,
+            churchId: data.churchId,
+            title: songItem.title,
+            content: songItem.lyrics,
+            author: null,
+            copyrightInfo: null,
+            ccliNumber: null,
+            arrangements: { default: [] },
+            backgrounds: songItem.backgrounds,
+            audienceBackgroundId: null,
+            stageBackgroundId: null,
+            lobbyBackgroundId: null,
+            createdAt: songItem.updatedAt,
+            updatedAt: songItem.updatedAt,
+          }
+          songCache.set(song.id, { song, updated_at: songItem.updatedAt })
+        }
+      }
+
+      // Download and cache media (may take time)
+      if (data.media.length > 0) {
+        await precacheMedia(data.media, (statuses) => {
+          const ready = statuses.filter(s => s.status === 'ready').length
+          const total = statuses.length
+          setCacheProgress(t('live.display.cachingProgress', { current: ready, total }))
+        })
+
+        // Update local mediaPathCache for backward compatibility
+        for (const item of data.media) {
+          const cachedUrl = getCachedMediaUrl(item.mediaId)
+          if (cachedUrl) {
+            mediaPathCache.set(item.mediaId, {
+              filePath: cachedUrl,
+              updatedAt: new Date().toISOString(),
+              isColor: false,
+            })
+          }
+        }
+      }
+
+      // Send acknowledgment back
+      const ack: PrecacheAck = {
+        eventId: data.eventId,
+        ready: true,
+        statuses: getAllStatuses(),
+      }
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'precache_ack', data: ack }))
+        console.log('[Display] Sent precache_ack')
+      }
+
+      setCacheProgress(t('live.display.cacheReady', 'Ready'))
+      setIsWaiting(false)
+
+    } catch (error) {
+      console.error('[Display] Precache failed:', error)
+      setCacheProgress(t('live.display.cacheError', 'Cache error'))
+    } finally {
+      setIsCaching(false)
+      // Clear progress after a moment
+      setTimeout(() => setCacheProgress(''), 2000)
+    }
+  }, [t])
 
   // Initialize WebSocket server on mount for remote displays
   useEffect(() => {
@@ -102,6 +196,29 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
         serverPortRef.current = port
         console.log('[Display] WebSocket server started on port', port)
 
+        // Get local IP address for database update
+        let localIp = '127.0.0.1'
+        try {
+          const ips = await invoke<string[]>('get_local_ip_addresses')
+          // Prefer non-localhost IPs
+          const nonLoopback = ips.filter(ip => !ip.startsWith('127.') && !ip.startsWith('::1'))
+          if (nonLoopback.length > 0) {
+            localIp = nonLoopback[0]
+          }
+          console.log('[Display] Local IP addresses:', ips, 'using:', localIp)
+        } catch (e) {
+          console.error('[Display] Failed to get local IP:', e)
+        }
+
+        // Update database with new port (so controllers can find us)
+        try {
+          await updateDisplayConnection(id, localIp, port)
+          console.log('[Display] Updated database with host:', localIp, 'port:', port)
+        } catch (e) {
+          console.error('[Display] Failed to update display connection in database:', e)
+          // Non-fatal - mDNS discovery can still work
+        }
+
         // Also advertise via mDNS
         // Use a simple device name - will be updated when church loads
         const deviceName = `${currentChurch?.name || 'Mobile Worship'} Display`
@@ -128,52 +245,57 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
 
         // Connect to our own server to receive messages
         ws = new WebSocket(`ws://localhost:${port}`)
+        wsConnectionRef.current = ws
 
         ws.onopen = () => {
           console.log('[Display] Connected to local WebSocket server')
         }
 
         ws.onmessage = (event) => {
+          console.log('[Display] Received WebSocket message:', event.data.substring(0, 200))
           try {
             const message: WsMessage = JSON.parse(event.data)
+            console.log('[Display] Parsed message type:', message.type)
 
-            if (message.type === 'lyrics') {
-              // Check if this message is for our church/event
-              if (message.data.church_id === currentChurch?.id &&
-                  message.data.event_id === eventId) {
-                // Cache the song data
-                const song: Song = {
-                  id: message.data.song_id,
-                  churchId: currentChurch?.id || '',
-                  title: message.data.title,
-                  content: message.data.lyrics,
-                  author: null,
-                  copyrightInfo: null,
-                  ccliNumber: null,
-                  arrangements: { default: [] },
-                  backgrounds: {},
-                  audienceBackgroundId: null,
-                  stageBackgroundId: null,
-                  lobbyBackgroundId: null,
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date(message.data.timestamp).toISOString(),
-                }
+            if (message.type === 'precache') {
+              // Handle precache message - download and cache all media
+              // Accept messages for any church since display is just a receiver
+              console.log('[Display] Processing precache message')
+              handlePrecache(message.data, ws!)
+            } else if (message.type === 'lyrics') {
+              // Cache the song data (accept from any church - display is just a receiver)
+              console.log('[Display] Processing lyrics message for song:', message.data.song_id)
+              const song: Song = {
+                id: message.data.song_id,
+                churchId: message.data.church_id,
+                title: message.data.title,
+                content: message.data.lyrics,
+                author: null,
+                copyrightInfo: null,
+                ccliNumber: null,
+                arrangements: { default: [] },
+                backgrounds: {},
+                audienceBackgroundId: null,
+                stageBackgroundId: null,
+                lobbyBackgroundId: null,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date(message.data.timestamp).toISOString(),
+              }
 
-                const cached = songCache.get(song.id)
-                if (!cached || cached.updated_at < String(message.data.timestamp)) {
-                  songCache.set(song.id, { song, updated_at: String(message.data.timestamp) })
-                }
+              const cached = songCache.get(song.id)
+              if (!cached || cached.updated_at < String(message.data.timestamp)) {
+                songCache.set(song.id, { song, updated_at: String(message.data.timestamp) })
+                console.log('[Display] Cached song:', song.title, 'content length:', song.content?.length, 'preview:', song.content?.substring(0, 100))
+              }
 
-                // Load the first slide if not already showing
-                if (!currentSlideRef.current) {
-                  loadSlide(song.id, 0)
-                }
+              // Load the first slide if not already showing
+              if (!currentSlideRef.current) {
+                console.log('[Display] Loading first slide for song')
+                loadSlide(song.id, 0)
               }
             } else if (message.type === 'slide') {
-              if (message.data.church_id === currentChurch?.id &&
-                  message.data.event_id === eventId) {
-                loadSlide(message.data.song_id, message.data.slide_index)
-              }
+              console.log('[Display] Processing slide message:', message.data.slide_index)
+              loadSlide(message.data.song_id, message.data.slide_index)
             }
           } catch (e) {
             console.error('[Display] Failed to parse WebSocket message:', e)
@@ -244,10 +366,42 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
     }
 
     const { song } = cached
-    const background = getSongBackground(song)
-    const slides = generateSlides(song)
+    console.log('[Display] Song from cache:', { title: song.title, contentLength: song.content?.length })
+
+    // Fix double-JSON-encoded content (if content starts with a quote, it's JSON-encoded)
+    let content = song.content || ''
+    console.log('[Display] Content first char:', content.charCodeAt(0), 'last char:', content.charCodeAt(content.length - 1))
+    console.log('[Display] Content starts with quote?', content.startsWith('"'), 'ends with quote?', content.endsWith('"'))
+
+    // Try to detect and fix JSON-encoded content
+    // Check for escaped newlines which indicate JSON encoding
+    if (content.includes('\\n') || (content.startsWith('"') && content.endsWith('"'))) {
+      try {
+        const parsed = JSON.parse(content)
+        if (typeof parsed === 'string') {
+          content = parsed
+          console.log('[Display] Fixed double-encoded content')
+        }
+      } catch (e) {
+        console.warn('[Display] Content might be JSON-encoded but failed to parse:', e)
+      }
+    }
+
+    // Create a fixed song object for slide generation
+    const fixedSong = { ...song, content }
+    console.log('[Display] Song content preview:', content.substring(0, 100))
+
+    const background = getSongBackground(fixedSong)
+    const slides = generateSlides(fixedSong)
+    console.log('[Display] Generated slides:', slides.length, 'slides')
+
+    if (slides.length === 0) {
+      console.warn('[Display] No slides generated from song content. Full content:', JSON.stringify(song.content))
+      return
+    }
 
     if (slideIndex >= 0 && slideIndex < slides.length) {
+      console.log('[Display] Setting slide:', slideIndex, 'text:', slides[slideIndex]?.text?.substring(0, 50))
       const newSlide = slides[slideIndex]
 
       // Trigger crossfade
@@ -363,8 +517,16 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
             </div>
           )}
           <div className="text-4xl font-semibold text-white/80 drop-shadow-lg">
-            {t('live.display.waitingForEvent', 'Waiting for event...')}
+            {isCaching
+              ? cacheProgress || t('live.display.cachingMedia', 'Caching media...')
+              : t('live.display.waitingForEvent', 'Waiting for event...')}
           </div>
+          {isCaching && (
+            <div className="flex items-center justify-center gap-2 text-white/60">
+              <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              <span>{t('live.display.pleaseWait', 'Please wait...')}</span>
+            </div>
+          )}
         </div>
       ) : null}
 

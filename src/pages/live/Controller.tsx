@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useLocation } from 'react-router-dom'
 import { useChurch } from '@/contexts/ChurchContext'
 import { useWebSocketConnections } from '@/contexts/WebSocketContext'
 import { getEventItems } from '@/services/events'
@@ -16,6 +17,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Loader2 } from 'lucide-react'
 
+// Cache for background data URLs to avoid re-fetching
+const backgroundDataUrlCache = new Map<string, string>()
+
 interface ControllerState {
   currentEventId: string | null
   currentSong: Song | null
@@ -28,15 +32,19 @@ interface ControllerState {
 
 export function Controller() {
   const { t } = useTranslation()
+  const location = useLocation()
   const { currentChurch } = useChurch()
   const { connected, broadcastLyrics, broadcastSlide } = useWebSocketConnections()
+
+  // Get initial event ID from navigation state (set by EventCard Start button)
+  const initialEventId = (location.state as { eventId?: string } | null)?.eventId
 
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [prefetching, setPrefetching] = useState(false)
   const [currentBackgroundUrl, setCurrentBackgroundUrl] = useState<string | null>(null)
   const [state, setState] = useState<ControllerState>({
-    currentEventId: null,
+    currentEventId: initialEventId || null,
     currentSong: null,
     currentSongId: null,
     currentItemId: null,
@@ -65,7 +73,11 @@ export function Controller() {
         if (error) throw error
         setEvents(data || [])
 
-        if (data && data.length > 0 && !state.currentEventId) {
+        // If we have an initial event from navigation state, use it
+        // Otherwise, select the first event if we don't have one
+        if (initialEventId) {
+          await selectEvent(initialEventId)
+        } else if (data && data.length > 0 && !state.currentEventId) {
           await selectEvent(data[0].id)
         }
       } catch (error) {
@@ -76,34 +88,52 @@ export function Controller() {
     }
 
     loadEvents()
-  }, [currentChurch?.id])
+  }, [currentChurch?.id, initialEventId])
+
+  // Helper to get or fetch background data URL (with caching)
+  const getBackgroundDataUrl = async (mediaId: string): Promise<string | null> => {
+    // Check cache first
+    const cached = backgroundDataUrlCache.get(mediaId)
+    if (cached) return cached
+
+    try {
+      const media = await getMediaById(mediaId)
+      if (media?.storagePath) {
+        const signedUrl = await getSignedMediaUrl(media.storagePath, 3600)
+        const response = await fetch(signedUrl)
+        const blob = await response.blob()
+        const reader = new FileReader()
+        const dataUrl = await new Promise<string>((resolve) => {
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.readAsDataURL(blob)
+        })
+        // Cache for future use
+        backgroundDataUrlCache.set(mediaId, dataUrl)
+        return dataUrl
+      }
+    } catch (error) {
+      console.error('[Controller] Failed to get background', mediaId, ':', error)
+    }
+    return null
+  }
 
   // Send song data to all connected displays
   const sendSongData = async (song: Song & { updated_at: string }) => {
-    // Fetch background images as base64 data URLs
+    // Fetch background images as base64 data URLs (with caching)
     const backgroundDataUrls: Record<string, string> = {}
     const backgrounds = song.backgrounds || {}
 
-    for (const [key, mediaId] of Object.entries(backgrounds)) {
-      if (mediaId) {
-        try {
-          const media = await getMediaById(mediaId)
-          if (media?.storagePath) {
-            const signedUrl = await getSignedMediaUrl(media.storagePath, 3600)
-            const response = await fetch(signedUrl)
-            const blob = await response.blob()
-            const reader = new FileReader()
-            const dataUrl = await new Promise<string>((resolve) => {
-              reader.onloadend = () => resolve(reader.result as string)
-              reader.readAsDataURL(blob)
-            })
+    // Fetch all backgrounds in parallel
+    await Promise.all(
+      Object.entries(backgrounds).map(async ([key, mediaId]) => {
+        if (mediaId) {
+          const dataUrl = await getBackgroundDataUrl(mediaId)
+          if (dataUrl) {
             backgroundDataUrls[key] = dataUrl
           }
-        } catch (error) {
-          console.error('[Controller] Failed to get background', mediaId, ':', error)
         }
-      }
-    }
+      })
+    )
 
     // Emit Tauri event for local displays
     try {
@@ -116,6 +146,7 @@ export function Controller() {
     }
 
     // Broadcast to remote displays via WebSocket
+    // Note: Remote displays should already have media cached from precache message
     broadcastLyrics({
       church_id: currentChurch?.id || '',
       event_id: state.currentEventId || '',
@@ -232,27 +263,22 @@ export function Controller() {
     try {
       const song = state.currentSong
       if (song) {
-        // Fetch background images as base64 data URLs
+        // Get cached background data URLs (should already be cached from sendSongData)
         const backgroundDataUrls: Record<string, string> = {}
         const backgrounds = song.backgrounds || {}
 
+        // Use cached URLs - much faster than re-fetching
         for (const [key, mediaId] of Object.entries(backgrounds)) {
           if (mediaId) {
-            try {
-              const media = await getMediaById(mediaId)
-              if (media?.storagePath || media?.thumbnailPath) {
-                const signedUrl = await getSignedMediaUrl(media.thumbnailPath || media.storagePath!, 3600)
-                const response = await fetch(signedUrl)
-                const blob = await response.blob()
-                const reader = new FileReader()
-                const dataUrl = await new Promise<string>((resolve) => {
-                  reader.onloadend = () => resolve(reader.result as string)
-                  reader.readAsDataURL(blob)
-                })
+            const cached = backgroundDataUrlCache.get(mediaId)
+            if (cached) {
+              backgroundDataUrls[key] = cached
+            } else {
+              // Fallback: fetch if not cached (shouldn't happen normally)
+              const dataUrl = await getBackgroundDataUrl(mediaId)
+              if (dataUrl) {
                 backgroundDataUrls[key] = dataUrl
               }
-            } catch (error) {
-              console.error('[Controller] Failed to get background data URL for', mediaId, ':', error)
             }
           }
         }
@@ -275,6 +301,7 @@ export function Controller() {
     }
 
     // Broadcast slide update to remote displays via WebSocket
+    // Note: Remote displays already have media cached from precache message
     broadcastSlide({
       church_id: currentChurch?.id || '',
       event_id: state.currentEventId || '',

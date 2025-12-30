@@ -89,6 +89,7 @@ pub fn run() {
                     commands::start_advertising,
                     commands::start_udp_listener,
                     commands::get_device_id,
+                    commands::get_local_ip_addresses,
                 ]
             }
             #[cfg(target_os = "android")]
@@ -110,6 +111,7 @@ pub fn run() {
                     commands::start_advertising,
                     commands::start_udp_listener,
                     commands::get_device_id,
+                    commands::get_local_ip_addresses,
                 ]
             }
         })

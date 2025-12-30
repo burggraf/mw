@@ -215,6 +215,11 @@
   "events": {
     "title": "Events",
     "start": "Start",
+    "starting": "Starting...",
+    "connecting": "Connecting...",
+    "loadingMedia": "Loading media...",
+    "sendingToDisplays": "Syncing displays...",
+    "startFailed": "Failed to start event",
     "newEvent": "New Event",
     "editEvent": "Edit Event",
     "upcomingEvents": "Upcoming",
@@ -283,12 +288,18 @@
       "waitingForEvent": "Waiting for event...",
       "connected": "Connected ({{count}})",
       "connecting": "Connecting...",
-      "disconnected": "Disconnected"
+      "disconnected": "Disconnected",
+      "cachingMedia": "Caching media...",
+      "cachingProgress": "Caching {{current}}/{{total}}",
+      "cacheReady": "Ready",
+      "cacheError": "Cache error",
+      "pleaseWait": "Please wait..."
     }
   },
   "displays": {
     "title": "Displays",
     "empty": "No displays registered. Click + to add one.",
+    "noOnlineDisplays": "No online displays selected",
     "forEvent": "Displays for this event",
     "selectedCount": "{{count}} display selected",
     "selectedCount_plural": "{{count}} displays selected",

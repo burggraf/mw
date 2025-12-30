@@ -13,7 +13,11 @@ export function generateSlides(
   const parsed = parseSong(song.content)
 
   // Determine which sections to include and in what order
-  const arrangement = customizations?.arrangement || song.arrangements?.default || parsed.sections.map((s) => s.id)
+  // Use arrangement if it has items, otherwise fall back to parsed sections
+  const customArrangement = customizations?.arrangement?.length ? customizations.arrangement : null
+  const songArrangement = song.arrangements?.default?.length ? song.arrangements.default : null
+  const defaultArrangement = parsed.sections.map((s) => s.id)
+  const arrangement = customArrangement || songArrangement || defaultArrangement
 
   const slides: Slide[] = []
 

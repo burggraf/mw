@@ -1,6 +1,7 @@
 import { createContext, useContext, useRef, useState, useCallback, useEffect, type ReactNode } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import type { DiscoveredDisplay } from '@/types/display'
+import type { PrecacheMessage, PrecacheAck } from '@/types/live'
 
 interface ConnectedDisplay {
   key: string // host:port
@@ -31,11 +32,14 @@ interface WebSocketContextValue {
   discovered: DiscoveredDisplay[]
   connected: Map<string, ConnectedDisplay>
   isDiscovering: boolean
+  precacheAcks: Map<string, PrecacheAck> // key = displayKey
   discover: () => Promise<void>
   connect: (display: DiscoveredDisplay | { host: string; port: number; name: string }) => void
   disconnect: (key: string) => void
   broadcastLyrics: (message: LyricsMessage) => void
   broadcastSlide: (message: SlideMessage) => void
+  broadcastPrecache: (message: PrecacheMessage) => void
+  clearPrecacheAcks: () => void
 }
 
 const WebSocketContext = createContext<WebSocketContextValue | null>(null)
@@ -44,6 +48,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const [discovered, setDiscovered] = useState<DiscoveredDisplay[]>([])
   const [connected, setConnected] = useState<Map<string, ConnectedDisplay>>(new Map())
   const [isDiscovering, setIsDiscovering] = useState(false)
+  const [precacheAcks, setPrecacheAcks] = useState<Map<string, PrecacheAck>>(new Map())
   const wsRef = useRef<Map<string, WebSocket>>(new Map())
   const discoveredRef = useRef<DiscoveredDisplay[]>([])
 
@@ -110,6 +115,18 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       setConnected(prev => new Map(prev).set(key, { key, name: display.name, host: display.host, port: display.port }))
     }
 
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data)
+        if (message.type === 'precache_ack') {
+          console.log('[WebSocketContext] Received precache_ack from', display.name)
+          setPrecacheAcks(prev => new Map(prev).set(key, message.data as PrecacheAck))
+        }
+      } catch (e) {
+        console.error('[WebSocketContext] Failed to parse message:', e)
+      }
+    }
+
     ws.onerror = (error) => {
       console.error('[WebSocketContext] WebSocket error for', display.name, error)
     }
@@ -170,6 +187,28 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     console.log(`[WebSocketContext] Broadcast slide to ${wsRef.current.size} connections`)
   }, [])
 
+  const broadcastPrecache = useCallback((message: PrecacheMessage) => {
+    const payload = { type: 'precache', data: message }
+    const json = JSON.stringify(payload)
+
+    // Clear previous acks before sending new precache
+    setPrecacheAcks(new Map())
+
+    wsRef.current.forEach((ws, key) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(json)
+      } else {
+        console.warn(`[WebSocketContext] Cannot send to ${key}: not ready`)
+      }
+    })
+
+    console.log(`[WebSocketContext] Broadcast precache to ${wsRef.current.size} connections`)
+  }, [])
+
+  const clearPrecacheAcks = useCallback(() => {
+    setPrecacheAcks(new Map())
+  }, [])
+
   // Auto-discover on mount (but NOT in display mode - displays advertise, controllers discover)
   useEffect(() => {
     discover()
@@ -181,11 +220,14 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     discovered,
     connected,
     isDiscovering,
+    precacheAcks,
     discover,
     connect,
     disconnect,
     broadcastLyrics,
     broadcastSlide,
+    broadcastPrecache,
+    clearPrecacheAcks,
   }
 
   return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>
