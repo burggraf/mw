@@ -95,12 +95,22 @@ export function DisplayModeSidebar({
         setAvailableDisplays(targets);
       } catch (error) {
         console.error('Failed to fetch monitors:', error);
-        // Fallback to main display only
+        // Fallback to main display only with a mock monitor object
         setAvailableDisplays([{
           id: 'main',
           name: t('displayMode.mainDisplay'),
           isDefault: true,
-        } as DisplayTarget]);
+          monitor: {
+            id: 0,
+            name: 'Main Display',
+            position_x: 0,
+            position_y: 0,
+            size_x: 1920,
+            size_y: 1080,
+            scale_factor: 1.0,
+            is_primary: true,
+          },
+        }]);
       }
     };
 
