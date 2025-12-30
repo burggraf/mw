@@ -21,14 +21,13 @@ serde_json = "1"
 chrono = "0.4"
 base64 = "0.22"
 urlencoding = "2.1"
-
-# WebRTC dependencies
-webrtc = "0.11"
-tokio-tungstenite = "0.24"
-mdns = "3.0"
-uuid = { version = "1", features = ["v4", "serde"] }
-tokio = { version = "1", features = ["full"] }
-futures-util = "0.3"
+rand = "0.8"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-rand = "0.8"
+tokio = { version = "1", features = ["full"] }
+
+# NATS
+async-nats = "0.36"
+mdns = "3.0"
+futures-util = "0.3"
+async-std = "1.12"

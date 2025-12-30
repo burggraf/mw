@@ -1,842 +1,11 @@
-use crate::webrtc::{
-    Peer, PeerType, DiscoveryService, ElectionService, ElectionResult,
-    SignalingServer, PeerInfo, Priority, SignalingMessage, TcpP2pManager,
-};
-use base64::Engine;
-use std::sync::Arc;
-use tauri::{AppHandle, Emitter, Manager};
-use tokio::sync::Mutex;
-use tokio_tungstenite::tungstenite::Message;
-use tokio_tungstenite::connect_async;
-
-/// Global WebRTC state
-pub struct WebrtcState {
-    pub peer: Arc<Mutex<Option<Peer>>>,
-    pub discovery: Arc<Mutex<Option<DiscoveryService>>>,
-    pub election: Arc<Mutex<Option<ElectionService>>>,
-    pub signaling_server: Arc<Mutex<Option<Arc<SignalingServer>>>>,
-    pub tcp_p2p: Arc<Mutex<Option<TcpP2pManager>>>,
-    pub connected_peers: Arc<Mutex<Vec<PeerInfo>>>,
-    pub leader_id: Arc<Mutex<Option<uuid::Uuid>>>,
-    pub is_running: Arc<Mutex<bool>>,
-}
-
-impl WebrtcState {
-    pub fn new() -> Self {
-        Self {
-            peer: Arc::new(Mutex::new(None)),
-            discovery: Arc::new(Mutex::new(None)),
-            election: Arc::new(Mutex::new(None)),
-            signaling_server: Arc::new(Mutex::new(None)),
-            tcp_p2p: Arc::new(Mutex::new(None)),
-            connected_peers: Arc::new(Mutex::new(Vec::new())),
-            leader_id: Arc::new(Mutex::new(None)),
-            is_running: Arc::new(Mutex::new(false)),
-        }
-    }
-}
-
-/// Connect to an existing signaling server as a client (simplified, no WebRTC)
-async fn connect_to_signaling_server_simple(
-    addr: &str,
-    peer: Peer,
-    app_handle: &AppHandle,
-    state: &tauri::State<'_, WebrtcState>,
-    my_peer_type: PeerType,
-) -> Result<Arc<SignalingServer>, String> {
-    use futures_util::{SinkExt, StreamExt};
-
-    let ws_url = format!("ws://{}/", addr);
-    tracing::info!("Connecting to signaling server at {}", ws_url);
-
-    let (ws_stream, _) = connect_async(&ws_url)
-        .await
-        .map_err(|e| format!("Failed to connect to signaling server: {}", e))?;
-
-    let (mut ws_sender, mut ws_receiver) = ws_stream.split();
-
-    // Create a signaling server wrapper (it won't actually listen, just provide the interface)
-    let signaling_server = Arc::new(SignalingServer::new());
-
-    // Send registration message BEFORE spawning task (ws_sender will be moved)
-    let register_msg = SignalingMessage::Register {
-        peer_id: peer.id,
-        peer_type: peer.peer_type,
-        display_name: peer.display_name.clone(),
-        display_class: None,
-        priority: None,
-    };
-    if let Err(e) = ws_sender.send(Message::Text(serde_json::to_string(&register_msg).unwrap())).await {
-        return Err(format!("Failed to send registration: {}", e));
-    }
-
-    // Task to handle incoming messages from the signaling server
-    let app_handle = app_handle.clone();
-    let connected_peers = state.connected_peers.clone();
-    let leader_id = state.leader_id.clone();
-    let tcp_p2p_monitor = state.tcp_p2p.clone();
-    let my_peer_id = peer.id;
-    tokio::spawn(async move {
-        let mut connections_initiated = false;
-
-        while let Some(msg_result) = ws_receiver.next().await {
-            match msg_result {
-                Ok(Message::Text(text)) => {
-                    if let Ok(signaling_msg) = serde_json::from_str::<SignalingMessage>(&text) {
-                        match signaling_msg {
-                            SignalingMessage::PeerList { peers } => {
-                                tracing::info!("Received peer list: {} peers", peers.len());
-                                *connected_peers.lock().await = peers.clone();
-                                let _ = app_handle.emit("webrtc:peer_list_changed", peers.clone());
-
-                                // Check if there's a leader in the peer list and emit leader_changed
-                                if let Some(leader) = peers.iter().find(|p| p.is_leader) {
-                                    let leader_peer_id = leader.id.clone();
-                                    let current_leader_id = *leader_id.lock().await;
-                                    let leader_uuid = uuid::Uuid::parse_str(&leader_peer_id).ok();
-
-                                    if leader_uuid != current_leader_id {
-                                        *leader_id.lock().await = leader_uuid;
-                                        let _ = app_handle.emit("webrtc:leader_changed", leader_peer_id.clone());
-                                        tracing::info!("Leader changed to: {} (I am: {})", leader_peer_id,
-                                            if leader_uuid == Some(my_peer_id) { "leader" } else { "follower" });
-                                    }
-                                }
-
-                                // Initiate TCP connections if we're a controller and haven't yet
-                                if !connections_initiated && my_peer_type == PeerType::Controller {
-                                    connections_initiated = true;
-                                    if let Some(ref tcp_p2p) = *tcp_p2p_monitor.lock().await {
-                                        for peer_info in &peers {
-                                            if peer_info.peer_type == PeerType::Display {
-                                                let peer_id = uuid::Uuid::parse_str(&peer_info.id).unwrap_or(uuid::Uuid::new_v4());
-                                                tracing::info!("Controller: Connecting via TCP to display {}", peer_info.display_name);
-                                                if let Err(e) = tcp_p2p.connect_to_peer(peer_id, peer_info.clone(), "127.0.0.1", 3011).await {
-                                                    tracing::error!("Failed to connect TCP to {}: {}", peer_info.display_name, e);
-                                                } else {
-                                                    tracing::info!("Connected via TCP to {}", peer_info.display_name);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            SignalingMessage::Data { from_peer_id, message, .. } => {
-                                // Emit data message event (for signaling relay fallback)
-                                tracing::info!("Signaling: Received data via WebSocket from {}: {}", from_peer_id, message);
-                                let payload = serde_json::json!({
-                                    "from_peer_id": from_peer_id.to_string(),
-                                    "message": message,
-                                });
-                                let _ = app_handle.emit("webrtc:data_received", payload);
-                            }
-                            _ => {
-                                // Ignore WebRTC-specific messages (Offer, Answer, ICE)
-                                tracing::debug!("Ignoring WebRTC signaling message: {:?}", signaling_msg);
-                            }
-                        }
-                    }
-                }
-                Ok(Message::Close(_)) => {
-                    tracing::info!("Signaling server closed connection");
-                    break;
-                }
-                Err(e) => {
-                    tracing::error!("WebSocket error: {}", e);
-                    break;
-                }
-                _ => {}
-            }
-        }
-    });
-
-    // Return the Arc directly since WebrtcState stores Arc<SignalingServer>
-    Ok(signaling_server)
-}
-
-/// Start the WebRTC peer
-#[tauri::command]
-pub async fn start_peer(
-    peer_type: PeerType,
-    display_name: String,
-    app_handle: AppHandle,
-) -> Result<String, String> {
-    let state = app_handle.state::<WebrtcState>();
-
-    // Check if a peer already exists - return its ID instead of creating a new one
-    // This prevents multiple calls from creating duplicate peers/trying to bind the same port
-    {
-        let existing_peer = state.peer.lock().await;
-        if let Some(ref peer) = *existing_peer {
-            let peer_id = peer.id.to_string();
-            tracing::info!("Peer already exists with ID {}, reusing existing peer", peer_id);
-            // Drop the lock before returning
-            drop(existing_peer);
-            return Ok(peer_id);
-        }
-    }
-
-    let peer = Peer::new(peer_type, display_name);
-    let peer_id = peer.id;
-
-    tracing::info!("Starting peer: {} ({:?})", peer.display_name, peer.peer_type);
-
-    // Store the peer
-    *state.peer.lock().await = Some(peer.clone());
-
-    // Initialize the TCP P2P manager
-    // Use port 3011 for TCP server (3010 is for signaling)
-    let tcp_p2p = TcpP2pManager::new(peer.id, 3011);
-
-    // Set up TCP message callbacks
-    let app_handle_for_cb = app_handle.clone();
-    tcp_p2p.on_message(move |message: String, from_peer_id: uuid::Uuid| {
-        let app_handle = app_handle_for_cb.clone();
-        tauri::async_runtime::spawn(async move {
-            tracing::info!("TCP: Received message from {}: {}", from_peer_id, message);
-            let payload = serde_json::json!({
-                "from_peer_id": from_peer_id.to_string(),
-                "message": message,
-            });
-            tracing::info!("TCP: Emitting webrtc:data_received event: {}", payload);
-            let _ = app_handle.emit("webrtc:data_received", payload);
-        });
-    }).await;
-
-    let app_handle_for_cb = app_handle.clone();
-    tcp_p2p.on_connected(move |peer_id: uuid::Uuid| {
-        let app_handle = app_handle_for_cb.clone();
-        tauri::async_runtime::spawn(async move {
-            tracing::info!("TCP: Peer connected: {}", peer_id);
-            let _ = app_handle.emit("webrtc:peer_connected", peer_id.to_string());
-        });
-    }).await;
-
-    let app_handle_for_cb = app_handle.clone();
-    tcp_p2p.on_disconnected(move |peer_id: uuid::Uuid| {
-        let app_handle = app_handle_for_cb.clone();
-        tauri::async_runtime::spawn(async move {
-            tracing::info!("TCP: Peer disconnected: {}", peer_id);
-            let _ = app_handle.emit("webrtc:peer_disconnected", peer_id.to_string());
-        });
-    }).await;
-
-    *state.tcp_p2p.lock().await = Some(tcp_p2p);
-
-    // Emit started event
-    let _ = app_handle.emit("webrtc:started", peer_id.to_string());
-
-    // Initialize discovery service
-    let mut discovery = DiscoveryService::new();
-
-    // Announce this peer via mDNS
-    if let Err(e) = discovery.announce(&peer) {
-        tracing::warn!("Failed to announce via mDNS: {}", e);
-        // Continue anyway - mDNS may not work on all networks
-    }
-
-    *state.discovery.lock().await = Some(discovery);
-
-    // Initialize election service
-    let election = ElectionService::new(DiscoveryService::new());
-    election.set_peer(peer.clone()).await;
-    *state.election.lock().await = Some(election);
-
-    // Emit discovering event
-    let _ = app_handle.emit("webrtc:discovering", ());
-
-    // Run leader election
-    let election_service = state.election.lock().await;
-    let election_result = if let Some(ref _election) = *election_service {
-        // Browse for leaders
-        let discovery_service = state.discovery.lock().await;
-        if let Some(ref discovery) = *discovery_service {
-            let discovered = discovery.browse_for_leaders().await.unwrap_or_default();
-            drop(discovery_service);
-
-            // Check if anyone has higher priority
-            let self_priority = peer.priority();
-            let mut highest_priority = self_priority;
-            let mut leader_id = peer.id;
-
-            for other in &discovered {
-                let other_priority = Priority {
-                    device_type_score: other.priority.0,
-                    startup_time_ms: other.priority.1,
-                };
-                if other_priority > highest_priority {
-                    highest_priority = other_priority;
-                    leader_id = other.peer_id;
-                }
-            }
-
-            if discovered.is_empty() {
-                // No other peers - we become leader
-                *state.leader_id.lock().await = Some(peer.id);
-                let peer_id_str = peer.id.to_string();
-                tracing::info!("Election: Became leader, emitting webrtc:leader_changed with {}", peer_id_str);
-                let _ = app_handle.emit("webrtc:leader_changed", peer_id_str);
-                ElectionResult::BecameLeader
-            } else if leader_id == peer.id {
-                *state.leader_id.lock().await = Some(peer.id);
-                let peer_id_str = peer.id.to_string();
-                tracing::info!("Election: Already leader, emitting webrtc:leader_changed with {}", peer_id_str);
-                let _ = app_handle.emit("webrtc:leader_changed", peer_id_str);
-                ElectionResult::BecameLeader
-            } else {
-                *state.leader_id.lock().await = Some(leader_id);
-                let leader_str = leader_id.to_string();
-                tracing::info!("Election: Became follower, emitting webrtc:leader_changed with {}", leader_str);
-                let _ = app_handle.emit("webrtc:leader_changed", leader_str);
-                ElectionResult::Follower { leader_id }
-            }
-        } else {
-            ElectionResult::NoPeers
-        }
-    } else {
-        ElectionResult::NoPeers
-    };
-
-    drop(election_service);
-
-    // Act on election result
-    match election_result {
-        ElectionResult::BecameLeader => {
-            tracing::info!("Election result: BecameLeader - attempting to start signaling server");
-
-            // Try to start signaling server, if port is taken, connect as follower instead
-            let signaling_server = SignalingServer::new();
-
-            // Set up data message callback to emit events to frontend
-            let app_handle_for_callback = app_handle.clone();
-            signaling_server.on_data(move |from_peer_id: uuid::Uuid, message: String| {
-                let app_handle = app_handle_for_callback.clone();
-                tauri::async_runtime::spawn(async move {
-                    let payload = serde_json::json!({
-                        "from_peer_id": from_peer_id.to_string(),
-                        "message": message,
-                    });
-                    tracing::info!("Signaling: Emitting webrtc:data_received event: {}", payload);
-                    let _ = app_handle.emit("webrtc:data_received", payload);
-                });
-            }).await;
-
-            let server_result = signaling_server.start(3010).await;
-
-            // Convert error to String to avoid non-Send type across await
-            let server_result = server_result.map_err(|e| e.to_string());
-
-            if let Err(error_msg) = server_result {
-                if error_msg.contains("Address already in use") || error_msg.contains("os error 48") {
-                    tracing::info!("Port 3010 already in use - connecting as follower instead");
-
-                    // For displays: Start TCP server BEFORE connecting to signaling
-                    if peer.peer_type == PeerType::Display {
-                        let tcp_p2p = state.tcp_p2p.lock().await.clone().unwrap();
-                        match tcp_p2p.start_server().await {
-                            Ok(port) => {
-                                tracing::info!("Display: TCP server started on port {}", port);
-                            }
-                            Err(e) => {
-                                tracing::warn!("Failed to start TCP server: {}", e);
-                            }
-                        }
-                    }
-
-                    // Connect to existing signaling server
-                    drop(signaling_server); // Don't need the server we tried to start
-
-                    match connect_to_signaling_server_simple("127.0.0.1:3010", peer.clone(), &app_handle, &state, peer_type).await {
-                        Ok(server) => {
-                            *state.signaling_server.lock().await = Some(server);
-                            *state.is_running.lock().await = true;
-
-                            let peer_id_str = peer.id.to_string();
-                            let _ = app_handle.emit("webrtc:connected", peer_id_str);
-                            let _ = app_handle.emit("webrtc:peer_list_changed", vec![peer.to_info(true)]);
-
-                            tracing::info!("Connected to existing signaling server as follower");
-                            return Ok(peer_id.to_string());
-                        }
-                        Err(e) => {
-                            return Err(format!("Failed to connect to existing signaling server: {}", e));
-                        }
-                    }
-                } else {
-                    return Err(format!("Failed to start signaling server: {}", error_msg));
-                }
-            }
-
-            // Register local peer with signaling server so browser clients can see it
-            signaling_server.set_local_peer(peer.to_info_with_leader(true, true)).await;
-
-            // Wrap in Arc so we can clone it
-            let signaling_server = Arc::new(signaling_server);
-
-            *state.signaling_server.lock().await = Some(signaling_server.clone());
-            *state.is_running.lock().await = true;
-
-            // For displays: Start TCP server to accept connections from controllers
-            if peer.peer_type == PeerType::Display {
-                let tcp_p2p = state.tcp_p2p.lock().await.clone().unwrap();
-                match tcp_p2p.start_server().await {
-                    Ok(port) => {
-                        tracing::info!("Display: TCP server started on port {}", port);
-                    }
-                    Err(e) => {
-                        tracing::warn!("Failed to start TCP server: {}", e);
-                    }
-                }
-            }
-
-            // Spawn a task to monitor for new peers and initiate TCP connections (if controller)
-            let signaling_server_monitor = signaling_server.clone();
-            let connected_peers_monitor = state.connected_peers.clone();
-            let tcp_p2p_monitor = state.tcp_p2p.clone();
-            let is_running_monitor = state.is_running.clone();
-            let my_peer_type = peer.peer_type;
-            let my_peer_id = peer.id;
-            tokio::spawn(async move {
-                let mut known_peers: std::collections::HashSet<String> = std::collections::HashSet::new();
-
-                while *is_running_monitor.lock().await {
-                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-
-                    // Get current peer list from signaling server
-                    let peers = signaling_server_monitor.get_peer_list().await;
-
-                    // Find new peers
-                    for peer_info in &peers {
-                        if !known_peers.contains(&peer_info.id) && peer_info.id != my_peer_id.to_string() {
-                            known_peers.insert(peer_info.id.clone());
-                            tracing::info!("New peer detected: {} ({:?})", peer_info.display_name, peer_info.peer_type);
-
-                            // If we're a controller and new peer is a display, connect via TCP
-                            if my_peer_type == PeerType::Controller && peer_info.peer_type == PeerType::Display {
-                                if let Some(ref tcp_p2p) = *tcp_p2p_monitor.lock().await {
-                                    let peer_id = uuid::Uuid::parse_str(&peer_info.id).unwrap_or(uuid::Uuid::new_v4());
-                                    // Connect to display on localhost
-                                    if let Err(e) = tcp_p2p.connect_to_peer(peer_id, peer_info.clone(), "127.0.0.1", 3011).await {
-                                        tracing::error!("Failed to connect TCP to {}: {}", peer_info.display_name, e);
-                                    } else {
-                                        tracing::info!("Connected via TCP to {}", peer_info.display_name);
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Update connected_peers for get_connected_peers command
-                    *connected_peers_monitor.lock().await = peers;
-                }
-            });
-
-            let _ = app_handle.emit("webrtc:connected", peer_id.to_string());
-            let _ = app_handle.emit("webrtc:peer_list_changed", vec![peer.to_info(true)]);
-
-            tracing::info!("Signaling server started on port 3010");
-        }
-        ElectionResult::Follower { leader_id } => {
-            tracing::info!("Follower - connecting to leader {}", leader_id);
-
-            // For displays: Start TCP server to accept connections from controllers
-            if peer.peer_type == PeerType::Display {
-                let tcp_p2p = state.tcp_p2p.lock().await.clone().unwrap();
-                match tcp_p2p.start_server().await {
-                    Ok(port) => {
-                        tracing::info!("Display: TCP server started on port {}", port);
-                    }
-                    Err(e) => {
-                        tracing::warn!("Failed to start TCP server: {}", e);
-                    }
-                }
-            }
-
-            // Connect to leader's signaling server as a WebSocket client
-            match connect_to_signaling_server_simple("127.0.0.1:3010", peer.clone(), &app_handle, &state, peer_type).await {
-                Ok(server) => {
-                    *state.signaling_server.lock().await = Some(server);
-                    *state.is_running.lock().await = true;
-                    tracing::info!("Connected to leader's signaling server");
-                }
-                Err(e) => {
-                    tracing::warn!("Failed to connect to leader: {}", e);
-                    *state.is_running.lock().await = true;
-                }
-            }
-
-            let _ = app_handle.emit::<Vec<crate::webrtc::PeerInfo>>("webrtc:connected", vec![]);
-            let _ = app_handle.emit::<Vec<crate::webrtc::PeerInfo>>("webrtc:peer_list_changed", vec![]);
-        }
-        ElectionResult::NoPeers => {
-            tracing::info!("No peers discovered - becoming leader by default");
-
-            // For displays: Start TCP server early (before checking for signaling server)
-            if peer.peer_type == PeerType::Display {
-                let tcp_p2p = state.tcp_p2p.lock().await.clone().unwrap();
-                match tcp_p2p.start_server().await {
-                    Ok(port) => {
-                        tracing::info!("Display: TCP server started on port {}", port);
-                    }
-                    Err(e) => {
-                        tracing::warn!("Failed to start TCP server: {}", e);
-                    }
-                }
-            }
-
-            // Try to start signaling server, if port is taken, connect as follower instead
-            let signaling_server = SignalingServer::new();
-
-            // Set up data message callback to emit events to frontend
-            let app_handle_for_callback = app_handle.clone();
-            signaling_server.on_data(move |from_peer_id: uuid::Uuid, message: String| {
-                let app_handle = app_handle_for_callback.clone();
-                tauri::async_runtime::spawn(async move {
-                    let payload = serde_json::json!({
-                        "from_peer_id": from_peer_id.to_string(),
-                        "message": message,
-                    });
-                    tracing::info!("Signaling: Emitting webrtc:data_received event: {}", payload);
-                    let _ = app_handle.emit("webrtc:data_received", payload);
-                });
-            }).await;
-
-            let server_result = signaling_server.start(3010).await;
-
-            // Convert error to String to avoid non-Send type across await
-            let server_result = server_result.map_err(|e| e.to_string());
-
-            if let Err(error_msg) = server_result {
-                if error_msg.contains("Address already in use") || error_msg.contains("os error 48") {
-                    tracing::info!("Port 3010 already in use - connecting as follower instead");
-
-                    // Connect to existing signaling server
-                    drop(signaling_server); // Don't need the server we tried to start
-
-                    match connect_to_signaling_server_simple("127.0.0.1:3010", peer.clone(), &app_handle, &state, peer_type).await {
-                        Ok(server) => {
-                            *state.signaling_server.lock().await = Some(server);
-                            *state.leader_id.lock().await = Some(peer.id); // Will be updated when we get peer list
-                            *state.is_running.lock().await = true;
-
-                            let peer_id_str = peer.id.to_string();
-                            let _ = app_handle.emit("webrtc:connected", peer_id_str);
-                            let _ = app_handle.emit("webrtc:peer_list_changed", vec![peer.to_info(true)]);
-
-                            tracing::info!("Connected to existing signaling server as follower");
-                            return Ok(peer_id.to_string());
-                        }
-                        Err(e) => {
-                            return Err(format!("Failed to connect to existing signaling server: {}", e));
-                        }
-                    }
-                } else {
-                    return Err(format!("Failed to start signaling server: {}", error_msg));
-                }
-            }
-
-            // Register local peer with signaling server so browser clients can see it
-            signaling_server.set_local_peer(peer.to_info_with_leader(true, true)).await;
-
-            // Wrap in Arc and clone before storing
-            let signaling_server = Arc::new(signaling_server);
-
-            *state.signaling_server.lock().await = Some(signaling_server.clone());
-            *state.leader_id.lock().await = Some(peer.id);
-            *state.is_running.lock().await = true;
-
-            // For displays: Start TCP server to accept connections from controllers
-            if peer.peer_type == PeerType::Display {
-                let tcp_p2p = state.tcp_p2p.lock().await.clone().unwrap();
-                match tcp_p2p.start_server().await {
-                    Ok(port) => {
-                        tracing::info!("Display: TCP server started on port {}", port);
-                    }
-                    Err(e) => {
-                        tracing::warn!("Failed to start TCP server: {}", e);
-                    }
-                }
-            }
-
-            // Spawn a task to monitor for new peers (if controller)
-            let signaling_server_monitor = signaling_server.clone();
-            let connected_peers_monitor = state.connected_peers.clone();
-            let tcp_p2p_monitor = state.tcp_p2p.clone();
-            let is_running_monitor = state.is_running.clone();
-            let my_peer_type = peer.peer_type;
-            let my_peer_id = peer.id;
-            tokio::spawn(async move {
-                let mut known_peers: std::collections::HashSet<String> = std::collections::HashSet::new();
-
-                while *is_running_monitor.lock().await {
-                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-
-                    // Get current peer list from signaling server
-                    let peers = signaling_server_monitor.get_peer_list().await;
-
-                    // Find new peers
-                    for peer_info in &peers {
-                        if !known_peers.contains(&peer_info.id) && peer_info.id != my_peer_id.to_string() {
-                            known_peers.insert(peer_info.id.clone());
-                            tracing::info!("New peer detected: {} ({:?})", peer_info.display_name, peer_info.peer_type);
-
-                            // If we're a controller and new peer is a display, connect via TCP
-                            if my_peer_type == PeerType::Controller && peer_info.peer_type == PeerType::Display {
-                                if let Some(ref tcp_p2p) = *tcp_p2p_monitor.lock().await {
-                                    let peer_id = uuid::Uuid::parse_str(&peer_info.id).unwrap_or(uuid::Uuid::new_v4());
-                                    // Connect to display on localhost
-                                    if let Err(e) = tcp_p2p.connect_to_peer(peer_id, peer_info.clone(), "127.0.0.1", 3011).await {
-                                        tracing::error!("Failed to connect TCP to {}: {}", peer_info.display_name, e);
-                                    } else {
-                                        tracing::info!("Connected via TCP to {}", peer_info.display_name);
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Update connected_peers for get_connected_peers command
-                    *connected_peers_monitor.lock().await = peers;
-                }
-            });
-
-            let peer_id_str = peer.id.to_string();
-            tracing::info!("First peer - emitting webrtc:leader_changed with {}", peer_id_str);
-            let _ = app_handle.emit("webrtc:connected", peer_id_str.clone());
-            let _ = app_handle.emit("webrtc:leader_changed", peer_id_str);
-            let _ = app_handle.emit("webrtc:peer_list_changed", vec![peer.to_info(true)]);
-
-            tracing::info!("First peer - signaling server started on port 3010");
-        }
-    }
-
-    Ok(peer_id.to_string())
-}
-
-/// Send a control message to a peer
-#[tauri::command]
-pub async fn send_control_message(
-    target_peer_id: String,
-    message: String,
-    app_handle: AppHandle,
-) -> Result<(), String> {
-    use uuid::Uuid;
-
-    let state = app_handle.state::<WebrtcState>();
-    let peer_id = state.peer.lock().await
-        .as_ref()
-        .map(|p| p.id)
-        .ok_or("Peer not started")?;
-
-    let to_peer_id = Uuid::parse_str(&target_peer_id)
-        .map_err(|e| format!("Invalid peer ID: {}", e))?;
-
-    // First, try to send via TCP P2P
-    let tcp_p2p = state.tcp_p2p.lock().await.clone();
-    if let Some(ref manager) = tcp_p2p {
-        match manager.send_message(to_peer_id, message.clone()).await {
-            Ok(()) => {
-                tracing::debug!("Sent message via TCP to {}", target_peer_id);
-                return Ok(());
-            }
-            Err(e) => {
-                tracing::debug!("TCP not available, falling back to signaling: {}", e);
-                // Fall through to signaling relay
-            }
-        }
-    }
-
-    // Fall back to signaling server relay
-    let signaling_server = state.signaling_server.lock().await;
-    if let Some(server) = signaling_server.as_ref() {
-        server.send_data(peer_id, to_peer_id, message).await;
-        Ok(())
-    } else {
-        Err("No connection available".to_string())
-    }
-}
-
-/// Get all connected peers
-#[tauri::command]
-pub async fn get_connected_peers(app_handle: AppHandle) -> Result<Vec<PeerInfo>, String> {
-    let state = app_handle.state::<WebrtcState>();
-
-    // Prefer connected_peers (updated by WebSocket messages for followers)
-    let peers = state.connected_peers.lock().await;
-    if !peers.is_empty() {
-        return Ok(peers.clone());
-    }
-
-    // Fallback to signaling server's peer list (for the leader)
-    if let Some(ref signaling_server) = *state.signaling_server.lock().await {
-        let server_peers = signaling_server.get_peer_list().await;
-        if !server_peers.is_empty() {
-            return Ok(server_peers);
-        }
-    }
-
-    Ok(vec![])
-}
-
-/// Get leader status
-#[tauri::command]
-pub async fn get_leader_status(app_handle: AppHandle) -> Result<crate::webrtc::LeaderStatus, String> {
-    let state = app_handle.state::<WebrtcState>();
-    let leader_id = state.leader_id.lock().await;
-    let peer = state.peer.lock().await;
-
-    let (leader_id_str, am_i_leader, peer_count) = if let Some(ref peer) = *peer {
-        let lid = leader_id.map(|id| id.to_string());
-        let am_i = leader_id.map(|id| id == peer.id).unwrap_or(false);
-        let count = 1; // TODO: Track actual peer count
-        (lid, am_i, count)
-    } else {
-        (None, false, 0)
-    };
-
-    Ok(crate::webrtc::LeaderStatus {
-        leader_id: leader_id_str,
-        am_i_leader: am_i_leader,
-        peer_count,
-    })
-}
-
-/// Auto-start test mode - automatically starts peer and sends periodic messages
-pub fn start_auto_test(app_handle: AppHandle, mode: crate::AutoStartMode) {
-    let peer_type = match mode {
-        crate::AutoStartMode::Controller => PeerType::Controller,
-        crate::AutoStartMode::Display => PeerType::Display,
-        crate::AutoStartMode::None => return,
-    };
-    let display_name = match mode {
-        crate::AutoStartMode::Controller => "Auto Controller".to_string(),
-        crate::AutoStartMode::Display => "Auto Display".to_string(),
-        crate::AutoStartMode::None => return,
-    };
-
-    // Use Tauri's async runtime to spawn the task
-    tauri::async_runtime::spawn(async move {
-        // Wait 2 seconds for the app to fully initialize
-        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-
-        tracing::info!("AUTO-START: Starting peer as {:?}", mode);
-
-        // Start the peer
-        let peer_id = match start_peer(peer_type, display_name, app_handle.clone()).await {
-            Ok(id) => {
-                tracing::info!("AUTO-START: Peer started with ID {}", id);
-                id
-            }
-            Err(e) => {
-                tracing::error!("AUTO-START: Failed to start peer: {}", e);
-                return;
-            }
-        };
-
-        // Wait 3 more seconds for connections to establish
-        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-
-        // Get connected peers
-        let peers = match get_connected_peers(app_handle.clone()).await {
-            Ok(p) => p,
-            Err(e) => {
-                tracing::error!("AUTO-START: Failed to get peers: {}", e);
-                return;
-            }
-        };
-
-        tracing::info!("AUTO-START: Connected peers: {}", peers.len());
-
-        // For controller, send periodic test messages
-        if mode == crate::AutoStartMode::Controller {
-            let mut message_count = 0;
-            loop {
-                tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-
-                message_count += 1;
-                let test_msg = format!("Auto Test Message #{}", message_count);
-                tracing::info!("AUTO-START: Sending test message: {}", test_msg);
-
-                // Send to all connected peers
-                let peers = match get_connected_peers(app_handle.clone()).await {
-                    Ok(p) => p,
-                    Err(e) => {
-                        tracing::warn!("AUTO-START: Failed to get peers: {}", e);
-                        continue;
-                    }
-                };
-
-                for peer in &peers {
-                    if peer.id != peer_id {
-                        match send_control_message(peer.id.clone(), test_msg.clone(), app_handle.clone()).await {
-                            Ok(_) => {
-                                tracing::info!("AUTO-START: Sent '{}' to {}", test_msg, peer.display_name);
-                            }
-                            Err(e) => {
-                                tracing::warn!("AUTO-START: Failed to send to {}: {}", peer.display_name, e);
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            // Display mode - send periodic test messages too
-            tracing::info!("AUTO-START: Display mode listening for messages...");
-            let mut message_count = 0;
-            loop {
-                tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-
-                message_count += 1;
-                let test_msg = format!("Display Reply #{}", message_count);
-                tracing::info!("AUTO-START: Sending test message: {}", test_msg);
-
-                // Send to all connected peers
-                let peers = match get_connected_peers(app_handle.clone()).await {
-                    Ok(p) => p,
-                    Err(e) => {
-                        tracing::warn!("AUTO-START: Failed to get peers: {}", e);
-                        continue;
-                    }
-                };
-
-                for peer in &peers {
-                    if peer.id != peer_id {
-                        match send_control_message(peer.id.clone(), test_msg.clone(), app_handle.clone()).await {
-                            Ok(_) => {
-                                tracing::info!("AUTO-START: Sent '{}' to {}", test_msg, peer.display_name);
-                            }
-                            Err(e) => {
-                                tracing::warn!("AUTO-START: Failed to send to {}: {}", peer.display_name, e);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-/// Get the auto-start mode
-#[tauri::command]
-pub fn get_auto_start_mode(app_handle: AppHandle) -> String {
-    let mode = app_handle.state::<Arc<crate::AutoStartMode>>();
-    let mode = **mode.inner();
-    match mode {
-        crate::AutoStartMode::Controller => "controller".to_string(),
-        crate::AutoStartMode::Display => "display".to_string(),
-        crate::AutoStartMode::None => "none".to_string(),
-    }
-}
-
-// ============================================================================
-// Media Cache Commands
-// ============================================================================
-
 use std::path::PathBuf;
 use std::fs;
 use std::io::Write;
+use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tauri::{AppHandle, Emitter, Manager};
+use base64::Engine;
 
 const MAX_CACHE_SIZE_MB: u64 = 500; // 500 MB max cache
 const CACHE_DIR_NAME: &str = "media_cache";
@@ -1214,6 +383,13 @@ pub async fn get_cache_stats(app_handle: AppHandle) -> Result<CacheStats, String
     })
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CacheStats {
+    pub entry_count: usize,
+    pub total_size: u64,
+    pub max_size: u64,
+}
+
 /// Test command to emit an event to the frontend (for debugging event system)
 #[tauri::command]
 pub async fn test_emit_event(app_handle: AppHandle, message: String) -> Result<(), String> {
@@ -1224,160 +400,6 @@ pub async fn test_emit_event(app_handle: AppHandle, message: String) -> Result<(
     });
     tracing::info!("Emitting test-event: {}", payload);
     let _ = app_handle.emit("test-event", payload);
-    Ok(())
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CacheStats {
-    pub entry_count: usize,
-    pub total_size: u64,
-    pub max_size: u64,
-}
-
-// ============================================================================
-// Display Pairing Commands
-// ============================================================================
-
-/// Generate a random 6-character pairing code (helper function)
-fn generate_pairing_code_internal() -> String {
-    let chars = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let mut code = String::new();
-
-    for _ in 0..6 {
-        code.push(chars[rand::random::<usize>() % chars.len()] as char);
-    }
-
-    code
-}
-
-/// Generate a pairing code for display discovery
-#[tauri::command]
-pub async fn generate_pairing_code() -> Result<String, String> {
-    Ok(generate_pairing_code_internal())
-}
-
-/// Send a pairing advertisement through the signaling server
-#[tauri::command]
-pub async fn send_pairing_advertisement(
-    pairing_code: String,
-    device_id: String,
-    app_handle: AppHandle,
-) -> Result<(), String> {
-    let state = app_handle.state::<WebrtcState>();
-
-    if let Some(signaling_server) = &*state.signaling_server.lock().await {
-        use crate::webrtc::SignalingMessage;
-        let msg = SignalingMessage::PairingAdvertisement {
-            pairing_code: pairing_code.clone(),
-            device_id,
-        };
-
-        // Broadcast to all connected clients (broadcast method already exists)
-        signaling_server.broadcast(msg).await;
-        tracing::info!("Broadcasting pairing advertisement: code={}", pairing_code);
-    }
-
-    Ok(())
-}
-
-/// Send a pairing ping and wait for pong response
-#[tauri::command]
-pub async fn send_pairing_ping(
-    pairing_code: String,
-    controller_id: String,
-) -> Result<bool, String> {
-    // TODO: Send ping and wait for pong response
-    // Returns true if display is reachable
-    tracing::info!("Sending pairing ping: code={}, controller_id={}", pairing_code, controller_id);
-    Ok(true)
-}
-
-/// Send a heartbeat message to keep display connection alive
-#[tauri::command]
-pub async fn send_display_heartbeat(
-    pairing_code: String,
-    app_handle: AppHandle,
-) -> Result<(), String> {
-    let state = app_handle.state::<WebrtcState>();
-
-    if let Some(signaling_server) = &*state.signaling_server.lock().await {
-        use crate::webrtc::SignalingMessage;
-        let msg = SignalingMessage::DisplayHeartbeat {
-            pairing_code: pairing_code.clone(),
-        };
-
-        signaling_server.broadcast(msg).await;
-        tracing::debug!("Sent display heartbeat: code={}", pairing_code);
-    }
-
-    Ok(())
-}
-
-/// Verify a pairing code by sending ping and waiting for pong response
-#[tauri::command]
-pub async fn verify_pairing_code(
-    pairing_code: String,
-    app_handle: AppHandle,
-) -> Result<Option<VerifyPairingResult>, String> {
-    let state = app_handle.state::<WebrtcState>();
-
-    tracing::info!("Verifying pairing code: {}", pairing_code);
-
-    // Send PairingPing via signaling server
-    if let Some(signaling_server) = &*state.signaling_server.lock().await {
-        use crate::webrtc::SignalingMessage;
-
-        // Generate a controller ID for this session
-        let controller_id = uuid::Uuid::new_v4().to_string();
-
-        let msg = SignalingMessage::PairingPing {
-            pairing_code: pairing_code.clone(),
-            controller_id,
-        };
-
-        signaling_server.broadcast(msg).await;
-
-        // TODO: Wait for PairingPong response
-        // For now, return None (not found) to force the user to verify the display is on
-        // In full implementation, we'd use a timeout channel to wait for response
-    }
-
-    Ok(None)
-}
-
-#[derive(serde::Serialize)]
-pub struct VerifyPairingResult {
-    pub device_name: String,
-    pub is_reachable: bool,
-}
-
-/// Confirm pairing with a display
-#[tauri::command]
-pub async fn confirm_pairing(
-    pairing_code: String,
-    display_name: String,
-    location: String,
-    display_class: String,
-    app_handle: AppHandle,
-) -> Result<(), String> {
-    let state = app_handle.state::<WebrtcState>();
-
-    tracing::info!("Confirming pairing: code={}, name={}", pairing_code, display_name);
-
-    // Send PairingConfirm via signaling server
-    if let Some(signaling_server) = &*state.signaling_server.lock().await {
-        use crate::webrtc::SignalingMessage;
-
-        let msg = SignalingMessage::PairingConfirm {
-            pairing_code,
-            display_name,
-            location,
-            display_class,
-        };
-
-        signaling_server.broadcast(msg).await;
-    }
-
     Ok(())
 }
 
@@ -1640,4 +662,156 @@ pub async fn get_platform() -> String {
 
     #[cfg(not(target_os = "android"))]
     return "desktop".to_string();
+}
+
+/// Get the auto-start mode
+#[tauri::command]
+pub fn get_auto_start_mode(app_handle: AppHandle) -> String {
+    let mode = app_handle.state::<Arc<crate::AutoStartMode>>();
+    let mode = **mode.inner();
+    match mode {
+        crate::AutoStartMode::Controller => "controller".to_string(),
+        crate::AutoStartMode::Display => "display".to_string(),
+        crate::AutoStartMode::None => "none".to_string(),
+    }
+}
+
+/// Auto-start test mode - placeholder for future NATS implementation
+pub fn start_auto_test(_app_handle: AppHandle, mode: crate::AutoStartMode) {
+    tracing::info!("AUTO-START: Mode {:?}", mode);
+    // TODO: Implement NATS auto-start logic
+}
+
+// ============================================================================
+// NATS Commands
+// ============================================================================
+
+use crate::nats::{NatsServer, discover_cluster_nodes, advertise_nats_service as adv_service};
+
+/// Spawn a NATS server
+#[cfg(not(target_os = "android"))]
+#[tauri::command]
+pub async fn spawn_nats_server() -> Result<u16, String> {
+    tracing::info!("Spawning NATS server...");
+    let server = NatsServer::new(crate::nats::NatsConfig::default()).await?;
+    Ok(server.port())
+}
+
+/// Discover NATS cluster nodes via mDNS
+#[tauri::command]
+pub async fn discover_nats_cluster() -> Result<Vec<crate::nats::DiscoveredNode>, String> {
+    tracing::info!("Discovering NATS cluster nodes...");
+    let nodes = discover_cluster_nodes().await;
+    Ok(nodes)
+}
+
+/// Advertise our NATS server via mDNS
+#[tauri::command]
+pub async fn advertise_nats_service(port: u16, device_name: String) -> Result<(), String> {
+    tracing::info!("Advertising NATS service on port {} as '{}'", port, device_name);
+    adv_service(port, &device_name).await
+}
+
+/// Stop the NATS server
+#[cfg(not(target_os = "android"))]
+#[tauri::command]
+pub async fn stop_nats_server() -> Result<(), String> {
+    tracing::info!("Stopping NATS server...");
+    // TODO: Implement proper server lifecycle management
+    Ok(())
+}
+
+/// Connect to a NATS server
+#[tauri::command]
+pub async fn connect_nats_server(
+    host: String,
+    port: u16,
+    state: tauri::State<'_, crate::nats::NatsState>,
+) -> Result<(), String> {
+    let url = format!("nats://{}:{}", host, port);
+    state.connect(url).await
+}
+
+/// Disconnect from the NATS server
+#[tauri::command]
+pub async fn disconnect_nats_server(
+    state: tauri::State<'_, crate::nats::NatsState>,
+) -> Result<(), String> {
+    state.disconnect().await
+}
+
+/// Check if connected to NATS
+#[tauri::command]
+pub async fn is_nats_connected(
+    state: tauri::State<'_, crate::nats::NatsState>,
+) -> Result<bool, String> {
+    Ok(state.is_connected().await)
+}
+
+/// Get the current NATS server URL
+#[tauri::command]
+pub async fn get_nats_server_url(
+    state: tauri::State<'_, crate::nats::NatsState>,
+) -> Result<Option<String>, String> {
+    Ok(state.server_url().await)
+}
+
+/// Publish lyrics to NATS
+#[tauri::command]
+pub async fn publish_nats_lyrics(
+    church_id: String,
+    event_id: String,
+    song_id: String,
+    title: String,
+    lyrics: String,
+    background_url: Option<String>,
+    state: tauri::State<'_, crate::nats::NatsState>,
+) -> Result<(), String> {
+    use crate::nats::LyricsMessage;
+    use std::time::SystemTime;
+
+    let timestamp = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map_err(|e| format!("Failed to get timestamp: {}", e))?
+        .as_secs() as i64;
+
+    let message = LyricsMessage {
+        church_id,
+        event_id,
+        song_id,
+        title,
+        lyrics,
+        background_url,
+        timestamp,
+    };
+
+    state.publish_lyrics(message).await
+}
+
+/// Publish slide update to NATS
+#[tauri::command]
+pub async fn publish_nats_slide(
+    church_id: String,
+    event_id: String,
+    song_id: String,
+    slide_index: usize,
+    state: tauri::State<'_, crate::nats::NatsState>,
+) -> Result<(), String> {
+    use crate::nats::SlideMessage;
+    use std::time::SystemTime;
+
+    let timestamp = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map_err(|e| format!("Failed to get timestamp: {}", e))?
+        .as_secs() as i64;
+
+    let message = SlideMessage {
+        church_id,
+        event_id,
+        song_id,
+        slide_index,
+        timestamp,
+    };
+
+    state.publish_slide(message).await
 }

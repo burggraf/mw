@@ -38,11 +38,6 @@ export function DisplayApp() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [state]);
 
-  const handlePaired = () => {
-    setDisplayName('Main Display');
-    setState('waiting');
-  };
-
   const handleResume = () => setMenuOpen(false);
   const handlePair = () => setState('pairing');
   const handleUnpair = () => {
@@ -58,7 +53,7 @@ export function DisplayApp() {
 
   return (
     <div className="h-screen w-screen bg-background">
-      {state === 'pairing' && <PairingScreen onPaired={handlePaired} />}
+      {state === 'pairing' && <PairingScreen />}
 
       {state === 'waiting' && (
         <WaitingScreen displayName={displayName} />

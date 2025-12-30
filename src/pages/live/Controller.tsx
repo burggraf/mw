@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useChurch } from '@/contexts/ChurchContext'
-import { useWebRTC } from '@/hooks/useWebRTC'
 import { getEventItems } from '@/services/events'
 import { getSong } from '@/services/songs'
 import { getMediaById, getSignedMediaUrl } from '@/services/media'
 import { generateSlides } from '@/lib/slide-generator'
 import { emit } from '@tauri-apps/api/event'
+import { useNats, type LyricsMessage } from '@/hooks/useNats'
 import type { Slide } from '@/types/live'
 import type { Song } from '@/types/song'
 import type { Event, EventItemWithData } from '@/types/event'
@@ -14,7 +14,7 @@ import { SlidePreview, SetlistPicker, SlideNavigator, ControlButtons } from '@/c
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Wifi, WifiOff, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 
 interface ControllerState {
   currentEventId: string | null
@@ -29,16 +29,10 @@ interface ControllerState {
 export function Controller() {
   const { t } = useTranslation()
   const { currentChurch } = useChurch()
-  const {
-    peers,
-    isConnected,
-    startPeer,
-    sendMessage,
-  } = useWebRTC()
+  const { isConnected: natsConnected, publishLyrics, publishSlide } = useNats()
 
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
-  const [startingPeer, setStartingPeer] = useState(false)
   const [prefetching, setPrefetching] = useState(false)
   const [currentBackgroundUrl, setCurrentBackgroundUrl] = useState<string | null>(null)
   const [state, setState] = useState<ControllerState>({
@@ -50,9 +44,6 @@ export function Controller() {
     slides: [],
     setlist: [],
   })
-
-  // Count connected display peers
-  const displayCount = peers.filter(p => p.peer_type === 'display' && p.is_connected).length
 
   // Load events on mount
   useEffect(() => {
@@ -88,28 +79,23 @@ export function Controller() {
     loadEvents()
   }, [currentChurch?.id])
 
-  // Start WebRTC peer in controller mode
+  // TODO: Initialize NATS client on mount
   useEffect(() => {
     if (!currentChurch?.id) return
 
-    async function startControllerPeer() {
-      try {
-        setStartingPeer(true)
-        await startPeer('controller', `${currentChurch!.name} Controller`)
-      } catch (error) {
-        console.error('Failed to start controller peer:', error)
-      } finally {
-        setStartingPeer(false)
-      }
+    async function initNats() {
+      console.log('[Controller] NATS initialization TODO')
+      // await invoke('spawn_nats_server')
+      // await invoke('discover_nats_cluster')
     }
 
-    startControllerPeer()
-  }, [currentChurch?.id, startPeer])
+    initNats()
+  }, [currentChurch?.id])
 
-  // Send song data to all connected displays
+  // Send song data to all connected displays via Tauri events (local displays)
   const sendSongData = async (song: Song & { updated_at: string }) => {
-    // Fetch signed URLs for backgrounds
-    const backgroundSignedUrls: Record<string, string> = {}
+    // Fetch background images as base64 data URLs
+    const backgroundDataUrls: Record<string, string> = {}
     const backgrounds = song.backgrounds || {}
 
     for (const [key, mediaId] of Object.entries(backgrounds)) {
@@ -117,67 +103,68 @@ export function Controller() {
         try {
           const media = await getMediaById(mediaId)
           if (media?.storagePath) {
-            const signedUrl = await getSignedMediaUrl(media.storagePath, 3600) // 1 hour
-            backgroundSignedUrls[key] = signedUrl
-            console.log('[Controller] Fetched signed URL for', key, 'background:', mediaId)
+            const signedUrl = await getSignedMediaUrl(media.storagePath, 3600)
+            const response = await fetch(signedUrl)
+            const blob = await response.blob()
+            const reader = new FileReader()
+            const dataUrl = await new Promise<string>((resolve) => {
+              reader.onloadend = () => resolve(reader.result as string)
+              reader.readAsDataURL(blob)
+            })
+            backgroundDataUrls[key] = dataUrl
+            console.log('[Controller] Fetched background as data URL:', key)
           }
         } catch (error) {
-          console.error('[Controller] Failed to get signed URL for background', mediaId, ':', error)
+          console.error('[Controller] Failed to get background', mediaId, ':', error)
         }
       }
     }
 
-    const message = JSON.stringify({
-      type: 'song_data',
-      song: {
-        ...song,
-        updated_at: song.updated_at,
-      },
-      backgroundSignedUrls,
-    })
-
-    console.log('[Controller] Sending song data:', song.title, 'with', Object.keys(backgroundSignedUrls).length, 'background URLs')
-
-    const displayPeers = peers.filter(p => p.peer_type === 'display' && p.is_connected)
-
-    // Send to WebRTC display peers
-    for (const peer of displayPeers) {
-      try {
-        await sendMessage(peer.id, message)
-        console.log('[Controller] Sent song data to WebRTC peer', peer.display_name)
-      } catch (error) {
-        console.error(`Failed to send song data to ${peer.display_name}:`, error)
-      }
+    const message = {
+      songData: { song, backgroundDataUrls },
     }
 
-    // If no WebRTC display peers, emit Tauri event for local displays
-    if (displayPeers.length === 0) {
+    console.log('[Controller] Sending song data:', song.title)
+
+    // Emit Tauri event for local displays
+    try {
+      await emit('display:slide', message)
+      console.log('[Controller] Sent song data via Tauri event for local displays')
+    } catch (error) {
+      console.error('[Controller] Failed to emit Tauri event:', error)
+    }
+
+    // Send via NATS to remote displays
+    if (natsConnected && currentChurch?.id && state.currentEventId) {
       try {
-        // For local displays, fetch images as base64 data URLs
-        const backgroundDataUrls: Record<string, string> = {}
-        for (const [key, signedUrl] of Object.entries(backgroundSignedUrls)) {
-          if (signedUrl) {
-            try {
-              const response = await fetch(signedUrl)
-              const blob = await response.blob()
-              const reader = new FileReader()
-              const dataUrl = await new Promise<string>((resolve) => {
-                reader.onloadend = () => resolve(reader.result as string)
-                reader.readAsDataURL(blob)
-              })
-              backgroundDataUrls[key] = dataUrl
-            } catch (error) {
-              console.error('[Controller] Failed to convert background to data URL:', key, error)
+        // Get default background URL for remote displays
+        const bgMediaId = song.backgrounds?.default
+        let backgroundUrl: string | undefined
+        if (bgMediaId) {
+          try {
+            const media = await getMediaById(bgMediaId)
+            if (media?.storagePath) {
+              backgroundUrl = await getSignedMediaUrl(media.storagePath, 3600)
             }
+          } catch (e) {
+            console.error('[Controller] Failed to get background URL for NATS:', e)
           }
         }
 
-        await emit('display:slide', {
-          songData: { song, backgroundDataUrls },
-        })
-        console.log('[Controller] Sent song data via Tauri event for local displays')
+        const lyricsMessage: LyricsMessage = {
+          church_id: currentChurch.id,
+          event_id: state.currentEventId,
+          song_id: song.id,
+          title: song.title,
+          lyrics: song.content || '',
+          background_url: backgroundUrl,
+          timestamp: Date.now(),
+        }
+
+        await publishLyrics(lyricsMessage)
+        console.log('[Controller] Sent song data via NATS for remote displays')
       } catch (error) {
-        console.error('[Controller] Failed to emit Tauri event:', error)
+        console.error('[Controller] Failed to publish via NATS:', error)
       }
     }
   }
@@ -195,7 +182,6 @@ export function Controller() {
         const song = await getSong(item.itemId)
         if (song) {
           console.log('[Controller] Pre-fetching song:', song.title)
-          // sendSongData now includes signed URLs for backgrounds
           await sendSongData({
             ...song,
             updated_at: song.updatedAt,
@@ -258,8 +244,7 @@ export function Controller() {
         try {
           const media = await getMediaById(bgId)
           if (media && media.backgroundColor) {
-            // Solid color background
-            setCurrentBackgroundUrl(null) // Handle colors separately if needed
+            setCurrentBackgroundUrl(null)
           } else if (media && (media.storagePath || media.thumbnailPath)) {
             const url = await getSignedMediaUrl(media.thumbnailPath || media.storagePath!)
             setCurrentBackgroundUrl(url)
@@ -274,7 +259,7 @@ export function Controller() {
         setCurrentBackgroundUrl(null)
       }
 
-      // Ensure displays have this song (send data if needed)
+      // Send song data to displays
       await sendSongData({
         ...song,
         updated_at: song.updatedAt,
@@ -294,33 +279,10 @@ export function Controller() {
       return
     }
 
-    const message = JSON.stringify({
-      type: 'slide',
-      eventId: state.currentEventId,
-      itemId: songId,  // This is now the song ID, not event item ID
-      slideIndex,
-    })
+    console.log('[Controller] Sending slide update:', { songId, slideIndex })
 
-    console.log('[Controller] Sending slide update:', message)
-
-    // Send to all display peers
-    const displayPeers = peers.filter(p => p.peer_type === 'display' && p.is_connected)
-    console.log('[Controller] Display peers:', displayPeers.length, displayPeers.map(p => ({ id: p.id, name: p.display_name })))
-
-    for (const peer of displayPeers) {
-      try {
-        console.log('[Controller] Sending to peer:', peer.display_name, 'message:', message)
-        await sendMessage(peer.id, message)
-      } catch (error) {
-        console.error(`Failed to send slide to ${peer.display_name}:`, error)
-      }
-    }
-
-    // Always emit Tauri event for local displays (auto-started windows)
-    // This ensures local displays receive updates regardless of WebRTC state
+    // Emit Tauri event for local displays
     try {
-      // For local displays, we need to include song data with background data URLs
-      // since the display windows can't invoke custom commands or use asset:// protocol
       const song = state.currentSong
       if (song) {
         // Fetch background images as base64 data URLs
@@ -333,7 +295,6 @@ export function Controller() {
               const media = await getMediaById(mediaId)
               if (media?.storagePath || media?.thumbnailPath) {
                 const signedUrl = await getSignedMediaUrl(media.thumbnailPath || media.storagePath!, 3600)
-                // Fetch the image and convert to base64 data URL
                 const response = await fetch(signedUrl)
                 const blob = await response.blob()
                 const reader = new FileReader()
@@ -342,7 +303,6 @@ export function Controller() {
                   reader.readAsDataURL(blob)
                 })
                 backgroundDataUrls[key] = dataUrl
-                console.log('[Controller] Fetched background as data URL:', key, dataUrl.substring(0, 50) + '...')
               }
             } catch (error) {
               console.error('[Controller] Failed to get background data URL for', mediaId, ':', error)
@@ -356,22 +316,31 @@ export function Controller() {
               ...song,
               updated_at: song.updatedAt,
             },
-            backgroundDataUrls,  // Send as base64 data URLs instead of signed URLs
+            backgroundDataUrls,
           },
           itemId: songId,
           slideIndex,
         })
-        console.log('[Controller] Sent slide update via Tauri event for local displays with background data URLs')
-      } else {
-        // No current song, just send slide update
-        await emit('display:slide', {
-          itemId: songId,
-          slideIndex,
-        })
-        console.log('[Controller] Sent slide update via Tauri event for local displays (no song data)')
+        console.log('[Controller] Sent slide update via Tauri event for local displays')
       }
     } catch (error) {
       console.error('[Controller] Failed to emit Tauri event for slide:', error)
+    }
+
+    // Send via NATS to remote displays
+    if (natsConnected && currentChurch?.id && state.currentEventId) {
+      try {
+        await publishSlide({
+          church_id: currentChurch.id,
+          event_id: state.currentEventId,
+          song_id: songId,
+          slide_index: slideIndex,
+          timestamp: Date.now(),
+        })
+        console.log('[Controller] Sent slide update via NATS for remote displays')
+      } catch (error) {
+        console.error('[Controller] Failed to publish slide via NATS:', error)
+      }
     }
   }
 
@@ -462,22 +431,9 @@ export function Controller() {
               Syncing...
             </Badge>
           ) : null}
-          {startingPeer ? (
-            <Badge variant="outline" className="gap-1">
-              <Loader2 className="w-3 h-3 animate-spin" />
-              {t('live.display.connecting')}
-            </Badge>
-          ) : isConnected ? (
-            <Badge variant="outline" className="gap-1 text-green-600">
-              <Wifi className="w-3 h-3" />
-              {t('live.display.connected', { count: displayCount })}
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="gap-1 text-muted-foreground">
-              <WifiOff className="w-3 h-3" />
-              {t('live.display.disconnected')}
-            </Badge>
-          )}
+          <Badge variant="outline" className={`gap-1 ${natsConnected ? 'text-green-600' : 'text-muted-foreground'}`}>
+            {natsConnected ? 'NATS Connected' : 'NATS Disconnected (Local Only)'}
+          </Badge>
         </div>
       </div>
 

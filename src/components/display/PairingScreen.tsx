@@ -1,17 +1,10 @@
 import { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useTranslation } from 'react-i18next';
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 
-interface PairingScreenProps {
-  onPaired: () => void;
-}
-
-export function PairingScreen({ onPaired }: PairingScreenProps) {
+export function PairingScreen() {
   const { t } = useTranslation();
   const [pairingCode, setPairingCode] = useState('');
-  const [heartbeatInterval, setHeartbeatInterval] = useState<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     // Generate a random 6-character pairing code
@@ -22,49 +15,12 @@ export function PairingScreen({ onPaired }: PairingScreenProps) {
     }
     setPairingCode(code);
 
-    // Send pairing advertisement and start heartbeat
-    const setupPairing = async () => {
-      try {
-        // Get or generate device ID
-        const deviceId = localStorage.getItem('device_id') || crypto.randomUUID();
-        localStorage.setItem('device_id', deviceId);
-
-        // Send pairing advertisement
-        await invoke('send_pairing_advertisement', {
-          pairing_code: code,
-          device_id: deviceId,
-        });
-
-        // Start heartbeat interval (every 5 seconds)
-        const interval = setInterval(async () => {
-          try {
-            await invoke('send_display_heartbeat', { pairing_code: code });
-          } catch (err) {
-            console.error('Heartbeat failed:', err);
-          }
-        }, 5000);
-
-        setHeartbeatInterval(interval);
-      } catch (err) {
-        console.error('Failed to send pairing advertisement:', err);
-      }
-    };
-
-    setupPairing();
-
-    // Listen for pairing confirmation
-    const unlisten = listen<{ display_name: string; location?: string }>(
-      'webrtc:pairing_confirmed',
-      () => {
-        onPaired();
-      }
-    );
-
-    return () => {
-      unlisten.then(fn => fn());
-      if (heartbeatInterval) clearInterval(heartbeatInterval);
-    };
-  }, [onPaired]);
+    // TODO: Implement NATS-based pairing
+    // 1. Spawn NATS server
+    // 2. Advertise via mDNS with pairing code in TXT record
+    // 3. Wait for controller to connect and verify pairing
+    console.log('[PairingScreen] NATS pairing TODO - code:', code);
+  }, []);
 
   return (
     <div className="h-screen w-screen bg-background flex flex-col items-center justify-center p-8">
@@ -87,6 +43,11 @@ export function PairingScreen({ onPaired }: PairingScreenProps) {
         <p className="text-sm text-muted-foreground">
           {t('tv.pairing.menuHint')}
         </p>
+      </div>
+
+      {/* TODO: Remove when NATS pairing is implemented */}
+      <div className="mt-8 px-4 py-2 bg-yellow-500/20 text-yellow-200 rounded-lg text-sm">
+        NATS pairing coming soon - pairing code displayed but not yet functional
       </div>
     </div>
   );

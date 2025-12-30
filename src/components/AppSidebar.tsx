@@ -53,6 +53,8 @@ import {
   Languages,
   Church as ChurchIcon,
   Bug,
+  Smartphone,
+  Monitor,
 } from 'lucide-react'
 
 const navItems = [
@@ -66,6 +68,11 @@ const navItems = [
 
 const devItems = [
   { key: 'debug', icon: Bug, href: '/debug/webrtc' },
+]
+
+const liveItems = [
+  { key: 'controller', icon: Smartphone, href: '/live/controller' },
+  { key: 'display', icon: Monitor, href: '/live/display' },
 ]
 
 export function AppSidebar() {
@@ -182,6 +189,27 @@ export function AppSidebar() {
                   >
                     <item.icon className="size-4" />
                     <span>{t(`nav.${item.key}`, item.key.charAt(0).toUpperCase() + item.key.slice(1))}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Live Section */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Live</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {liveItems.map((item) => (
+                <SidebarMenuItem key={item.key}>
+                  <SidebarMenuButton
+                    isActive={location.pathname === item.href || location.pathname.startsWith(item.href + '/')}
+                    tooltip={t(`live.${item.key}.title`, item.key.charAt(0).toUpperCase() + item.key.slice(1))}
+                    onClick={() => navigate(item.href)}
+                  >
+                    <item.icon className="size-4" />
+                    <span>{t(`live.${item.key}.title`, item.key.charAt(0).toUpperCase() + item.key.slice(1))}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
