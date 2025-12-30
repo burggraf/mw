@@ -28,19 +28,23 @@ export function AutoStartRedirect() {
     // Skip if already on display page or already redirected
     if (location.pathname === '/live/display' || hasRedirected) return
 
-    // Android TV: Always go straight to display mode, no auth needed
-    if (isAndroidTV()) {
-      console.log('[AutoStartRedirect] Android TV detected, going straight to display mode')
-      setHasRedirected(true)
-      navigate('/live/display', { replace: true })
-      return
-    }
-
-    // Desktop/other: Check Tauri auto-start mode
+    // Must be Tauri to check platform
     if (!checkIsTauri()) return
 
-    const checkAutoStart = async () => {
+    const checkPlatformAndAutoStart = async () => {
       try {
+        // Check platform first - Android always goes to display mode
+        const platform = await invoke<string>('get_platform')
+        console.log('[AutoStartRedirect] Platform:', platform)
+
+        if (platform === 'android') {
+          console.log('[AutoStartRedirect] Android detected, going straight to display mode')
+          setHasRedirected(true)
+          navigate('/live/display', { replace: true })
+          return
+        }
+
+        // Desktop: Check auto-start mode
         const mode = await invoke<string>('get_auto_start_mode')
         if (mode === 'controller') {
           setHasRedirected(true)
@@ -50,10 +54,16 @@ export function AutoStartRedirect() {
           navigate('/live/display', { replace: true })
         }
       } catch (e) {
-        console.error('[AutoStartRedirect] Failed to check auto-start mode:', e)
+        console.error('[AutoStartRedirect] Failed to check platform/auto-start mode:', e)
+        // Fallback: try user agent detection for Android
+        if (isAndroidTV()) {
+          console.log('[AutoStartRedirect] Android TV detected via user agent fallback')
+          setHasRedirected(true)
+          navigate('/live/display', { replace: true })
+        }
       }
     }
-    checkAutoStart()
+    checkPlatformAndAutoStart()
   }, [navigate, location.pathname, hasRedirected])
 
   return null
