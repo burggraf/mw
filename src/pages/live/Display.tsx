@@ -13,6 +13,7 @@ import {
   getAllStatuses,
 } from '@/services/media-cache'
 import { updateDisplayConnection } from '@/services/displays'
+import { exit } from '@tauri-apps/plugin-process'
 
 type WsMessage =
   | { type: 'lyrics'; data: { church_id: string; event_id: string; song_id: string; title: string; lyrics: string; background_url?: string; timestamp: number } }
@@ -64,6 +65,10 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
   const [opacity, setOpacity] = useState(0)
   const [isCaching, setIsCaching] = useState(false)
   const [cacheProgress, setCacheProgress] = useState<string>('')
+  const [showMenu, setShowMenu] = useState(false)
+  const [menuIndex, setMenuIndex] = useState(0)
+  const [isAndroid, setIsAndroid] = useState(false)
+  const [connectionCount, setConnectionCount] = useState(0)
 
   // Refs to track current song/slide for refresh when media arrives
   const currentSongIdRef = useRef<string | null>(null)
@@ -73,6 +78,85 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
   const serverPortRef = useRef<number | null>(null)
   const isInitializingRef = useRef<boolean>(false)
   const wsConnectionRef = useRef<WebSocket | null>(null)
+
+  // Detect Android platform on mount
+  useEffect(() => {
+    const checkPlatform = async () => {
+      try {
+        const platform = await invoke<string>('get_platform')
+        setIsAndroid(platform === 'android')
+        console.log('[Display] Platform detected:', platform)
+      } catch {
+        // Fallback to user agent
+        const ua = navigator.userAgent
+        setIsAndroid(ua.includes('Android'))
+      }
+    }
+    checkPlatform()
+  }, [])
+
+  // D-pad / keyboard navigation for Android TV menu
+  useEffect(() => {
+    if (!isAndroid) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Enter / OK button (d-pad center) - toggle menu
+      if (e.key === 'Enter' || e.keyCode === 13 || e.keyCode === 23) {
+        if (!showMenu) {
+          setShowMenu(true)
+          setMenuIndex(0)
+        } else {
+          // Execute selected menu item
+          handleMenuAction(menuIndex)
+        }
+        e.preventDefault()
+        return
+      }
+
+      // Only handle navigation when menu is open
+      if (!showMenu) return
+
+      // Up arrow / d-pad up
+      if (e.key === 'ArrowUp' || e.keyCode === 38 || e.keyCode === 19) {
+        setMenuIndex(i => Math.max(0, i - 1))
+        e.preventDefault()
+      }
+      // Down arrow / d-pad down
+      else if (e.key === 'ArrowDown' || e.keyCode === 40 || e.keyCode === 20) {
+        setMenuIndex(i => Math.min(2, i + 1))
+        e.preventDefault()
+      }
+      // Back button - close menu
+      else if (e.key === 'Escape' || e.key === 'Backspace' || e.keyCode === 27 || e.keyCode === 4) {
+        setShowMenu(false)
+        e.preventDefault()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isAndroid, showMenu, menuIndex])
+
+  // Menu action handler
+  const handleMenuAction = async (index: number) => {
+    switch (index) {
+      case 0: // Resume
+        setShowMenu(false)
+        break
+      case 1: // About
+        // Could show an about dialog, for now just alert
+        setShowMenu(false)
+        break
+      case 2: // Exit
+        try {
+          await exit(0)
+        } catch (e) {
+          console.error('[Display] Failed to exit:', e)
+          window.close()
+        }
+        break
+    }
+  }
 
   // Handle precache message from controller
   const handlePrecache = useCallback(async (data: PrecacheMessage, ws?: WebSocket) => {
@@ -509,26 +593,88 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
             {currentSlide.text}
           </div>
         </div>
-      ) : isWaiting ? (
-        <div className="relative z-10 text-center space-y-4">
-          {displayName && (
-            <div className="text-xl font-medium text-white/60 drop-shadow-lg">
-              {displayName}
-            </div>
-          )}
-          <div className="text-4xl font-semibold text-white/80 drop-shadow-lg">
-            {isCaching
-              ? cacheProgress || t('live.display.cachingMedia', 'Caching media...')
-              : t('live.display.waitingForEvent', 'Waiting for event...')}
+      ) : (
+        /* Waiting screen with app branding */
+        <div className="relative z-10 text-center space-y-8">
+          {/* App title */}
+          <div className="space-y-2">
+            <h1 className="text-6xl font-bold text-white drop-shadow-2xl">
+              {t('app.name', 'Mobile Worship')}
+            </h1>
+            <p className="text-xl text-white/60">
+              {t('app.tagline', 'Worship presentation for everyone')}
+            </p>
           </div>
-          {isCaching && (
-            <div className="flex items-center justify-center gap-2 text-white/60">
-              <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              <span>{t('live.display.pleaseWait', 'Please wait...')}</span>
+
+          {/* Status message */}
+          <div className="space-y-4">
+            {isCaching ? (
+              <>
+                <div className="text-2xl font-medium text-white/80 drop-shadow-lg">
+                  {cacheProgress || t('live.display.cachingMedia', 'Caching media...')}
+                </div>
+                <div className="flex items-center justify-center gap-3 text-white/60">
+                  <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  <span>{t('live.display.pleaseWait', 'Please wait...')}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-medium text-white/80 drop-shadow-lg">
+                  {t('live.display.waitingForConnection', 'Waiting for connection...')}
+                </div>
+                <div className="flex items-center justify-center gap-3 text-white/50">
+                  <div className="w-3 h-3 rounded-full bg-white/50 animate-pulse" />
+                  <span className="text-lg">
+                    {t('live.display.readyToReceive', 'Ready to receive presentations')}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Hint for Android TV */}
+          {isAndroid && (
+            <div className="mt-12 text-white/40 text-sm">
+              {t('live.display.pressOkForMenu', 'Press OK for menu')}
             </div>
           )}
         </div>
-      ) : null}
+      )}
+
+      {/* Android TV Menu Overlay */}
+      {showMenu && isAndroid && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center">
+          <div className="bg-slate-800 rounded-lg p-6 min-w-[300px] shadow-2xl">
+            <h2 className="text-xl font-bold text-white mb-4 text-center">
+              {t('app.name', 'Mobile Worship')}
+            </h2>
+            <div className="space-y-2">
+              {[
+                { label: t('menu.resume', 'Resume'), icon: '▶' },
+                { label: t('menu.about', 'About'), icon: 'ℹ' },
+                { label: t('menu.exit', 'Exit'), icon: '✕' },
+              ].map((item, idx) => (
+                <button
+                  key={idx}
+                  className={`w-full px-4 py-3 rounded-lg text-left flex items-center gap-3 transition-colors ${
+                    menuIndex === idx
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-700/50 text-white/70 hover:bg-slate-700'
+                  }`}
+                  onClick={() => handleMenuAction(idx)}
+                >
+                  <span className="text-lg">{item.icon}</span>
+                  <span className="text-lg">{item.label}</span>
+                </button>
+              ))}
+            </div>
+            <p className="text-white/40 text-xs mt-4 text-center">
+              {t('menu.navHint', 'Use Up/Down to navigate, OK to select, Back to close')}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Debug/test button - only visible in development */}
       {import.meta.env.DEV && (

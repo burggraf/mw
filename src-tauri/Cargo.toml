@@ -37,3 +37,4 @@ if-addrs = "0.13"
 
 # UUID generation
 uuid = { version = "1", features = ["v4"] }
+tauri-plugin-process = "2.3.1"

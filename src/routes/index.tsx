@@ -22,10 +22,9 @@ import { WebSocketProvider } from '@/contexts/WebSocketContext'
 // Layout wrapper that includes auto-redirect
 function RootLayout() {
   return (
-    <>
-      <AutoStartRedirect />
+    <AutoStartRedirect>
       <Outlet />
-    </>
+    </AutoStartRedirect>
   )
 }
 

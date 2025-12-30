@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api/core'
 
@@ -19,17 +19,38 @@ export const isAndroidTV = (): boolean => {
   )
 }
 
-export function AutoStartRedirect() {
+interface AutoStartRedirectProps {
+  children: ReactNode
+}
+
+/**
+ * Wraps the app to handle platform-specific auto-redirects.
+ * On Android, redirects directly to display mode.
+ * Shows a loading screen while checking platform to prevent flash.
+ */
+export function AutoStartRedirect({ children }: AutoStartRedirectProps) {
   const navigate = useNavigate()
   const location = useLocation()
+  const [isChecking, setIsChecking] = useState(() => checkIsTauri())
   const [hasRedirected, setHasRedirected] = useState(false)
 
   useEffect(() => {
     // Skip if already on display page or already redirected
-    if (location.pathname === '/live/display' || hasRedirected) return
+    if (location.pathname === '/live/display' || location.pathname === '/live/controller') {
+      setIsChecking(false)
+      return
+    }
 
-    // Must be Tauri to check platform
-    if (!checkIsTauri()) return
+    if (hasRedirected) {
+      setIsChecking(false)
+      return
+    }
+
+    // Not Tauri - show content immediately
+    if (!checkIsTauri()) {
+      setIsChecking(false)
+      return
+    }
 
     const checkPlatformAndAutoStart = async () => {
       try {
@@ -52,6 +73,9 @@ export function AutoStartRedirect() {
         } else if (mode === 'display') {
           setHasRedirected(true)
           navigate('/live/display', { replace: true })
+        } else {
+          // No auto-start, show content
+          setIsChecking(false)
         }
       } catch (e) {
         console.error('[AutoStartRedirect] Failed to check platform/auto-start mode:', e)
@@ -60,11 +84,28 @@ export function AutoStartRedirect() {
           console.log('[AutoStartRedirect] Android TV detected via user agent fallback')
           setHasRedirected(true)
           navigate('/live/display', { replace: true })
+        } else {
+          setIsChecking(false)
         }
       }
     }
     checkPlatformAndAutoStart()
   }, [navigate, location.pathname, hasRedirected])
 
-  return null
+  // Show loading screen while checking platform (prevents flash)
+  if (isChecking) {
+    return (
+      <div className="fixed inset-0 bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl font-bold text-white">Mobile Worship</h1>
+          <div className="flex items-center justify-center gap-2 text-white/60">
+            <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            <span>Loading...</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return <>{children}</>
 }
