@@ -2,7 +2,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
-mod nats;
 
 use std::sync::Arc;
 use tauri::Manager;
@@ -57,14 +56,10 @@ pub fn run() {
         tracing::info!("Auto-start mode: {:?}", auto_start_mode);
     }
 
-    // Initialize NATS client state
-    let nats_state = nats::NatsState::new();
-
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .manage(Arc::new(auto_start_mode))
-        .manage(nats_state)
         .invoke_handler({
             #[cfg(not(target_os = "android"))]
             {
@@ -82,17 +77,6 @@ pub fn run() {
                     commands::close_display_window,
                     commands::auto_start_display_windows,
                     commands::get_platform,
-                    // NATS commands
-                    commands::spawn_nats_server,
-                    commands::discover_nats_cluster,
-                    commands::advertise_nats_service,
-                    commands::stop_nats_server,
-                    commands::connect_nats_server,
-                    commands::disconnect_nats_server,
-                    commands::is_nats_connected,
-                    commands::get_nats_server_url,
-                    commands::publish_nats_lyrics,
-                    commands::publish_nats_slide,
                 ]
             }
             #[cfg(target_os = "android")]
@@ -107,15 +91,6 @@ pub fn run() {
                     commands::get_cache_stats,
                     commands::test_emit_event,
                     commands::get_platform,
-                    // NATS commands (client only on Android)
-                    commands::discover_nats_cluster,
-                    commands::advertise_nats_service,
-                    commands::connect_nats_server,
-                    commands::disconnect_nats_server,
-                    commands::is_nats_connected,
-                    commands::get_nats_server_url,
-                    commands::publish_nats_lyrics,
-                    commands::publish_nats_slide,
                 ]
             }
         })

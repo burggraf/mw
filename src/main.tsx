@@ -1,4 +1,3 @@
-import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { getAppMode } from './platform'
 import { ControllerApp } from './modes/controller'
@@ -14,9 +13,8 @@ async function main() {
   const mode = await getAppMode()
 
   createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      {mode === 'controller' ? <ControllerApp /> : <DisplayApp />}
-    </StrictMode>
+    // StrictMode disabled during NATS development to prevent double-invocation
+    mode === 'controller' ? <ControllerApp /> : <DisplayApp />
   )
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api/core'
 import { useNats } from '@/hooks/useNats'
@@ -16,12 +16,31 @@ const checkIsTauri = (): boolean => {
   }
 }
 
+// Module-level flag that persists across HMR (won't persist on page refresh)
+let moduleLevelHasSpawned = false
+let spawnCallCount = 0
+
 export function AutoStartRedirect() {
   const navigate = useNavigate()
   const { spawnServer, advertiseService } = useNats()
-  const [serverPort, setServerPort] = useState<number | null>(null)
+  // Use a ref to ensure we only spawn once per app session
+  const hasSpawnedRef = useRef(false)
+  const renderCountRef = useRef(0)
+  renderCountRef.current++
 
   useEffect(() => {
+    // Prevent multiple spawns (React StrictMode, hot reload, etc.)
+    spawnCallCount++
+    const caller = new Error().stack?.split('\n')[2]?.trim() || 'unknown'
+
+    console.log(`[AutoStart] Effect called (count=${spawnCallCount}, render=${renderCountRef.current}, moduleFlag=${moduleLevelHasSpawned}, refFlag=${hasSpawnedRef.current})`)
+    console.log(`[AutoStart] Caller: ${caller}`)
+
+    if (hasSpawnedRef.current || moduleLevelHasSpawned) {
+      console.log('[AutoStart] Already spawned, skipping')
+      return
+    }
+
     console.log('[AutoStart] Component mounted, checkIsTauri:', checkIsTauri())
 
     if (!checkIsTauri()) {
@@ -50,10 +69,12 @@ export function AutoStartRedirect() {
       try {
         const platform = await invoke<string>('get_platform')
         console.log('[AutoStart] Platform:', platform)
-        if (platform === 'desktop' && !serverPort) {
+        if (platform === 'desktop') {
+          // Mark as spawned BEFORE the async operation to prevent race conditions
+          hasSpawnedRef.current = true
+          moduleLevelHasSpawned = true
           console.log('[AutoStart] Starting NATS server in background on desktop platform')
           const port = await spawnServer()
-          setServerPort(port)
           console.log('[AutoStart] NATS server started on port', port)
 
           // Get device name for advertising
@@ -63,11 +84,14 @@ export function AutoStartRedirect() {
         }
       } catch (e) {
         console.error('[AutoStart] Could not auto-start NATS:', e)
+        // Reset flags on error so we can retry
+        hasSpawnedRef.current = false
+        moduleLevelHasSpawned = false
       }
     }
 
     checkAutoStart()
-  }, [navigate, serverPort, spawnServer, advertiseService])
+  }, [navigate, spawnServer, advertiseService])
 
   return null
 }

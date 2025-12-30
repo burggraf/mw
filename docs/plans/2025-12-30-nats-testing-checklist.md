@@ -1,23 +1,30 @@
 # NATS Testing Checklist
 
-> **Status:** In Progress
-> **Last Updated:** 2025-12-30
+> **Status:** Phase 1 Complete - Issues Found
+> **Last Updated:** 2025-12-30 19:09
 >
 > Use this checklist to systematically test the new NATS infrastructure. Check off items as completed.
 
 ---
 
-## Phase 1: Server Spawning (Desktop Only)
+## Phase 1: Server Spawning (Desktop Only) ✓ COMPLETE
 
 **Goal:** Verify NATS server can start and is accessible
 
 - [x] **1.1** Start dev server with `pnpm tauri:dev`
 - [x] **1.2** Look for `[AutoStart] Starting NATS server in background` in console
 - [x] **1.3** Note the assigned port from logs (e.g., "NATS server started on port 12345")
-- [ ] **1.4** Verify NATS data is stored in app data directory (not project root)
-- [ ] **1.5** Verify server is listening: `lsof -i :<port>` or `netstat -an | grep <port>`
+- [x] **1.4** Verify NATS data is stored in app data directory (not project root)
+- [x] **1.5** Verify server is listening: `lsof -i :<port>` or `netstat -an | grep <port>`
 
-**Expected Result:** NATS server spawns successfully on a random port
+**Result:** ✅ NATS server spawns successfully on port 4222
+
+**Issues Found:**
+1. **Multiple server spawns** - App calls `spawn_nats_server` multiple times (first one succeeds, rest fail with "address already in use")
+2. **Routing warnings** - `--routes auto` causes "missing port in address" errors (benign but noisy)
+3. **JetStream cluster mode** - Server starts in cluster mode but runs single-node (causes "Waiting for routing" warnings)
+
+**Fix Needed:** Prevent duplicate NATS server spawns on app startup
 
 ---
 

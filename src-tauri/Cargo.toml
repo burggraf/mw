@@ -25,9 +25,3 @@ rand = "0.8"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tokio = { version = "1", features = ["full"] }
-
-# NATS
-async-nats = "0.36"
-mdns = "3.0"
-futures-util = "0.3"
-async-std = "1.12"

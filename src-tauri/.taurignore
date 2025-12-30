@@ -1,0 +1,24 @@
+# Tauri file watcher ignore patterns
+# Prevents rebuild loops caused by build artifacts and generated files
+
+# Rust build artifacts
+target/
+**/target/
+
+# Debug symbols
+*.pdb
+*.rlib
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# npm/node (if any in src-tauri)
+node_modules/
