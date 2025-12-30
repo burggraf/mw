@@ -581,16 +581,7 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
 
   return (
     <div
-      ref={containerRef}
       className="fixed inset-0 bg-black flex items-center justify-center overflow-hidden"
-      onClick={() => {
-        if (isAndroid) {
-          console.log('[Display] Main container clicked, showing menu')
-          setShowMenu(true)
-          setMenuIndex(0)
-        }
-      }}
-      tabIndex={isAndroid ? 0 : undefined}
     >
       {/* Background */}
       {backgroundUrl ? (
@@ -702,35 +693,20 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
         </div>
       )}
 
-      {/* Debug/test button - only visible in development */}
-      {import.meta.env.DEV && (
-        <div className="fixed bottom-4 left-4 z-50">
-          <button
-            onClick={async () => {
-              try {
-                await invoke('test_emit_event', { message: 'Hello from Display!' })
-              } catch (e) {
-                console.error('[Display] Test failed', e)
-              }
-            }}
-            className="px-3 py-1.5 bg-blue-500/90 hover:bg-blue-600 text-white rounded-full text-sm font-medium"
-          >
-            Test Event
-          </button>
-        </div>
+      {/* Invisible focusable button for Android TV d-pad - must be last in DOM */}
+      {isAndroid && (
+        <button
+          ref={containerRef}
+          onClick={() => {
+            console.log('[Display] Menu button clicked')
+            setShowMenu(true)
+            setMenuIndex(0)
+          }}
+          className="fixed top-4 left-4 w-1 h-1 opacity-0 -translate-x-full"
+          style={{ outline: 'none' }}
+          aria-hidden="true"
+        />
       )}
-
-      {/* Connection status indicator */}
-      <div className="fixed bottom-4 right-4 z-50">
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium bg-green-500/90 text-white">
-          <div className="w-2 h-2 rounded-full bg-white" />
-          <span>
-            {localMode
-              ? t('live.display.connected', 'Local Display')
-              : t('live.display.connected', 'Remote Display')}
-          </span>
-        </div>
-      </div>
     </div>
   )
 }
