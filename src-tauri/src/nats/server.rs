@@ -14,12 +14,17 @@ pub struct NatsServer {
 
 impl NatsServer {
     /// Spawn a new NATS server process
-    pub async fn new(config: NatsConfig) -> Result<Self, String> {
-        // Get app local data dir for JetStream storage
-        let jetstream_dir = &config.jetstream_dir;
-        fs::create_dir_all(jetstream_dir)
+    ///
+    /// The `app_data_dir` should be obtained from Tauri's path resolver
+    /// to ensure data is stored in the correct system location.
+    pub async fn new_with_dir(config: NatsConfig, app_data_dir: PathBuf) -> Result<Self, String> {
+        // Create JetStream directory in app data folder
+        let jetstream_dir = app_data_dir.join("nats-jetstream");
+        fs::create_dir_all(&jetstream_dir)
             .await
             .map_err(|e| format!("Failed to create JetStream dir: {}", e))?;
+
+        let jetstream_dir_str = jetstream_dir.to_string_lossy().to_string();
 
         // Determine which binary to use
         let binary_path = Self::get_nats_binary()?;
@@ -27,7 +32,7 @@ impl NatsServer {
         // Build arguments for NATS server
         // Pre-compute strings to avoid lifetime issues
         let port_str = config.server_port.to_string();
-        let log_file = format!("{}/nats.log", jetstream_dir);
+        let log_file = format!("{}/nats.log", jetstream_dir_str);
         let args: Vec<&str> = vec![
             "--port", &port_str,
             "--pid", "0", // No PID file
@@ -35,7 +40,7 @@ impl NatsServer {
             "--cluster", "nats://0.0.0.0:6222",
             "--routes", "auto",
             "--jetstream",
-            "--store_dir", jetstream_dir,
+            "--store_dir", &jetstream_dir_str,
             "--log_file", &log_file,
             "--logtime",
         ];
@@ -52,7 +57,7 @@ impl NatsServer {
         sleep(Duration::from_millis(500)).await;
 
         // Read port from log file (nats-server writes it on startup when port is 0)
-        let port = Self::read_port_from_log(jetstream_dir).await?;
+        let port = Self::read_port_from_log(&jetstream_dir).await?;
 
         info!("NATS server started on port {}", port);
 
@@ -112,9 +117,9 @@ impl NatsServer {
     }
 
     /// Read the assigned port from the NATS server log file
-    async fn read_port_from_log(jetstream_dir: &str) -> Result<u16, String> {
-        let log_path = format!("{}/nats.log", jetstream_dir);
-        let path = std::path::Path::new(&log_path);
+    async fn read_port_from_log(jetstream_dir: &PathBuf) -> Result<u16, String> {
+        let log_path = jetstream_dir.join("nats.log");
+        let path = log_path.as_path();
 
         // Wait up to 5 seconds for server to start and write port
         for _ in 0..50 {

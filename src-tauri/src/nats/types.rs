@@ -7,8 +7,6 @@ pub struct NatsConfig {
     pub server_port: u16,
     /// Cluster name for mesh networking
     pub cluster_name: String,
-    /// Directory for JetStream persistence
-    pub jetstream_dir: String,
 }
 
 impl Default for NatsConfig {
@@ -16,7 +14,6 @@ impl Default for NatsConfig {
         Self {
             server_port: 0, // 0 = random port
             cluster_name: "mobile_worship".to_string(),
-            jetstream_dir: "./nats-jetstream".to_string(),
         }
     }
 }

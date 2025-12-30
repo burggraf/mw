@@ -691,9 +691,14 @@ use crate::nats::{NatsServer, discover_cluster_nodes, advertise_nats_service as 
 /// Spawn a NATS server
 #[cfg(not(target_os = "android"))]
 #[tauri::command]
-pub async fn spawn_nats_server() -> Result<u16, String> {
+pub async fn spawn_nats_server(app: tauri::AppHandle) -> Result<u16, String> {
     tracing::info!("Spawning NATS server...");
-    let server = NatsServer::new(crate::nats::NatsConfig::default()).await?;
+
+    // Get the proper app data directory for JetStream storage
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+
+    let server = NatsServer::new_with_dir(crate::nats::NatsConfig::default(), app_data_dir).await?;
     Ok(server.port())
 }
 
