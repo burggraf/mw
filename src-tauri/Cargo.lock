@@ -2019,6 +2019,7 @@ dependencies = [
  "chrono",
  "futures-channel",
  "futures-util",
+ "if-addrs",
  "mdns-sd",
  "rand 0.8.5",
  "serde",

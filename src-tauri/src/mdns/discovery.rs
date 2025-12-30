@@ -40,13 +40,27 @@ fn extract_ipv4_address(info: &mdns_sd::ServiceInfo) -> Option<String> {
 
 /// Discover Mobile Worship display devices via mDNS
 pub async fn discover_disdevices(timeout_secs: u64) -> Vec<DiscoveredDevice> {
-    info!("Starting mDNS discovery for {} seconds", timeout_secs);
+    info!("=== Starting mDNS Discovery ===");
+    info!("Timeout: {} seconds", timeout_secs);
+
+    // Log all network interfaces for debugging
+    use if_addrs::get_if_addrs;
+    if let Ok(interfaces) = get_if_addrs() {
+        info!("=== Network Interfaces (Discovery Side) ===");
+        for iface in &interfaces {
+            info!("  Interface: {} -> {}", iface.name, iface.ip());
+        }
+    }
 
     let service_type = "_mw-display._tcp.local.";
+    info!("Browsing for service type: {}", service_type);
 
     // Create a service daemon for browsing
     let daemon = match mdns_sd::ServiceDaemon::new() {
-        Ok(d) => d,
+        Ok(d) => {
+            info!("Created mDNS daemon for discovery");
+            d
+        }
         Err(e) => {
             error!("Failed to create mDNS daemon for discovery: {}", e);
             return Vec::new();
@@ -55,7 +69,10 @@ pub async fn discover_disdevices(timeout_secs: u64) -> Vec<DiscoveredDevice> {
 
     // Browse for services
     let receiver = match daemon.browse(service_type) {
-        Ok(r) => r,
+        Ok(r) => {
+            info!("Successfully started browsing for service type: {}", service_type);
+            r
+        }
         Err(e) => {
             error!("Failed to browse mDNS services: {}", e);
             return Vec::new();
@@ -63,39 +80,70 @@ pub async fn discover_disdevices(timeout_secs: u64) -> Vec<DiscoveredDevice> {
     };
 
     let mut devices = Vec::new();
+    let mut seen_fullnames = std::collections::HashSet::new();
     let timeout = Duration::from_secs(timeout_secs);
     let start = std::time::Instant::now();
+    let mut event_count = 0;
+    let mut found_count = 0;
+    let mut resolved_count = 0;
+
+    info!("Listening for mDNS events...");
 
     // Collect devices for the specified timeout
     while start.elapsed() < timeout {
         match receiver.recv_timeout(Duration::from_millis(100)) {
             Ok(mdns_sd::ServiceEvent::ServiceResolved(info)) => {
+                event_count += 1;
+                resolved_count += 1;
+                info!("=== ServiceResolved event #{} ===", event_count);
+                info!("  Fullname: {}", info.get_fullname());
+                info!("  Hostname: {}", info.get_hostname());
+                info!("  Port: {}", info.get_port());
+                info!("  All addresses: {:?}", info.get_addresses());
+
+                // Skip if we've already seen this service (deduplication)
+                let fullname = info.get_fullname().to_string();
+                if seen_fullnames.contains(&fullname) {
+                    info!("  Skipping duplicate service: {}", fullname);
+                    continue;
+                }
+                seen_fullnames.insert(fullname.clone());
+
                 let host = match extract_ipv4_address(&info) {
-                    Some(a) => a,
+                    Some(a) => {
+                        info!("  ✓ Using IPv4 address: {}", a);
+                        a
+                    }
                     None => {
-                        warn!("No valid IP address found for {}, using hostname (may fail on Android)",
-                              info.get_fullname());
+                        warn!("  No valid IP address found, using hostname (may fail)");
                         info.get_hostname().to_string()
                     }
                 };
 
-                info!("Discovered device: {} at {}:{}", info.get_fullname(), host, info.get_port());
+                found_count += 1;
+                info!("  ★ Discovered device #{}: {} at {}:{}", found_count, info.get_fullname(), host, info.get_port());
 
                 devices.push(DiscoveredDevice {
-                    name: info.get_fullname().to_string(),
+                    name: fullname,
                     host,
                     port: info.get_port(),
                     service_type: service_type.to_string(),
                 });
             }
-            Ok(mdns_sd::ServiceEvent::ServiceFound(_name, _type)) => {
-                // Service found, waiting for resolution...
+            Ok(mdns_sd::ServiceEvent::ServiceFound(name, typ)) => {
+                event_count += 1;
+                info!("ServiceFound event #{}: {} (type: {})", event_count, name, typ);
+                info!("  Querying for more details...");
             }
-            Ok(mdns_sd::ServiceEvent::ServiceRemoved(_name, _type)) => {
-                // Service removed, ignore for now
+            Ok(mdns_sd::ServiceEvent::ServiceRemoved(name, typ)) => {
+                event_count += 1;
+                info!("ServiceRemoved event #{}: {} (type: {})", event_count, name, typ);
             }
-            Ok(_) => {}
-            Err(_) => {
+            Ok(other) => {
+                event_count += 1;
+                info!("Other mDNS event #{}: {:?}", event_count, other);
+            }
+            Err(_e) => {
                 // Timeout is expected, continue checking total timeout
             }
         }
@@ -104,6 +152,14 @@ pub async fn discover_disdevices(timeout_secs: u64) -> Vec<DiscoveredDevice> {
     // Shutdown the browser
     let _ = daemon.shutdown();
 
-    info!("Discovery complete, found {} devices", devices.len());
+    info!("=== Discovery Complete ===");
+    info!("Total events received: {}", event_count);
+    info!("Services found: {}", found_count);
+    info!("Services resolved: {}", resolved_count);
+    info!("Devices discovered: {}", devices.len());
+    for (i, device) in devices.iter().enumerate() {
+        info!("  Device {}: {} at {}:{}", i + 1, device.name, device.host, device.port);
+    }
+
     devices
 }

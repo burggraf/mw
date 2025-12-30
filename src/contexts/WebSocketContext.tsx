@@ -51,13 +51,49 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const [connected, setConnected] = useState<Map<string, ConnectedDisplay>>(new Map())
   const [isDiscovering, setIsDiscovering] = useState(false)
   const wsRef = useRef<Map<string, WebSocket>>(new Map())
+  const discoveredRef = useRef<DiscoveredDisplay[]>([])
+  const hasInitializedRef = useRef(false)
 
   const discover = useCallback(async () => {
+    // Skip discovery if we're on the display route
+    const isDisplayRoute = window.location.pathname.startsWith('/live/display')
+    if (isDisplayRoute) {
+      console.log('[WebSocketContext] Display route detected, skipping discovery')
+      return
+    }
+
     setIsDiscovering(true)
     try {
       const found = await invoke<DiscoveredDisplay[]>('discover_display_devices', { timeoutSecs: 5 })
-      setDiscovered(found)
-      console.log('[WebSocketContext] Discovered:', found)
+
+      // Deduplicate by name (same device might be returned for multiple IP addresses)
+      const uniqueDevices = new Map<string, DiscoveredDisplay>()
+      for (const device of found) {
+        // Use name as the unique key since each display has a unique name
+        // Prefer non-loopback addresses (192.168.x.x or 100.96.x.x over 127.x.x.x)
+        const existing = uniqueDevices.get(device.name)
+        if (!existing) {
+          uniqueDevices.set(device.name, device)
+        } else {
+          // Prefer non-loopback addresses
+          const existingIsLoopback = existing.host.startsWith('127.')
+          const newIsLoopback = device.host.startsWith('127.')
+          if (existingIsLoopback && !newIsLoopback) {
+            uniqueDevices.set(device.name, device)
+          }
+        }
+      }
+
+      const deduplicated = Array.from(uniqueDevices.values())
+
+      // Only update if we found new devices
+      if (deduplicated.length > 0) {
+        setDiscovered(deduplicated)
+        discoveredRef.current = deduplicated
+        console.log('[WebSocketContext] Discovered:', deduplicated.length, 'unique devices')
+      } else {
+        console.log('[WebSocketContext] No new devices found, keeping', discoveredRef.current.length, 'existing')
+      }
     } catch (e) {
       console.error('[WebSocketContext] Discovery failed:', e)
     } finally {
@@ -141,7 +177,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     console.log(`[WebSocketContext] Broadcast slide to ${wsRef.current.size} connections`)
   }, [])
 
-  // Auto-discover on mount
+  // Auto-discover on mount (but NOT in display mode - displays advertise, controllers discover)
   useEffect(() => {
     discover()
     const interval = setInterval(discover, 10000)

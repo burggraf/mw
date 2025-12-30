@@ -60,9 +60,24 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
   const currentSlideIndexRef = useRef<number | null>(null)
   const currentSlideRef = useRef<Slide | null>(null)
   const backgroundUrlRef = useRef<string | null>(null)
+  const serverPortRef = useRef<number | null>(null)
+  const isInitializingRef = useRef<boolean>(false)
 
   // Initialize WebSocket server on mount for remote displays
   useEffect(() => {
+    // Mark as initializing IMMEDIATELY at the start to prevent duplicate runs
+    // This must be the FIRST thing checked to prevent React strict mode from running twice
+    if (isInitializingRef.current || serverPortRef.current !== null) {
+      console.log('[Display] Already initialized or initializing, skipping')
+      return
+    }
+    isInitializingRef.current = true
+
+    // Check if Tauri APIs are available
+    const hasTauri = typeof window !== 'undefined' &&
+      ('__TAURI__' in window || '__TAURI_INTERNALS__' in window)
+    console.log('[Display] Tauri available:', hasTauri)
+
     if (localMode) {
       console.log('[Display] Running in local mode - using Tauri events')
       setIsWaiting(false)
@@ -70,19 +85,44 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
     }
 
     console.log('[Display] Remote mode - starting WebSocket server')
+
+    // Use a flag to track if this specific effect run completed successfully
+    let thisRunCompleted = false
+
     let ws: WebSocket | null = null
+    let serverPort: number | null = null
 
     const startServerAndListen = async () => {
       try {
         // Start the WebSocket server
         const port = await invoke<number>('start_websocket_server')
+        serverPort = port
+        serverPortRef.current = port
         console.log('[Display] WebSocket server started on port', port)
 
         // Also advertise via mDNS
+        // Use a simple device name - will be updated when church loads
         const deviceName = `${currentChurch?.name || 'Mobile Worship'} Display`
-        await invoke('start_advertising', { name: deviceName, port })
-        console.log('[Display] Advertising as', deviceName)
+        try {
+          await invoke('start_advertising', { name: deviceName, port })
+          console.log('[Display] Advertising as', deviceName)
+        } catch (e) {
+          console.error('[Display] mDNS advertising failed:', e)
+        }
+
+        // Start UDP listener for broadcast discovery fallback
+        // This allows discovery on networks where mDNS is blocked
+        try {
+          await invoke('start_udp_listener', { port: 48488, wsPort: port })
+          console.log('[Display] UDP listener started on port 48488')
+        } catch (e) {
+          console.error('[Display] UDP listener failed:', e)
+        }
+
         setIsWaiting(false)
+
+        // Mark this run as completed successfully
+        thisRunCompleted = true
 
         // Connect to our own server to receive messages
         ws = new WebSocket(`ws://localhost:${port}`)
@@ -147,16 +187,26 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
         }
       } catch (e) {
         console.error('[Display] Failed to start WebSocket server:', e)
+        console.error('[Display] Error details:', JSON.stringify(e))
         setIsWaiting(false)
+        // Reset initialization flag on error so it can be retried
+        isInitializingRef.current = false
       }
     }
 
     startServerAndListen()
 
     return () => {
+      // Only cleanup WebSocket, don't reset the initialization flag
+      // This prevents React strict mode remounts from unregistering the mDNS service
       if (ws) ws.close()
+      // Only reset if this run never completed (error case)
+      if (!thisRunCompleted) {
+        isInitializingRef.current = false
+      }
+      // TODO: Add server cleanup - stop_websocket_server and stop_advertising commands
     }
-  }, [localMode, currentChurch, eventId])
+  }, [localMode]) // Removed currentChurch and eventId - only run once per localMode change
 
   // Get background for a song
   const getSongBackground = useCallback((song: Song): { url?: string; color?: string } => {

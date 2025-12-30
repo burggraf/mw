@@ -47,6 +47,12 @@ impl WebSocketServer {
     /// # Returns
     /// The actual bound port
     pub async fn start(&mut self, port: u16) -> Result<u16, String> {
+        // If server is already running, return the existing port
+        if self.port > 0 {
+            tracing::info!("WebSocket server already running on port {}, returning existing port", self.port);
+            return Ok(self.port);
+        }
+
         let addr = format!("0.0.0.0:{}", port);
         let listener = TcpListener::bind(&addr)
             .await

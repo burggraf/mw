@@ -760,10 +760,19 @@ pub async fn publish_slide(
 
 /// Discover display devices via mDNS with UDP broadcast fallback
 /// Tries mDNS first, then falls back to UDP broadcast if no devices found
+/// Skips discovery when running in display mode (displays advertise, they don't discover)
 #[tauri::command]
 pub async fn discover_display_devices(
+    app: tauri::AppHandle,
     timeout_secs: Option<u64>,
 ) -> Result<Vec<crate::mdns::DiscoveredDevice>, String> {
+    // Skip discovery when running in display mode to avoid mDNS daemon conflicts
+    let auto_start_mode = app.state::<Arc<crate::AutoStartMode>>();
+    if **auto_start_mode == crate::AutoStartMode::Display {
+        tracing::info!("Display mode detected, skipping mDNS discovery (displays advertise only)");
+        return Ok(Vec::new());
+    }
+
     let timeout = timeout_secs.unwrap_or(5);
 
     // Try mDNS first

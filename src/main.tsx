@@ -1,20 +1,23 @@
+import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { getAppMode } from './platform'
-import { ControllerApp } from './modes/controller'
-import { DisplayApp } from './modes/display'
+import { ConfigProvider } from './contexts/ConfigContext'
+import { AuthProvider } from './contexts/AuthContext'
+import { ChurchProvider } from './contexts/ChurchContext'
+import { ThemeProvider } from './contexts/ThemeContext'
+import { AppRoutes } from './routes'
 import './i18n'
 import './index.css'
 
-/**
- * Main entry point - routes to controller or display mode
- * based on the detected platform
- */
-async function main() {
-  const mode = await getAppMode()
-
-  createRoot(document.getElementById('root')!).render(
-    mode === 'controller' ? <ControllerApp /> : <DisplayApp />
-  )
-}
-
-main()
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <ThemeProvider>
+      <ConfigProvider>
+        <AuthProvider>
+          <ChurchProvider>
+            <AppRoutes />
+          </ChurchProvider>
+        </AuthProvider>
+      </ConfigProvider>
+    </ThemeProvider>
+  </StrictMode>
+)

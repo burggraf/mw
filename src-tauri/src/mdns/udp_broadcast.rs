@@ -81,7 +81,8 @@ pub fn start_udp_listener(port: u16, ws_port: u16) -> tokio::task::JoinHandle<()
         let socket = match TokioUdpSocket::bind(&format!("0.0.0.0:{}", port)).await {
             Ok(s) => s,
             Err(e) => {
-                error!("Failed to bind UDP listener on port {}: {}", port, e);
+                // If port is in use, it's likely another instance already has the listener
+                warn!("UDP listener port {} already in use (another instance may be running): {}", port, e);
                 return;
             }
         };
