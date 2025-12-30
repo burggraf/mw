@@ -3,6 +3,7 @@
 
 mod commands;
 mod websocket;
+mod mdns;
 
 use std::sync::Arc;
 use tauri::Manager;
@@ -63,6 +64,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .manage(Arc::new(auto_start_mode))
         .manage(Arc::new(Mutex::new(websocket::WebSocketServer::new())))
+        .manage(Arc::new(mdns::AdvertiserState::new()))
         .invoke_handler({
             #[cfg(not(target_os = "android"))]
             {
@@ -83,6 +85,8 @@ pub fn run() {
                     commands::start_websocket_server,
                     commands::publish_lyrics,
                     commands::publish_slide,
+                    commands::discover_display_devices,
+                    commands::start_advertising,
                 ]
             }
             #[cfg(target_os = "android")]
@@ -100,6 +104,8 @@ pub fn run() {
                     commands::start_websocket_server,
                     commands::publish_lyrics,
                     commands::publish_slide,
+                    commands::discover_display_devices,
+                    commands::start_advertising,
                 ]
             }
         })

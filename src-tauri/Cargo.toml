@@ -30,3 +30,6 @@ tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = "0.24"
 futures-channel = "0.3"
 futures-util = "0.3"
+
+# mDNS discovery and advertising
+mdns-sd = "0.12"

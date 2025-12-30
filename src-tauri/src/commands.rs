@@ -757,3 +757,23 @@ pub async fn publish_slide(
 
     server.broadcast(message).await
 }
+
+/// Discover display devices via mDNS
+#[tauri::command]
+pub async fn discover_display_devices(
+    timeout_secs: Option<u64>,
+) -> Result<Vec<crate::mdns::DiscoveredDevice>, String> {
+    let timeout = timeout_secs.unwrap_or(5);
+    Ok(crate::mdns::discover_disdevices(timeout).await)
+}
+
+/// Start advertising this device as a display
+#[tauri::command]
+pub async fn start_advertising(
+    app: tauri::AppHandle,
+    name: String,
+    port: u16,
+) -> Result<(), String> {
+    let advertiser = app.state::<Arc<crate::mdns::AdvertiserState>>();
+    advertiser.advertise(&name, port).await
+}
