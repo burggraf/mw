@@ -77,6 +77,7 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
   const serverPortRef = useRef<number | null>(null)
   const isInitializingRef = useRef<boolean>(false)
   const wsConnectionRef = useRef<WebSocket | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   // Detect Android platform on mount
   useEffect(() => {
@@ -93,6 +94,21 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
     }
     checkPlatform()
   }, [])
+
+  // Auto-focus the container on Android TV so d-pad center button works
+  useEffect(() => {
+    if (isAndroid && containerRef.current) {
+      console.log('[Display] Auto-focusing container for Android TV')
+      containerRef.current.focus()
+    }
+  }, [isAndroid])
+
+  // Also refocus when menu closes to ensure center button works
+  useEffect(() => {
+    if (isAndroid && !showMenu && containerRef.current) {
+      containerRef.current.focus()
+    }
+  }, [showMenu, isAndroid])
 
   // Menu action handler
   const handleMenuAction = async (index: number) => {
@@ -565,6 +581,7 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
 
   return (
     <div
+      ref={containerRef}
       className="fixed inset-0 bg-black flex items-center justify-center overflow-hidden"
       onClick={() => {
         if (isAndroid) {
