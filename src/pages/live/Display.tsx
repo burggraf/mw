@@ -95,56 +95,14 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
     checkPlatform()
   }, [])
 
-  // D-pad / keyboard navigation for Android TV menu
-  useEffect(() => {
-    if (!isAndroid) return
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Enter / OK button (d-pad center) - toggle menu
-      if (e.key === 'Enter' || e.keyCode === 13 || e.keyCode === 23) {
-        if (!showMenu) {
-          setShowMenu(true)
-          setMenuIndex(0)
-        } else {
-          // Execute selected menu item
-          handleMenuAction(menuIndex)
-        }
-        e.preventDefault()
-        return
-      }
-
-      // Only handle navigation when menu is open
-      if (!showMenu) return
-
-      // Up arrow / d-pad up
-      if (e.key === 'ArrowUp' || e.keyCode === 38 || e.keyCode === 19) {
-        setMenuIndex(i => Math.max(0, i - 1))
-        e.preventDefault()
-      }
-      // Down arrow / d-pad down
-      else if (e.key === 'ArrowDown' || e.keyCode === 40 || e.keyCode === 20) {
-        setMenuIndex(i => Math.min(2, i + 1))
-        e.preventDefault()
-      }
-      // Back button - close menu
-      else if (e.key === 'Escape' || e.key === 'Backspace' || e.keyCode === 27 || e.keyCode === 4) {
-        setShowMenu(false)
-        e.preventDefault()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isAndroid, showMenu, menuIndex])
-
-  // Menu action handler
-  const handleMenuAction = async (index: number) => {
+  // Menu action handler (defined before useEffect that uses it)
+  const handleMenuAction = useCallback(async (index: number) => {
     switch (index) {
       case 0: // Resume
         setShowMenu(false)
         break
       case 1: // About
-        // Could show an about dialog, for now just alert
+        // Could show an about dialog, for now just close
         setShowMenu(false)
         break
       case 2: // Exit
@@ -156,7 +114,102 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
         }
         break
     }
-  }
+  }, [])
+
+  // D-pad / keyboard navigation for Android TV menu
+  useEffect(() => {
+    if (!isAndroid) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Debug: log all key events on Android
+      console.log('[Display] Key event:', {
+        key: e.key,
+        code: e.code,
+        keyCode: e.keyCode,
+        which: e.which,
+      })
+
+      // Try multiple ways to detect the center/OK button
+      // KEYCODE_DPAD_CENTER = 23, KEYCODE_ENTER = 66
+      const isCenterButton =
+        e.key === 'Enter' ||
+        e.key === 'OK' ||
+        e.key === 'Accept' ||
+        e.keyCode === 13 ||   // standard Enter
+        e.keyCode === 23 ||   // Android DPAD_CENTER
+        e.keyCode === 66 ||   // Android ENTER
+        e.which === 23 ||
+        e.which === 66 ||
+        e.code === 'Enter'
+
+      if (isCenterButton) {
+        console.log('[Display] Center/OK button pressed, menu currently:', showMenu)
+        if (!showMenu) {
+          setShowMenu(true)
+          setMenuIndex(0)
+        } else {
+          // Execute selected menu item
+          handleMenuAction(menuIndex)
+        }
+        e.preventDefault()
+        e.stopPropagation()
+        return
+      }
+
+      // Only handle navigation when menu is open
+      if (!showMenu) return
+
+      // Up arrow / d-pad up (KEYCODE_DPAD_UP = 19)
+      if (
+        e.key === 'ArrowUp' ||
+        e.keyCode === 38 ||
+        e.keyCode === 19
+      ) {
+        setMenuIndex(i => Math.max(0, i - 1))
+        e.preventDefault()
+        e.stopPropagation()
+      }
+      // Down arrow / d-pad down (KEYCODE_DPAD_DOWN = 20)
+      else if (
+        e.key === 'ArrowDown' ||
+        e.keyCode === 40 ||
+        e.keyCode === 20
+      ) {
+        setMenuIndex(i => Math.min(2, i + 1))
+        e.preventDefault()
+        e.stopPropagation()
+      }
+      // Back button (KEYCODE_BACK = 4)
+      else if (
+        e.key === 'Escape' ||
+        e.key === 'Back' ||
+        e.keyCode === 27 ||
+        e.keyCode === 4
+      ) {
+        setShowMenu(false)
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    }
+
+    // Also listen for click/tap events (some Android TV remotes send click instead of key)
+    const handleClick = (e: MouseEvent | PointerEvent) => {
+      console.log('[Display] Click event:', { type: e.type, target: e.target })
+      // Only trigger if clicking on the main display area (not buttons)
+      if ((e.target as HTMLElement).tagName === 'DIV' || (e.target as HTMLElement).tagName === 'BODY') {
+        console.log('[Display] Click on main area, toggling menu')
+        setShowMenu(!showMenu)
+        setMenuIndex(0)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown, { capture: true })
+    window.addEventListener('click', handleClick, { capture: true })
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, { capture: true })
+      window.removeEventListener('click', handleClick, { capture: true })
+    }
+  }, [isAndroid, showMenu, menuIndex, handleMenuAction])
 
   // Handle precache message from controller
   const handlePrecache = useCallback(async (data: PrecacheMessage, ws?: WebSocket) => {
@@ -620,13 +673,10 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
               </>
             ) : (
               <>
-                <div className="text-2xl font-medium text-white/80 drop-shadow-lg">
-                  {t('live.display.waitingForConnection', 'Waiting for connection...')}
-                </div>
-                <div className="flex items-center justify-center gap-3 text-white/50">
+                <div className="flex items-center justify-center gap-3 text-white/70">
                   <div className="w-3 h-3 rounded-full bg-white/50 animate-pulse" />
-                  <span className="text-lg">
-                    {t('live.display.readyToReceive', 'Ready to receive presentations')}
+                  <span className="text-2xl">
+                    {t('live.display.readyToReceive', 'Ready to receive presentations...')}
                   </span>
                 </div>
               </>
