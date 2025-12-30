@@ -1983,6 +1983,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "futures-channel",
+ "futures-util",
  "rand 0.8.5",
  "serde",
  "serde_json",

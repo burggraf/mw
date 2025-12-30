@@ -6,6 +6,7 @@ mod websocket;
 
 use std::sync::Arc;
 use tauri::Manager;
+use tokio::sync::Mutex;
 
 /// Auto-start mode from command line
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,6 +62,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .manage(Arc::new(auto_start_mode))
+        .manage(Arc::new(Mutex::new(websocket::WebSocketServer::new())))
         .invoke_handler({
             #[cfg(not(target_os = "android"))]
             {
