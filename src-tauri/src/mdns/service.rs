@@ -71,10 +71,11 @@ impl ServiceAdvertiser {
     }
 
     /// Start advertising the service
-    pub async fn advertise(&mut self, name: &str, port: u16) -> Result<(), String> {
+    pub async fn advertise(&mut self, name: &str, port: u16, device_id: &str) -> Result<(), String> {
         info!("=== Starting mDNS Advertising ===");
         info!("Service name: '{}'", name);
         info!("Port: {}", port);
+        info!("Device ID: {}", device_id);
 
         // Stop any existing service first
         if self.service_daemon.is_some() {
@@ -101,13 +102,16 @@ impl ServiceAdvertiser {
         let all_ips_str = all_ips.join(",");
         info!("Creating service info with IPs: {}", all_ips_str);
 
+        // TXT records with device_id for unique identification
+        let txt_records = vec![("device_id", device_id)];
+
         let mut service_info = mdns_sd::ServiceInfo::new(
             service_type,
             name,
             hostname,
             all_ips.as_slice(), // Pass all addresses as a slice
             port,
-            &[] as &[(&str, &str)],
+            txt_records.as_slice(),
         )
         .map_err(|e| format!("Failed to create service info: {}", e))?;
 
@@ -117,6 +121,7 @@ impl ServiceAdvertiser {
         let fullname = service_info.get_fullname().to_string();
         info!("Service fullname: {}", fullname);
         info!("Service addresses: {:?}", service_info.get_addresses());
+        info!("TXT records: {:?}", service_info.get_properties());
         info!("Registering with {} addresses: {:?}", all_ips.len(), service_info.get_addresses());
 
         // Register the service
@@ -130,6 +135,7 @@ impl ServiceAdvertiser {
 
         info!("✓ Advertising mDNS service '{}' on port {} with {} IP addresses",
               name, port, all_ips.len());
+        info!("  Device ID: {}", device_id);
         info!("  Addresses: {:?}", all_ips);
 
         self.service_daemon = Some(daemon);
@@ -165,10 +171,10 @@ impl AdvertiserState {
         }
     }
 
-    pub async fn advertise(&self, name: &str, port: u16) -> Result<(), String> {
+    pub async fn advertise(&self, name: &str, port: u16, device_id: &str) -> Result<(), String> {
         // First, stop any existing advertising
         let mut adv = self.advertiser.lock().await;
-        adv.advertise(name, port).await?;
+        adv.advertise(name, port, device_id).await?;
 
         // Get a clone of the daemon for monitoring
         let daemon_clone = adv.service_daemon.clone();

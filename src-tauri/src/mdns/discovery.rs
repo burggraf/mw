@@ -8,7 +8,10 @@ pub struct DiscoveredDevice {
     pub name: String,
     pub host: String,
     pub port: u16,
+    #[serde(rename = "serviceType")]
     pub service_type: String,
+    #[serde(rename = "deviceId")]
+    pub device_id: Option<String>, // Extracted from TXT records
 }
 
 /// Extract IPv4 address from mDNS service info
@@ -101,6 +104,21 @@ pub async fn discover_disdevices(timeout_secs: u64) -> Vec<DiscoveredDevice> {
                 info!("  Port: {}", info.get_port());
                 info!("  All addresses: {:?}", info.get_addresses());
 
+                // Extract device_id from TXT records
+                let txt_properties = info.get_properties();
+                info!("  TXT records: {:?}", txt_properties);
+
+                let device_id = txt_properties
+                    .iter()
+                    .find(|prop| prop.key() == "device_id")
+                    .map(|prop| prop.val_str().to_string());
+
+                if let Some(ref id) = device_id {
+                    info!("  ✓ Found device_id in TXT records: {}", id);
+                } else {
+                    info!("  ⚠ No device_id in TXT records (legacy display?)");
+                }
+
                 // Skip if we've already seen this service (deduplication)
                 let fullname = info.get_fullname().to_string();
                 if seen_fullnames.contains(&fullname) {
@@ -121,13 +139,15 @@ pub async fn discover_disdevices(timeout_secs: u64) -> Vec<DiscoveredDevice> {
                 };
 
                 found_count += 1;
-                info!("  ★ Discovered device #{}: {} at {}:{}", found_count, info.get_fullname(), host, info.get_port());
+                info!("  ★ Discovered device #{}: {} at {}:{} (device_id: {:?})",
+                      found_count, info.get_fullname(), host, info.get_port(), device_id);
 
                 devices.push(DiscoveredDevice {
                     name: fullname,
                     host,
                     port: info.get_port(),
                     service_type: service_type.to_string(),
+                    device_id,
                 });
             }
             Ok(mdns_sd::ServiceEvent::ServiceFound(name, typ)) => {

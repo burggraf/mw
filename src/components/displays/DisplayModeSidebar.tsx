@@ -3,10 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Monitor, MoreHorizontal, Check, Cast } from 'lucide-react';
 import type { Display } from '@/types/display';
 import { useChurch } from '@/contexts/ChurchContext';
-import {
-  generatePairingCode,
-  createDisplay,
-} from '@/services/displays';
+import { createDisplay } from '@/services/displays';
 import {
   SidebarMenu,
   SidebarMenuItem,
@@ -178,10 +175,7 @@ export function DisplayModeSidebar({
 
     setIsPairing(true);
     try {
-      const pairingCode = generatePairingCode();
-
       const newDisplay = await createDisplay(currentChurch.id, {
-        pairingCode,
         name: pairingName,
         location: pairingLocation || null,
         displayClass: pairingClass,

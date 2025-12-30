@@ -88,6 +88,7 @@ pub fn run() {
                     commands::discover_display_devices,
                     commands::start_advertising,
                     commands::start_udp_listener,
+                    commands::get_device_id,
                 ]
             }
             #[cfg(target_os = "android")]
@@ -108,6 +109,7 @@ pub fn run() {
                     commands::discover_display_devices,
                     commands::start_advertising,
                     commands::start_udp_listener,
+                    commands::get_device_id,
                 ]
             }
         })

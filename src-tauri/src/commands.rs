@@ -823,7 +823,42 @@ pub async fn start_advertising(
     app: tauri::AppHandle,
     name: String,
     port: u16,
+    device_id: String,
 ) -> Result<(), String> {
     let advertiser = app.state::<Arc<crate::mdns::AdvertiserState>>();
-    advertiser.advertise(&name, port).await
+    advertiser.advertise(&name, port, &device_id).await
+}
+
+/// Get or generate a persistent device ID for this display instance
+/// Uses Tauri's store to persist the device ID across app restarts
+#[tauri::command]
+pub async fn get_device_id(app: tauri::AppHandle) -> Result<String, String> {
+    use uuid::Uuid;
+
+    // Try to get existing device ID from store
+    let store = tauri_plugin_store::StoreBuilder::new(&app, "device_state.json")
+        .build()
+        .map_err(|e| format!("Failed to create store: {}", e))?;
+
+    if let Some(device_id) = store.get("device_id") {
+        if let Some(id_str) = device_id.as_str() {
+            // Validate that it's a valid UUID
+            if Uuid::parse_str(id_str).is_ok() {
+                tracing::info!("Using existing device ID: {}", id_str);
+                return Ok(id_str.to_string());
+            } else {
+                tracing::warn!("Invalid device ID in store, regenerating");
+            }
+        }
+    }
+
+    // Generate new device ID
+    let new_device_id = Uuid::new_v4().to_string();
+    tracing::info!("Generated new device ID: {}", new_device_id);
+
+    // Save to store
+    store.set("device_id", tauri_plugin_store::JsonValue::String(new_device_id.clone()));
+    let _ = store.save();
+
+    Ok(new_device_id)
 }

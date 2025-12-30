@@ -34,3 +34,6 @@ futures-util = "0.3"
 # mDNS discovery and advertising
 mdns-sd = "0.12"
 if-addrs = "0.13"
+
+# UUID generation
+uuid = { version = "1", features = ["v4"] }

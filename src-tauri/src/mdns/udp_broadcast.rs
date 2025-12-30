@@ -58,6 +58,7 @@ pub async fn udp_broadcast_discover(timeout_secs: u64) -> Vec<DiscoveredDevice> 
                         host: addr.ip().to_string(),
                         port,
                         service_type: "udp-broadcast".to_string(),
+                        device_id: None, // UDP broadcast doesn't include device ID
                     });
                 }
             }

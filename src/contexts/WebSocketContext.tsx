@@ -1,12 +1,6 @@
 import { createContext, useContext, useRef, useState, useCallback, useEffect, type ReactNode } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-
-interface DiscoveredDisplay {
-  name: string
-  host: string
-  port: number
-  service_type: string
-}
+import type { DiscoveredDisplay } from '@/types/display'
 
 interface ConnectedDisplay {
   key: string // host:port
@@ -52,7 +46,6 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const [isDiscovering, setIsDiscovering] = useState(false)
   const wsRef = useRef<Map<string, WebSocket>>(new Map())
   const discoveredRef = useRef<DiscoveredDisplay[]>([])
-  const hasInitializedRef = useRef(false)
 
   const discover = useCallback(async () => {
     // Skip discovery if we're on the display route

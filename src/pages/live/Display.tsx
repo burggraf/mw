@@ -90,13 +90,15 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
     let thisRunCompleted = false
 
     let ws: WebSocket | null = null
-    let serverPort: number | null = null
 
     const startServerAndListen = async () => {
       try {
+        // Get or generate device ID first
+        const id = await invoke<string>('get_device_id')
+        console.log('[Display] Got device ID:', id)
+
         // Start the WebSocket server
         const port = await invoke<number>('start_websocket_server')
-        serverPort = port
         serverPortRef.current = port
         console.log('[Display] WebSocket server started on port', port)
 
@@ -104,8 +106,8 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
         // Use a simple device name - will be updated when church loads
         const deviceName = `${currentChurch?.name || 'Mobile Worship'} Display`
         try {
-          await invoke('start_advertising', { name: deviceName, port })
-          console.log('[Display] Advertising as', deviceName)
+          await invoke('start_advertising', { name: deviceName, port, deviceId: id })
+          console.log('[Display] Advertising as', deviceName, 'with device ID:', id)
         } catch (e) {
           console.error('[Display] mDNS advertising failed:', e)
         }

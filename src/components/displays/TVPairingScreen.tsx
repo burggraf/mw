@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
-import { generatePairingCode } from '@/services/displays';
 import { useDisplayHeartbeat } from '@/hooks/useDisplayHeartbeat';
 import { QRCode } from '@/components/ui/qr-code';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
@@ -11,8 +10,9 @@ export function TVPairingScreen() {
   const [pairingCode, setPairingCode] = useState('');
 
   useEffect(() => {
-    // Generate pairing code
-    const code = generatePairingCode();
+    // TODO: Replace with mDNS auto-discovery instead of pairing codes
+    // This component is deprecated - use the Display page instead
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     setPairingCode(code);
 
     // Announce to signaling server
