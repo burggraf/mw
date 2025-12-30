@@ -6,7 +6,6 @@ import { getSong } from '@/services/songs'
 import { getMediaById, getSignedMediaUrl } from '@/services/media'
 import { generateSlides } from '@/lib/slide-generator'
 import { emit } from '@tauri-apps/api/event'
-import { useNats, type LyricsMessage } from '@/hooks/useNats'
 import type { Slide } from '@/types/live'
 import type { Song } from '@/types/song'
 import type { Event, EventItemWithData } from '@/types/event'
@@ -29,7 +28,6 @@ interface ControllerState {
 export function Controller() {
   const { t } = useTranslation()
   const { currentChurch } = useChurch()
-  const { isConnected: natsConnected, publishLyrics, publishSlide } = useNats()
 
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
@@ -79,19 +77,6 @@ export function Controller() {
     loadEvents()
   }, [currentChurch?.id])
 
-  // TODO: Initialize NATS client on mount
-  useEffect(() => {
-    if (!currentChurch?.id) return
-
-    async function initNats() {
-      console.log('[Controller] NATS initialization TODO')
-      // await invoke('spawn_nats_server')
-      // await invoke('discover_nats_cluster')
-    }
-
-    initNats()
-  }, [currentChurch?.id])
-
   // Send song data to all connected displays via Tauri events (local displays)
   const sendSongData = async (song: Song & { updated_at: string }) => {
     // Fetch background images as base64 data URLs
@@ -132,40 +117,6 @@ export function Controller() {
       console.log('[Controller] Sent song data via Tauri event for local displays')
     } catch (error) {
       console.error('[Controller] Failed to emit Tauri event:', error)
-    }
-
-    // Send via NATS to remote displays
-    if (natsConnected && currentChurch?.id && state.currentEventId) {
-      try {
-        // Get default background URL for remote displays
-        const bgMediaId = song.backgrounds?.default
-        let backgroundUrl: string | undefined
-        if (bgMediaId) {
-          try {
-            const media = await getMediaById(bgMediaId)
-            if (media?.storagePath) {
-              backgroundUrl = await getSignedMediaUrl(media.storagePath, 3600)
-            }
-          } catch (e) {
-            console.error('[Controller] Failed to get background URL for NATS:', e)
-          }
-        }
-
-        const lyricsMessage: LyricsMessage = {
-          church_id: currentChurch.id,
-          event_id: state.currentEventId,
-          song_id: song.id,
-          title: song.title,
-          lyrics: song.content || '',
-          background_url: backgroundUrl,
-          timestamp: Date.now(),
-        }
-
-        await publishLyrics(lyricsMessage)
-        console.log('[Controller] Sent song data via NATS for remote displays')
-      } catch (error) {
-        console.error('[Controller] Failed to publish via NATS:', error)
-      }
     }
   }
 
@@ -274,11 +225,6 @@ export function Controller() {
 
   // Send slide update to all connected displays
   const sendSlideUpdate = async (songId: string, slideIndex: number) => {
-    if (!state.currentEventId) {
-      console.warn('[Controller] Cannot send slide: no currentEventId')
-      return
-    }
-
     console.log('[Controller] Sending slide update:', { songId, slideIndex })
 
     // Emit Tauri event for local displays
@@ -325,22 +271,6 @@ export function Controller() {
       }
     } catch (error) {
       console.error('[Controller] Failed to emit Tauri event for slide:', error)
-    }
-
-    // Send via NATS to remote displays
-    if (natsConnected && currentChurch?.id && state.currentEventId) {
-      try {
-        await publishSlide({
-          church_id: currentChurch.id,
-          event_id: state.currentEventId,
-          song_id: songId,
-          slide_index: slideIndex,
-          timestamp: Date.now(),
-        })
-        console.log('[Controller] Sent slide update via NATS for remote displays')
-      } catch (error) {
-        console.error('[Controller] Failed to publish slide via NATS:', error)
-      }
     }
   }
 
@@ -431,9 +361,6 @@ export function Controller() {
               Syncing...
             </Badge>
           ) : null}
-          <Badge variant="outline" className={`gap-1 ${natsConnected ? 'text-green-600' : 'text-muted-foreground'}`}>
-            {natsConnected ? 'NATS Connected' : 'NATS Disconnected (Local Only)'}
-          </Badge>
         </div>
       </div>
 

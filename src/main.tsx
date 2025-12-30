@@ -13,7 +13,6 @@ async function main() {
   const mode = await getAppMode()
 
   createRoot(document.getElementById('root')!).render(
-    // StrictMode disabled during NATS development to prevent double-invocation
     mode === 'controller' ? <ControllerApp /> : <DisplayApp />
   )
 }
