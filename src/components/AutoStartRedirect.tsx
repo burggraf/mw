@@ -35,10 +35,12 @@ export function AutoStartRedirect() {
         console.log('[AutoStart] Auto-start mode:', mode)
         if (mode === 'controller') {
           navigate('/live/controller', { replace: true })
+          return // Return early for controller mode
         } else if (mode === 'display') {
           navigate('/live/display', { replace: true })
+          return // Return early for display mode
         }
-        return
+        // For "none" mode, continue to NATS server startup
       } catch (e) {
         // Command not available or error, continue to auto-start logic
         console.log('[AutoStart] No auto-start mode, continuing to desktop controller start')
