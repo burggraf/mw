@@ -145,6 +145,7 @@ export async function updateDisplay(id: string, input: DisplayUpdateInput): Prom
 
 /**
  * Update display's connection info (host, port) when discovered via mDNS
+ * Uses a database function to bypass RLS (displays may not be authenticated)
  */
 export async function updateDisplayConnection(
   deviceId: string,
@@ -152,15 +153,13 @@ export async function updateDisplayConnection(
   port: number
 ): Promise<void> {
   const supabase = getSupabase();
-  const { error } = await supabase
-    .from('displays')
-    .update({
-      host,
-      port,
-      is_online: true,
-      last_seen_at: new Date().toISOString(),
-    })
-    .eq('device_id', deviceId);
+
+  // Use the database function which has SECURITY DEFINER to bypass RLS
+  const { error } = await supabase.rpc('update_display_connection', {
+    p_device_id: deviceId,
+    p_host: host,
+    p_port: port,
+  });
 
   if (error) throw error;
 }

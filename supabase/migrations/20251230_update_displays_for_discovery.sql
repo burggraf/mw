@@ -10,7 +10,16 @@ ALTER TABLE displays DROP COLUMN IF EXISTS pairing_code;
 
 -- Make device_id required and unique (this is the display's self-generated UUID)
 ALTER TABLE displays ALTER COLUMN device_id SET NOT NULL;
-ALTER TABLE displays ADD CONSTRAINT displays_device_id_unique UNIQUE (device_id);
+
+-- Add unique constraint if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'displays_device_id_unique'
+  ) THEN
+    ALTER TABLE displays ADD CONSTRAINT displays_device_id_unique UNIQUE (device_id);
+  END IF;
+END $$;
 
 -- Add connection info for WebSocket communication
 ALTER TABLE displays ADD COLUMN IF NOT EXISTS host TEXT;
