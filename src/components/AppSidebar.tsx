@@ -4,7 +4,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useChurch } from '@/contexts/ChurchContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { DisplaysAccordion } from '@/components/displays/DisplaysAccordion'
-import { useEffect, useState } from 'react'
 import {
   Sidebar,
   SidebarContent,

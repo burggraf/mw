@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useWebSocketConnections } from '@/contexts/WebSocketContext';
 import { Button } from '@/components/ui/button';
 import { Plus, Wifi, WifiOff, RefreshCw, X } from 'lucide-react';
@@ -23,7 +22,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 export function DisplaysAccordion() {
-  const { t } = useTranslation();
   const { discovered, connected, isDiscovering, discover, connect, disconnect } = useWebSocketConnections();
 
   const [manualDialogOpen, setManualDialogOpen] = useState(false);

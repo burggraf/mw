@@ -758,14 +758,55 @@ pub async fn publish_slide(
     server.broadcast(message).await
 }
 
-/// Discover display devices via mDNS
+/// Discover display devices via mDNS with UDP broadcast fallback
+/// Tries mDNS first, then falls back to UDP broadcast if no devices found
 #[tauri::command]
 pub async fn discover_display_devices(
     timeout_secs: Option<u64>,
 ) -> Result<Vec<crate::mdns::DiscoveredDevice>, String> {
     let timeout = timeout_secs.unwrap_or(5);
-    Ok(crate::mdns::discover_disdevices(timeout).await)
+
+    // Try mDNS first
+    let devices = crate::mdns::discover_disdevices(timeout).await;
+
+    if !devices.is_empty() {
+        tracing::info!("Found {} devices via mDNS", devices.len());
+        return Ok(devices);
+    }
+
+    tracing::info!("No devices found via mDNS, trying UDP broadcast fallback");
+    // Fall back to UDP broadcast
+    let udp_devices = crate::mdns::udp_broadcast_discover(timeout).await;
+
+    if !udp_devices.is_empty() {
+        tracing::info!("Found {} devices via UDP broadcast", udp_devices.len());
+    } else {
+        tracing::warn!("No devices found via mDNS or UDP broadcast");
+    }
+
+    Ok(udp_devices)
 }
+
+/// Start the UDP broadcast listener (for Android TV displays)
+/// This allows the display to respond to UDP broadcast discovery requests
+#[tauri::command]
+pub async fn start_udp_listener(
+    app: tauri::AppHandle,
+    port: u16,
+    ws_port: u16,
+) -> Result<(), String> {
+    // Start UDP listener to respond to discovery requests
+    let handle = crate::mdns::start_udp_listener(port, ws_port);
+    tracing::info!("UDP broadcast listener started on port {} for WS port {}", port, ws_port);
+
+    // Store the handle in app state to keep it alive
+    app.manage(UdpListenerHandle(Some(handle)));
+
+    Ok(())
+}
+
+// Wrapper to keep the UDP listener task alive
+struct UdpListenerHandle(Option<tokio::task::JoinHandle<()>>);
 
 /// Start advertising this device as a display
 #[tauri::command]

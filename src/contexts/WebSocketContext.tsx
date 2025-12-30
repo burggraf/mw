@@ -1,4 +1,4 @@
-import { createContext, useContext, useRef, useState, useCallback, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useRef, useState, useCallback, useEffect, type ReactNode } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 
 interface DiscoveredDisplay {
