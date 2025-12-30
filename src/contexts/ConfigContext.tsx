@@ -41,6 +41,29 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     init()
   }, [])
 
+  // Don't render children until config is loaded and ready
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="mt-4 text-sm text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <p className="text-lg font-semibold text-destructive">Configuration Error</p>
+          <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <ConfigContext.Provider value={{ config, isLoading, error }}>
       {children}
