@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api/core'
 
 const checkIsTauri = (): boolean => {
@@ -7,7 +7,7 @@ const checkIsTauri = (): boolean => {
   return '__TAURI__' in window || '__TAURI_INTERNALS__' in window
 }
 
-const isAndroidTV = (): boolean => {
+export const isAndroidTV = (): boolean => {
   if (typeof window === 'undefined') return false
   const ua = window.navigator.userAgent
   return ua.includes('Android') && (
@@ -21,35 +21,40 @@ const isAndroidTV = (): boolean => {
 
 export function AutoStartRedirect() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const [hasRedirected, setHasRedirected] = useState(false)
 
   useEffect(() => {
+    // Skip if already on display page or already redirected
+    if (location.pathname === '/live/display' || hasRedirected) return
+
+    // Android TV: Always go straight to display mode, no auth needed
+    if (isAndroidTV()) {
+      console.log('[AutoStartRedirect] Android TV detected, going straight to display mode')
+      setHasRedirected(true)
+      navigate('/live/display', { replace: true })
+      return
+    }
+
+    // Desktop/other: Check Tauri auto-start mode
     if (!checkIsTauri()) return
 
     const checkAutoStart = async () => {
       try {
         const mode = await invoke<string>('get_auto_start_mode')
         if (mode === 'controller') {
+          setHasRedirected(true)
           navigate('/live/controller', { replace: true })
         } else if (mode === 'display') {
+          setHasRedirected(true)
           navigate('/live/display', { replace: true })
-        } else if (mode === 'none') {
-          // Check if we're on Android TV - default to display mode
-          if (isAndroidTV()) {
-            console.log('[AutoStartRedirect] Android TV detected, defaulting to display mode')
-            navigate('/live/display', { replace: true })
-          }
         }
       } catch (e) {
         console.error('[AutoStartRedirect] Failed to check auto-start mode:', e)
-        // On error, if Android TV, still try to go to display mode
-        if (isAndroidTV()) {
-          console.log('[AutoStartRedirect] Android TV detected (error fallback), defaulting to display mode')
-          navigate('/live/display', { replace: true })
-        }
       }
     }
     checkAutoStart()
-  }, [navigate])
+  }, [navigate, location.pathname, hasRedirected])
 
   return null
 }
