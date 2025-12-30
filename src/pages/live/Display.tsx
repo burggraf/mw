@@ -2,9 +2,15 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
+import { useChurch } from '@/contexts/ChurchContext'
 import { generateSlides } from '@/lib/slide-generator'
 import type { Slide } from '@/types/live'
 import type { Song } from '@/types/song'
+
+type WsMessage =
+  | { type: 'lyrics'; data: { church_id: string; event_id: string; song_id: string; title: string; lyrics: string; background_url?: string; timestamp: number } }
+  | { type: 'slide'; data: { church_id: string; event_id: string; song_id: string; slide_index: number; timestamp: number } }
+  | { type: 'ping' }
 
 // Check if we're running as a local display window (same Tauri process as controller)
 const isLocalDisplayWindow = (): boolean => {
@@ -40,6 +46,7 @@ const mediaPathCache = new Map<string, { filePath: string; updatedAt: string; is
 
 export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPageProps) {
   const { t } = useTranslation()
+  const { currentChurch } = useChurch()
   const localMode = isLocalDisplayWindow()
 
   const [currentSlide, setCurrentSlide] = useState<Slide | null>(null)
@@ -54,7 +61,7 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
   const currentSlideRef = useRef<Slide | null>(null)
   const backgroundUrlRef = useRef<string | null>(null)
 
-  // TODO: Initialize NATS on mount for remote displays
+  // Initialize WebSocket server on mount for remote displays
   useEffect(() => {
     if (localMode) {
       console.log('[Display] Running in local mode - using Tauri events')
@@ -62,10 +69,93 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
       return
     }
 
-    console.log('[Display] Remote mode - NATS initialization TODO')
-    // await invoke('spawn_nats_server')
-    // await invoke('advertise_nats_service')
-  }, [localMode])
+    console.log('[Display] Remote mode - starting WebSocket server')
+    let ws: WebSocket | null = null
+
+    const startServerAndListen = async () => {
+      try {
+        // Start the WebSocket server
+        const port = await invoke<number>('start_websocket_server')
+        console.log('[Display] WebSocket server started on port', port)
+
+        // Also advertise via mDNS
+        const deviceName = `${currentChurch?.name || 'Mobile Worship'} Display`
+        await invoke('start_advertising', { name: deviceName, port })
+        console.log('[Display] Advertising as', deviceName)
+        setIsWaiting(false)
+
+        // Connect to our own server to receive messages
+        ws = new WebSocket(`ws://localhost:${port}`)
+
+        ws.onopen = () => {
+          console.log('[Display] Connected to local WebSocket server')
+        }
+
+        ws.onmessage = (event) => {
+          try {
+            const message: WsMessage = JSON.parse(event.data)
+
+            if (message.type === 'lyrics') {
+              // Check if this message is for our church/event
+              if (message.data.church_id === currentChurch?.id &&
+                  message.data.event_id === eventId) {
+                // Cache the song data
+                const song: Song = {
+                  id: message.data.song_id,
+                  title: message.data.title,
+                  content: message.data.lyrics,
+                  author: '',
+                  copyright: '',
+                  key: '',
+                  tempo: null,
+                  timeSignature: '',
+                  ccliNumber: null,
+                  backgrounds: {},
+                  tags: [],
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date(message.data.timestamp).toISOString(),
+                }
+
+                const cached = songCache.get(song.id)
+                if (!cached || cached.updated_at < String(message.data.timestamp)) {
+                  songCache.set(song.id, { song, updated_at: String(message.data.timestamp) })
+                }
+
+                // Load the first slide if not already showing
+                if (!currentSlideRef.current) {
+                  loadSlide(song.id, 0)
+                }
+              }
+            } else if (message.type === 'slide') {
+              if (message.data.church_id === currentChurch?.id &&
+                  message.data.event_id === eventId) {
+                loadSlide(message.data.song_id, message.data.slide_index)
+              }
+            }
+          } catch (e) {
+            console.error('[Display] Failed to parse WebSocket message:', e)
+          }
+        }
+
+        ws.onerror = (error) => {
+          console.error('[Display] WebSocket error:', error)
+        }
+
+        ws.onclose = () => {
+          console.log('[Display] WebSocket closed')
+        }
+      } catch (e) {
+        console.error('[Display] Failed to start WebSocket server:', e)
+        setIsWaiting(false)
+      }
+    }
+
+    startServerAndListen()
+
+    return () => {
+      if (ws) ws.close()
+    }
+  }, [localMode, currentChurch, eventId])
 
   // Get background for a song
   const getSongBackground = useCallback((song: Song): { url?: string; color?: string } => {
@@ -132,7 +222,7 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
     }
   }, [getSongBackground])
 
-  // Listen for data messages (Tauri events for local displays, NATS for remote)
+  // Listen for data messages (Tauri events for local displays)
   useEffect(() => {
     if (localMode) {
       console.log('[Display] Registering Tauri display:slide event handler (local mode)')
@@ -175,9 +265,7 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
         unlistenPromise.then?.(unlisten => unlisten?.()).catch?.(() => {})
       }
     } else {
-      // TODO: Implement NATS message listening for remote displays
-      console.log('[Display] Remote mode - NATS message listening TODO')
-      // await invoke('subscribe_to_lyrics', callback)
+      // Remote mode - WebSocket listening handled in the initialization useEffect above
       return () => {}
     }
   }, [eventId, loadSlide, localMode])
@@ -252,7 +340,7 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
           <span>
             {localMode
               ? t('live.display.connected', 'Local Display')
-              : t('live.display.connected', 'Remote Display (NATS TODO)')}
+              : t('live.display.connected', 'Remote Display')}
           </span>
         </div>
       </div>
