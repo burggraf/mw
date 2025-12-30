@@ -17,6 +17,7 @@ import { DisplayPage } from '@/pages/live/Display'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AppLayout } from '@/components/AppLayout'
 import { AutoStartRedirect } from '@/components/AutoStartRedirect'
+import { WebSocketProvider } from '@/contexts/WebSocketContext'
 
 // Layout wrapper that includes auto-redirect
 function RootLayout() {
@@ -133,5 +134,9 @@ const router = createBrowserRouter([
 ])
 
 export function AppRoutes() {
-  return <RouterProvider router={router} />
+  return (
+    <WebSocketProvider>
+      <RouterProvider router={router} />
+    </WebSocketProvider>
+  )
 }

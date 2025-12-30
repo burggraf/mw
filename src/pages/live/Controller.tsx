@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useChurch } from '@/contexts/ChurchContext'
+import { useWebSocketConnections } from '@/contexts/WebSocketContext'
 import { getEventItems } from '@/services/events'
 import { getSong } from '@/services/songs'
 import { getMediaById, getSignedMediaUrl } from '@/services/media'
 import { generateSlides } from '@/lib/slide-generator'
 import { emit } from '@tauri-apps/api/event'
-import { useWebSocket, type LyricsMessage, type SlideMessage } from '@/hooks/useWebSocket'
 import type { Slide } from '@/types/live'
 import type { Song } from '@/types/song'
 import type { Event, EventItemWithData } from '@/types/event'
@@ -14,14 +14,13 @@ import { SlidePreview, SetlistPicker, SlideNavigator, ControlButtons } from '@/c
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Loader2, Wifi, WifiOff, RefreshCw } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 
 interface ControllerState {
   currentEventId: string | null
   currentSong: Song | null
-  currentSongId: string | null  // Actual song ID, not event item ID
-  currentItemId: string | null  // Event item ID
+  currentSongId: string | null
+  currentItemId: string | null
   currentSlideIndex: number
   slides: Slide[]
   setlist: EventItemWithData[]
@@ -30,17 +29,7 @@ interface ControllerState {
 export function Controller() {
   const { t } = useTranslation()
   const { currentChurch } = useChurch()
-
-  // WebSocket hook for remote displays
-  const {
-    devices,
-    connections,
-    discoverDevices,
-    connectToDevice,
-    disconnectFromDevice,
-    broadcastLyrics,
-    broadcastSlide,
-  } = useWebSocket()
+  const { connected, broadcastLyrics, broadcastSlide } = useWebSocketConnections()
 
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
@@ -76,7 +65,6 @@ export function Controller() {
         if (error) throw error
         setEvents(data || [])
 
-        // Auto-select first event
         if (data && data.length > 0 && !state.currentEventId) {
           await selectEvent(data[0].id)
         }
@@ -90,7 +78,7 @@ export function Controller() {
     loadEvents()
   }, [currentChurch?.id])
 
-  // Send song data to all connected displays via Tauri events (local displays) and WebSocket (remote displays)
+  // Send song data to all connected displays
   const sendSongData = async (song: Song & { updated_at: string }) => {
     // Fetch background images as base64 data URLs
     const backgroundDataUrls: Record<string, string> = {}
@@ -110,7 +98,6 @@ export function Controller() {
               reader.readAsDataURL(blob)
             })
             backgroundDataUrls[key] = dataUrl
-            console.log('[Controller] Fetched background as data URL:', key)
           }
         } catch (error) {
           console.error('[Controller] Failed to get background', mediaId, ':', error)
@@ -118,47 +105,38 @@ export function Controller() {
       }
     }
 
-    const message = {
-      songData: { song, backgroundDataUrls },
-    }
-
-    console.log('[Controller] Sending song data:', song.title)
-
     // Emit Tauri event for local displays
     try {
-      await emit('display:slide', message)
+      await emit('display:slide', {
+        songData: { song, backgroundDataUrls },
+      })
       console.log('[Controller] Sent song data via Tauri event for local displays')
     } catch (error) {
       console.error('[Controller] Failed to emit Tauri event:', error)
     }
 
     // Broadcast to remote displays via WebSocket
-    const lyricsMessage: LyricsMessage = {
+    broadcastLyrics({
       church_id: currentChurch?.id || '',
       event_id: state.currentEventId || '',
       song_id: song.id,
       title: song.title,
       lyrics: song.content,
-      background_url: undefined, // Backgrounds are sent separately in Tauri events
       timestamp: Date.now(),
-    }
-    broadcastLyrics(lyricsMessage)
-    console.log('[Controller] Broadcast song data to', connections.size, 'WebSocket connections')
+    })
+    console.log('[Controller] Broadcast song data to', connected.size, 'WebSocket connections')
   }
 
-  // Pre-fetch all songs for the event and send to displays
+  // Pre-fetch all songs for the event
   const prefetchSongs = async (setlist: EventItemWithData[]) => {
     const songItems = setlist.filter(item => item.itemType === 'song')
     if (songItems.length === 0) return
 
     setPrefetching(true)
-    console.log('[Controller] Pre-fetching', songItems.length, 'songs for displays')
-
     for (const item of songItems) {
       try {
         const song = await getSong(item.itemId)
         if (song) {
-          console.log('[Controller] Pre-fetching song:', song.title)
           await sendSongData({
             ...song,
             updated_at: song.updatedAt,
@@ -170,7 +148,6 @@ export function Controller() {
     }
 
     setPrefetching(false)
-    console.log('[Controller] Pre-fetch complete')
   }
 
   // Select event and load setlist
@@ -187,8 +164,6 @@ export function Controller() {
         currentSlideIndex: 0,
         slides: [],
       }))
-
-      // Pre-fetch all songs for displays
       await prefetchSongs(items)
     } catch (error) {
       console.error('Failed to load event items:', error)
@@ -300,15 +275,14 @@ export function Controller() {
     }
 
     // Broadcast slide update to remote displays via WebSocket
-    const slideMessage: SlideMessage = {
+    broadcastSlide({
       church_id: currentChurch?.id || '',
       event_id: state.currentEventId || '',
       song_id: songId,
       slide_index: slideIndex,
       timestamp: Date.now(),
-    }
-    broadcastSlide(slideMessage)
-    console.log('[Controller] Broadcast slide update to', connections.size, 'WebSocket connections')
+    })
+    console.log('[Controller] Broadcast slide update to', connected.size, 'WebSocket connections')
   }
 
   // Navigate to specific slide
@@ -348,7 +322,7 @@ export function Controller() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [state.currentSlideIndex, state.slides.length, state.currentSongId])
+  }, [state.currentSlideIndex, state.slides.length, state.currentSongId, goToPrevious, goToNext])
 
   // Get current slide
   const currentSlide = state.slides[state.currentSlideIndex] || null
@@ -392,56 +366,18 @@ export function Controller() {
 
         {/* Connection status */}
         <div className="flex items-center gap-2">
-          {/* WebSocket connection status */}
-          {connections.size > 0 ? (
+          {connected.size > 0 && (
             <Badge variant="outline" className="gap-1">
-              <Wifi className="w-3 h-3" />
-              {connections.size} {connections.size === 1 ? 'display' : 'displays'}
+              <span className="w-2 h-2 rounded-full bg-green-500" />
+              {connected.size} {connected.size === 1 ? 'display' : 'displays'}
             </Badge>
-          ) : null}
-          {prefetching ? (
+          )}
+          {prefetching && (
             <Badge variant="outline" className="gap-1">
               <Loader2 className="w-3 h-3 animate-spin" />
               Syncing...
             </Badge>
-          ) : null}
-        </div>
-
-        {/* Device discovery */}
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => discoverDevices()}
-            disabled={devices.length === 0}
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Discover ({devices.length})
-          </Button>
-          {devices.map((device) => {
-            const key = `${device.host}:${device.port}`
-            const isConnected = connections.has(key)
-            return (
-              <Button
-                key={key}
-                variant={isConnected ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => isConnected ? disconnectFromDevice(device) : connectToDevice(device)}
-              >
-                {isConnected ? (
-                  <>
-                    <Wifi className="w-4 h-4 mr-2" />
-                    {device.name.split('.')[0]}
-                  </>
-                ) : (
-                  <>
-                    <WifiOff className="w-4 h-4 mr-2" />
-                    {device.name.split('.')[0]}
-                  </>
-                )}
-              </Button>
-            )
-          })}
+          )}
         </div>
       </div>
 

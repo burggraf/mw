@@ -102,16 +102,17 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
                 // Cache the song data
                 const song: Song = {
                   id: message.data.song_id,
+                  churchId: currentChurch?.id || '',
                   title: message.data.title,
                   content: message.data.lyrics,
-                  author: '',
-                  copyright: '',
-                  key: '',
-                  tempo: null,
-                  timeSignature: '',
+                  author: null,
+                  copyrightInfo: null,
                   ccliNumber: null,
+                  arrangements: { default: [] },
                   backgrounds: {},
-                  tags: [],
+                  audienceBackgroundId: null,
+                  stageBackgroundId: null,
+                  lobbyBackgroundId: null,
                   createdAt: new Date().toISOString(),
                   updatedAt: new Date(message.data.timestamp).toISOString(),
                 }
