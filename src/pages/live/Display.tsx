@@ -68,7 +68,6 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
   const [showMenu, setShowMenu] = useState(false)
   const [menuIndex, setMenuIndex] = useState(0)
   const [isAndroid, setIsAndroid] = useState(false)
-  const [connectionCount, setConnectionCount] = useState(0)
 
   // Refs to track current song/slide for refresh when media arrives
   const currentSongIdRef = useRef<string | null>(null)
@@ -95,14 +94,13 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
     checkPlatform()
   }, [])
 
-  // Menu action handler (defined before useEffect that uses it)
-  const handleMenuAction = useCallback(async (index: number) => {
+  // Menu action handler
+  const handleMenuAction = async (index: number) => {
     switch (index) {
       case 0: // Resume
         setShowMenu(false)
         break
       case 1: // About
-        // Could show an about dialog, for now just close
         setShowMenu(false)
         break
       case 2: // Exit
@@ -114,49 +112,15 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
         }
         break
     }
-  }, [])
+  }
 
-  // D-pad / keyboard navigation for Android TV menu
+  // D-pad navigation for Android TV menu (up/down/back only)
+  // The select/OK button is handled by onClick on the main container
   useEffect(() => {
     if (!isAndroid) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Debug: log all key events on Android
-      console.log('[Display] Key event:', {
-        key: e.key,
-        code: e.code,
-        keyCode: e.keyCode,
-        which: e.which,
-      })
-
-      // Try multiple ways to detect the center/OK button
-      // KEYCODE_DPAD_CENTER = 23, KEYCODE_ENTER = 66
-      const isCenterButton =
-        e.key === 'Enter' ||
-        e.key === 'OK' ||
-        e.key === 'Accept' ||
-        e.keyCode === 13 ||   // standard Enter
-        e.keyCode === 23 ||   // Android DPAD_CENTER
-        e.keyCode === 66 ||   // Android ENTER
-        e.which === 23 ||
-        e.which === 66 ||
-        e.code === 'Enter'
-
-      if (isCenterButton) {
-        console.log('[Display] Center/OK button pressed, menu currently:', showMenu)
-        if (!showMenu) {
-          setShowMenu(true)
-          setMenuIndex(0)
-        } else {
-          // Execute selected menu item
-          handleMenuAction(menuIndex)
-        }
-        e.preventDefault()
-        e.stopPropagation()
-        return
-      }
-
-      // Only handle navigation when menu is open
+      // Only handle when menu is open
       if (!showMenu) return
 
       // Up arrow / d-pad up (KEYCODE_DPAD_UP = 19)
@@ -192,24 +156,9 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
       }
     }
 
-    // Also listen for click/tap events (some Android TV remotes send click instead of key)
-    const handleClick = (e: MouseEvent | PointerEvent) => {
-      console.log('[Display] Click event:', { type: e.type, target: e.target })
-      // Only trigger if clicking on the main display area (not buttons)
-      if ((e.target as HTMLElement).tagName === 'DIV' || (e.target as HTMLElement).tagName === 'BODY') {
-        console.log('[Display] Click on main area, toggling menu')
-        setShowMenu(!showMenu)
-        setMenuIndex(0)
-      }
-    }
-
     window.addEventListener('keydown', handleKeyDown, { capture: true })
-    window.addEventListener('click', handleClick, { capture: true })
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown, { capture: true })
-      window.removeEventListener('click', handleClick, { capture: true })
-    }
-  }, [isAndroid, showMenu, menuIndex, handleMenuAction])
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true })
+  }, [isAndroid, showMenu])
 
   // Handle precache message from controller
   const handlePrecache = useCallback(async (data: PrecacheMessage, ws?: WebSocket) => {
@@ -615,7 +564,17 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
   }, [eventId, loadSlide, localMode])
 
   return (
-    <div className="fixed inset-0 bg-black flex items-center justify-center overflow-hidden">
+    <div
+      className="fixed inset-0 bg-black flex items-center justify-center overflow-hidden"
+      onClick={() => {
+        if (isAndroid) {
+          console.log('[Display] Main container clicked, showing menu')
+          setShowMenu(true)
+          setMenuIndex(0)
+        }
+      }}
+      tabIndex={isAndroid ? 0 : undefined}
+    >
       {/* Background */}
       {backgroundUrl ? (
         <img
