@@ -53,7 +53,7 @@ interface DisplayPageProps {
 const songCache = new Map<string, { song: Song; updated_at: string }>()
 const mediaPathCache = new Map<string, { filePath: string; updatedAt: string; isColor: boolean }>()
 
-export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPageProps) {
+export function DisplayPage({ eventId }: DisplayPageProps) {
   const { t } = useTranslation()
   const { currentChurch } = useChurch()
   const localMode = isLocalDisplayWindow()
@@ -61,6 +61,7 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
   const [currentSlide, setCurrentSlide] = useState<Slide | null>(null)
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null)
   const [backgroundColor, setBackgroundColor] = useState<string | null>(null)
+  // @ts-expect-error - isWaiting is used indirectly via setIsWaiting
   const [isWaiting, setIsWaiting] = useState(true)
   const [opacity, setOpacity] = useState(0)
   const [isCaching, setIsCaching] = useState(false)
@@ -78,6 +79,12 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
   const isInitializingRef = useRef<boolean>(false)
   const wsConnectionRef = useRef<WebSocket | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const showMenuRef = useRef(false)
+
+  // Keep the ref in sync with state
+  useEffect(() => {
+    showMenuRef.current = showMenu
+  }, [showMenu])
 
   // Detect Android platform on mount
   useEffect(() => {
@@ -95,20 +102,13 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
     checkPlatform()
   }, [])
 
-  // Auto-focus the container on Android TV so d-pad center button works
+  // Auto-focus the main container on mount so d-pad works immediately
   useEffect(() => {
-    if (isAndroid && containerRef.current) {
-      console.log('[Display] Auto-focusing container for Android TV')
+    if (containerRef.current) {
+      console.log('[Display] Focusing main container for d-pad support')
       containerRef.current.focus()
     }
-  }, [isAndroid])
-
-  // Also refocus when menu closes to ensure center button works
-  useEffect(() => {
-    if (isAndroid && !showMenu && containerRef.current) {
-      containerRef.current.focus()
-    }
-  }, [showMenu, isAndroid])
+  }, [])
 
   // Menu action handler
   const handleMenuAction = async (index: number) => {
@@ -131,13 +131,27 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
   }
 
   // D-pad navigation for Android TV menu (up/down/back only)
-  // The select/OK button is handled by onClick on the main container
   useEffect(() => {
-    if (!isAndroid) return
-
+    // Always enable for all platforms - d-pad codes are specific
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only handle when menu is open
-      if (!showMenu) return
+      // Handle d-pad center button (OK/Enter) - shows menu
+      // Android KEYCODE_DPAD_CENTER = 23, DOM Enter = 13
+      if (
+        e.key === 'Enter' ||
+        e.keyCode === 13 ||
+        e.keyCode === 23 || // Android DPAD_CENTER
+        e.code === 'Enter' ||
+        e.code === 'NumpadEnter'
+      ) {
+        setShowMenu(true)
+        setMenuIndex(0)
+        e.preventDefault()
+        e.stopPropagation()
+        return
+      }
+
+      // Only handle d-pad navigation when menu is open (use ref for current value)
+      if (!showMenuRef.current) return
 
       // Up arrow / d-pad up (KEYCODE_DPAD_UP = 19)
       if (
@@ -174,7 +188,7 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
 
     window.addEventListener('keydown', handleKeyDown, { capture: true })
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true })
-  }, [isAndroid, showMenu])
+  }, []) // Run once on mount - uses ref for current showMenu value
 
   // Handle precache message from controller
   const handlePrecache = useCallback(async (data: PrecacheMessage, ws?: WebSocket) => {
@@ -581,7 +595,10 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
 
   return (
     <div
+      ref={containerRef}
+      tabIndex={0}
       className="fixed inset-0 bg-black flex items-center justify-center overflow-hidden"
+      style={{ outline: 'none' }}
     >
       {/* Background */}
       {backgroundUrl ? (
@@ -691,21 +708,6 @@ export function DisplayPage({ eventId, displayName = 'Display' }: DisplayPagePro
             </p>
           </div>
         </div>
-      )}
-
-      {/* Invisible focusable button for Android TV d-pad - must be last in DOM */}
-      {isAndroid && (
-        <button
-          ref={containerRef}
-          onClick={() => {
-            console.log('[Display] Menu button clicked')
-            setShowMenu(true)
-            setMenuIndex(0)
-          }}
-          className="fixed top-4 left-4 w-1 h-1 opacity-0 -translate-x-full"
-          style={{ outline: 'none' }}
-          aria-hidden="true"
-        />
       )}
     </div>
   )

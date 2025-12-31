@@ -211,6 +211,12 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
   // Auto-discover on mount (but NOT in display mode - displays advertise, controllers discover)
   useEffect(() => {
+    // Skip entirely if on display route - no need for discovery or polling
+    const isDisplayRoute = window.location.pathname.startsWith('/live/display')
+    if (isDisplayRoute) {
+      return
+    }
+
     discover()
     const interval = setInterval(discover, 10000)
     return () => clearInterval(interval)

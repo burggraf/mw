@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
@@ -24,20 +25,57 @@ android {
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
     }
+    signingConfigs {
+        create("release") {
+            val keystorePropertiesFile = rootProject.file("keystore.properties")
+            val keystoreProperties = Properties()
+            if (keystorePropertiesFile.exists()) {
+                keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["password"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["password"] as String
+            }
+        }
+    }
     buildTypes {
         getByName("debug") {
             manifestPlaceholders["usesCleartextTraffic"] = "true"
             isDebuggable = true
             isJniDebuggable = true
             isMinifyEnabled = false
-            packaging {                jniLibs.keepDebugSymbols.add("*/arm64-v8a/*.so")
-                jniLibs.keepDebugSymbols.add("*/armeabi-v7a/*.so")
-                jniLibs.keepDebugSymbols.add("*/x86/*.so")
-                jniLibs.keepDebugSymbols.add("*/x86_64/*.so")
+            packaging {
+                // Only keep armeabi-v7a (Fire TV 4K Max uses 32-bit userspace)
+                jniLibs {
+                    keepDebugSymbols.add("*/armeabi-v7a/*.so")
+                    pickFirsts.addAll(listOf(
+                        "lib/armeabi-v7a/libmobile_worship_lib.so"
+                    ))
+                    excludes.addAll(listOf(
+                        "lib/arm64-v8a/**",
+                        "lib/x86/**",
+                        "lib/x86_64/**"
+                    ))
+                }
             }
         }
         getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
+            packaging {
+                // Only keep armeabi-v7a (Fire TV 4K Max uses 32-bit userspace)
+                jniLibs {
+                    keepDebugSymbols.add("*/armeabi-v7a/*.so")
+                    pickFirsts.addAll(listOf(
+                        "lib/armeabi-v7a/libmobile_worship_lib.so"
+                    ))
+                    excludes.addAll(listOf(
+                        "lib/arm64-v8a/**",
+                        "lib/x86/**",
+                        "lib/x86_64/**"
+                    ))
+                }
+            }
             proguardFiles(
                 *fileTree(".") { include("**/*.pro") }
                     .plus(getDefaultProguardFile("proguard-android-optimize.txt"))
