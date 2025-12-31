@@ -2,6 +2,7 @@ package com.mobileworship.app
 
 import android.os.Bundle
 import android.webkit.WebView
+import android.webkit.JavascriptInterface
 import android.view.KeyEvent
 import androidx.activity.enableEdgeToEdge
 
@@ -16,6 +17,8 @@ class MainActivity : TauriActivity() {
   // Store WebView reference when it's created
   override fun onWebViewCreate(webView: WebView) {
     this.webView = webView
+    // Add JavaScript interface for app control
+    webView.addJavascriptInterface(AppInterface(), "AndroidApp")
     super.onWebViewCreate(webView)
   }
 
@@ -45,6 +48,17 @@ class MainActivity : TauriActivity() {
         return true
       }
     }
+
+    // Handle Back button - forward to WebView as Escape instead of exiting app
+    if (keyCode == KeyEvent.KEYCODE_BACK) {
+      webView?.let { wv ->
+        // Dispatch as Escape key to WebView so JavaScript can handle it
+        val escapeEvent = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ESCAPE)
+        wv.dispatchKeyEvent(escapeEvent)
+        return true // Consume the event, don't let Android exit the app
+      }
+    }
+
     return super.onKeyDown(keyCode, event)
   }
 
@@ -56,6 +70,26 @@ class MainActivity : TauriActivity() {
         return true
       }
     }
+
+    if (keyCode == KeyEvent.KEYCODE_BACK) {
+      webView?.let { wv ->
+        val escapeEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ESCAPE)
+        wv.dispatchKeyEvent(escapeEvent)
+        return true
+      }
+    }
+
     return super.onKeyUp(keyCode, event)
+  }
+
+  // JavaScript interface for app control
+  inner class AppInterface {
+    @JavascriptInterface
+    fun exitApp() {
+      // Run on UI thread to properly finish the activity
+      runOnUiThread {
+        finishAffinity()
+      }
+    }
   }
 }

@@ -67,6 +67,7 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
   const [isCaching, setIsCaching] = useState(false)
   const [cacheProgress, setCacheProgress] = useState<string>('')
   const [showMenu, setShowMenu] = useState(false)
+  const [showAbout, setShowAbout] = useState(false)
   const [menuIndex, setMenuIndex] = useState(0)
   const [isAndroid, setIsAndroid] = useState(false)
 
@@ -80,11 +81,21 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
   const wsConnectionRef = useRef<WebSocket | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const showMenuRef = useRef(false)
+  const showAboutRef = useRef(false)
+  const menuIndexRef = useRef(0)
 
-  // Keep the ref in sync with state
+  // Keep the refs in sync with state
   useEffect(() => {
     showMenuRef.current = showMenu
   }, [showMenu])
+
+  useEffect(() => {
+    showAboutRef.current = showAbout
+  }, [showAbout])
+
+  useEffect(() => {
+    menuIndexRef.current = menuIndex
+  }, [menuIndex])
 
   // Detect Android platform on mount
   useEffect(() => {
@@ -118,10 +129,18 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
         break
       case 1: // About
         setShowMenu(false)
+        setShowAbout(true)
         break
       case 2: // Exit
         try {
-          await exit(0)
+          // Use native Android exit if available (via JavaScript interface)
+          const androidApp = (window as any).AndroidApp
+          if (androidApp?.exitApp) {
+            androidApp.exitApp()
+          } else {
+            // Fallback to Tauri exit
+            await exit(0)
+          }
         } catch (e) {
           console.error('[Display] Failed to exit:', e)
           window.close()
@@ -134,53 +153,74 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
   useEffect(() => {
     // Always enable for all platforms - d-pad codes are specific
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Handle d-pad center button (OK/Enter) - shows menu
-      // Android KEYCODE_DPAD_CENTER = 23, DOM Enter = 13
-      if (
+      const isEnterKey = (
         e.key === 'Enter' ||
         e.keyCode === 13 ||
         e.keyCode === 23 || // Android DPAD_CENTER
         e.code === 'Enter' ||
         e.code === 'NumpadEnter'
-      ) {
-        setShowMenu(true)
-        setMenuIndex(0)
-        e.preventDefault()
-        e.stopPropagation()
-        return
-      }
+      )
 
-      // Only handle d-pad navigation when menu is open (use ref for current value)
-      if (!showMenuRef.current) return
-
-      // Up arrow / d-pad up (KEYCODE_DPAD_UP = 19)
-      if (
-        e.key === 'ArrowUp' ||
-        e.keyCode === 38 ||
-        e.keyCode === 19
-      ) {
-        setMenuIndex(i => Math.max(0, i - 1))
-        e.preventDefault()
-        e.stopPropagation()
-      }
-      // Down arrow / d-pad down (KEYCODE_DPAD_DOWN = 20)
-      else if (
-        e.key === 'ArrowDown' ||
-        e.keyCode === 40 ||
-        e.keyCode === 20
-      ) {
-        setMenuIndex(i => Math.min(2, i + 1))
-        e.preventDefault()
-        e.stopPropagation()
-      }
-      // Back button (KEYCODE_BACK = 4)
-      else if (
+      const isBackKey = (
         e.key === 'Escape' ||
         e.key === 'Back' ||
         e.keyCode === 27 ||
-        e.keyCode === 4
-      ) {
-        setShowMenu(false)
+        e.keyCode === 4 // Android KEYCODE_BACK
+      )
+
+      // If About dialog is open, Enter or Back closes it
+      if (showAboutRef.current) {
+        if (isEnterKey || isBackKey) {
+          setShowAbout(false)
+          e.preventDefault()
+          e.stopPropagation()
+        }
+        return
+      }
+
+      // If menu is open, handle menu navigation
+      if (showMenuRef.current) {
+        if (isEnterKey) {
+          // Select current menu item
+          handleMenuAction(menuIndexRef.current)
+          e.preventDefault()
+          e.stopPropagation()
+          return
+        }
+
+        // Up arrow / d-pad up (KEYCODE_DPAD_UP = 19)
+        if (
+          e.key === 'ArrowUp' ||
+          e.keyCode === 38 ||
+          e.keyCode === 19
+        ) {
+          setMenuIndex(i => Math.max(0, i - 1))
+          e.preventDefault()
+          e.stopPropagation()
+        }
+        // Down arrow / d-pad down (KEYCODE_DPAD_DOWN = 20)
+        else if (
+          e.key === 'ArrowDown' ||
+          e.keyCode === 40 ||
+          e.keyCode === 20
+        ) {
+          setMenuIndex(i => Math.min(2, i + 1))
+          e.preventDefault()
+          e.stopPropagation()
+        }
+        // Back button closes menu
+        else if (isBackKey) {
+          setShowMenu(false)
+          e.preventDefault()
+          e.stopPropagation()
+        }
+        return
+      }
+
+      // Menu not open - Enter opens it
+      if (isEnterKey) {
+        setShowMenu(true)
+        setMenuIndex(0)
         e.preventDefault()
         e.stopPropagation()
       }
@@ -188,7 +228,7 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
 
     window.addEventListener('keydown', handleKeyDown, { capture: true })
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true })
-  }, []) // Run once on mount - uses ref for current showMenu value
+  }, []) // Run once on mount - uses refs for current state values
 
   // Handle precache message from controller
   const handlePrecache = useCallback(async (data: PrecacheMessage, ws?: WebSocket) => {
@@ -686,7 +726,7 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
             <div className="space-y-2">
               {[
                 { label: t('menu.resume', 'Resume'), icon: '▶' },
-                { label: t('menu.about', 'About'), icon: 'ℹ' },
+                { label: t('menu.about', 'About'), icon: 'ⓘ' },
                 { label: t('menu.exit', 'Exit'), icon: '✕' },
               ].map((item, idx) => (
                 <button
@@ -706,6 +746,83 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
             <p className="text-white/40 text-xs mt-4 text-center">
               {t('menu.navHint', 'Use Up/Down to navigate, OK to select, Back to close')}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* About Dialog */}
+      {showAbout && isAndroid && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-8">
+          <div className="bg-slate-800 rounded-lg p-6 max-w-lg w-full max-h-[80vh] shadow-2xl flex flex-col">
+            <h2 className="text-2xl font-bold text-white mb-2 text-center flex items-center justify-center gap-2">
+              <span className="text-3xl">ⓘ</span>
+              {t('app.name', 'Mobile Worship')}
+            </h2>
+            <p className="text-white/60 text-center mb-4">
+              {t('app.tagline', 'Worship presentation for everyone')}
+            </p>
+            <div className="overflow-y-auto flex-1 space-y-4 text-white/80 pr-2">
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-1">
+                  {t('about.whatIs', 'What is Mobile Worship?')}
+                </h3>
+                <p className="text-sm">
+                  {t('about.description', 'Mobile Worship is a modern, decentralized worship presentation platform. Control presentations from your phone or tablet while displaying on affordable devices like Amazon Fire TV.')}
+                </p>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-1">
+                  {t('about.features', 'Features')}
+                </h3>
+                <ul className="text-sm space-y-2">
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-400">•</span>
+                    <span>{t('about.feature1', 'Display song lyrics with beautiful backgrounds')}</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-400">•</span>
+                    <span>{t('about.feature2', 'Control from any phone, tablet, or computer')}</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-400">•</span>
+                    <span>{t('about.feature3', 'Works on affordable streaming devices')}</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-400">•</span>
+                    <span>{t('about.feature4', 'No expensive hardware required')}</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-400">•</span>
+                    <span>{t('about.feature5', 'Automatic device discovery on your network')}</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-400">•</span>
+                    <span>{t('about.feature6', 'Supports multiple displays')}</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-400">•</span>
+                    <span>{t('about.feature7', 'Organize songs into setlists for services')}</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-400">•</span>
+                    <span>{t('about.feature8', 'Works offline after initial setup')}</span>
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-1">
+                  {t('about.howToUse', 'How to Use')}
+                </h3>
+                <p className="text-sm">
+                  {t('about.howToUseText', 'This display is waiting for a controller to connect. Open Mobile Worship on your phone or computer, select this display, and start presenting!')}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-slate-700">
+              <p className="text-white/40 text-xs text-center">
+                {t('about.pressToClose', 'Press OK or Back to close this dialog')}
+              </p>
+            </div>
           </div>
         </div>
       )}
