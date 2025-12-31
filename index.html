@@ -7,43 +7,7 @@
     <title>app</title>
   </head>
   <body>
-    <!-- Hidden anchor to force iOS viewport calculation -->
-    <div style="height: 100vh; position: absolute; visibility: hidden; width: 1px; pointer-events: none;"></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script>
-      // iOS viewport height fix
-      function setViewportHeight() {
-        const vh = window.innerHeight * 0.01;
-        document.documentElement.style.setProperty('--vh', vh + 'px');
-        document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
-      }
-      setViewportHeight();
-      window.addEventListener('resize', setViewportHeight);
-
-      // Safe area detection - always apply for tall screens (mobile devices)
-      function setSafeAreas() {
-        const screenHeight = Math.max(window.screen.height, window.screen.width);
-        const screenWidth = Math.min(window.screen.height, window.screen.width);
-        const aspectRatio = screenHeight / screenWidth;
-
-        // Any screen with aspect ratio > 1.8 is likely a modern phone
-        // Apply safe areas unconditionally for these devices
-        const isPhone = aspectRatio > 1.8;
-
-        // Use standard iOS safe area values
-        const safeTop = isPhone ? 59 : 0;
-        const safeBottom = isPhone ? 34 : 0;
-
-        document.documentElement.style.setProperty('--sat', safeTop + 'px');
-        document.documentElement.style.setProperty('--sab', safeBottom + 'px');
-
-        console.log('[SafeArea] screen:', screenWidth + 'x' + screenHeight,
-                    'ratio:', aspectRatio.toFixed(2), 'isPhone:', isPhone,
-                    'top:', safeTop, 'bottom:', safeBottom);
-      }
-      setSafeAreas();
-      window.addEventListener('resize', setSafeAreas);
-    </script>
   </body>
 </html>

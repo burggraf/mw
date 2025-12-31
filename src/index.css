@@ -78,43 +78,41 @@
   * {
     @apply border-border;
   }
-  html {
+  html, body, #root {
     height: 100%;
-    height: var(--app-height, 100%);
-  }
-  body {
-    @apply bg-background text-foreground;
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    height: var(--app-height, 100%);
-    overflow: hidden;
-  }
-  #root {
-    @apply bg-background;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    height: var(--app-height, 100%);
+    min-height: 100%;
     overflow: hidden;
     touch-action: pan-x pan-y; /* Prevent pinch zoom */
   }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
 
-/* iOS Safe Area utilities - high specificity to override Tailwind */
+/* iOS Safe Area utilities - native code injects --safe-area-inset-* custom properties */
 .safe-top {
-  padding-top: 47px !important;
+  padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
 }
 .safe-bottom {
-  padding-bottom: 34px !important;
+  padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
 }
-
-/* Desktop: no safe areas needed */
-@media (min-width: 768px) {
-  .safe-top {
-    padding-top: 0px !important;
-  }
-  .safe-bottom {
-    padding-bottom: 0px !important;
-  }
+.safe-left {
+  padding-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+}
+.safe-right {
+  padding-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+}
+.safe-x {
+  padding-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+  padding-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+}
+.safe-y {
+  padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+}
+.safe-all {
+  padding-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  padding-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+  padding-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
 }

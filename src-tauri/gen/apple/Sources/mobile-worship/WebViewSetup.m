@@ -1,9 +1,7 @@
 #import <UIKit/UIKit.h>
 #import <WebKit/WebKit.h>
-#import <objc/runtime.h>
 
-// This Objective-C file configures the WKWebView to fill the entire screen
-// by disabling automatic content inset adjustment - THIS FIXES THE BOTTOM GAP
+// Expand WebView to full screen and inject safe area values as CSS custom properties
 
 @interface WebViewSetup : NSObject
 @end
@@ -11,51 +9,28 @@
 @implementation WebViewSetup
 
 + (void)load {
-    NSLog(@"[WebViewSetup] Class loaded, setting up notification observers...");
-
-    // Register for notifications when the scene becomes active
     [[NSNotificationCenter defaultCenter] addObserverForName:UISceneDidActivateNotification
                                                       object:nil
                                                        queue:[NSOperationQueue mainQueue]
                                                   usingBlock:^(NSNotification *note) {
-        NSLog(@"[WebViewSetup] Scene activated, configuring webviews...");
-        [self configureAllWebViews];
+        [self configureWebViews];
     }];
 
-    // Also try multiple times with delays to catch the webview creation
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        [self configureAllWebViews];
-    });
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        [self configureAllWebViews];
-    });
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        [self configureAllWebViews];
-    });
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        [self configureAllWebViews];
-    });
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        [self configureAllWebViews];
-    });
+    for (int i = 1; i <= 10; i++) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(i * 0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [self configureWebViews];
+        });
+    }
 }
 
-static BOOL _configured = NO;
-
-+ (void)configureAllWebViews {
-    // Get all connected scenes
-    NSSet<UIScene *> *scenes = [[UIApplication sharedApplication] connectedScenes];
-    for (UIScene *scene in scenes) {
++ (void)configureWebViews {
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
         if ([scene isKindOfClass:[UIWindowScene class]]) {
             UIWindowScene *windowScene = (UIWindowScene *)scene;
             for (UIWindow *window in windowScene.windows) {
                 WKWebView *webView = [self findWebViewInView:window];
                 if (webView) {
-                    if (!_configured) {
-                        NSLog(@"[WebViewSetup] Found webview, configuring...");
-                    }
-                    [self configureWebView:webView];
-                    _configured = YES;
+                    [self configureWebView:webView inWindow:window];
                 }
             }
         }
@@ -67,76 +42,64 @@ static BOOL _configured = NO;
         return (WKWebView *)view;
     }
     for (UIView *subview in view.subviews) {
-        WKWebView *webView = [self findWebViewInView:subview];
-        if (webView) {
-            return webView;
-        }
+        WKWebView *found = [self findWebViewInView:subview];
+        if (found) return found;
     }
     return nil;
 }
 
-+ (void)configureWebView:(WKWebView *)webview {
-    // KEY FIX: Disable automatic content inset adjustment
-    webview.scrollView.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
++ (void)configureWebView:(WKWebView *)webView inWindow:(UIWindow *)window {
+    static BOOL viewConfigured = NO;
 
-    // Ensure scrollview content insets are zero
-    webview.scrollView.contentInset = UIEdgeInsetsZero;
-    webview.scrollView.scrollIndicatorInsets = UIEdgeInsetsZero;
+    // Get safe area BEFORE any modifications
+    UIEdgeInsets safeArea = window.safeAreaInsets;
 
-    // Disable vertical scroll indicator
-    webview.scrollView.showsVerticalScrollIndicator = NO;
-    webview.scrollView.showsHorizontalScrollIndicator = NO;
+    // Configure view hierarchy only once
+    if (!viewConfigured) {
+        viewConfigured = YES;
 
-    // Disable bouncing
-    webview.scrollView.bounces = NO;
+        CGRect screenBounds = window.screen.bounds;
 
-    // Set background to white to match app theme
-    webview.backgroundColor = [UIColor whiteColor];
-    webview.scrollView.backgroundColor = [UIColor whiteColor];
-    webview.opaque = NO;
-
-    // Configure the root view controller and force full screen
-    NSSet<UIScene *> *scenes = [[UIApplication sharedApplication] connectedScenes];
-    for (UIScene *scene in scenes) {
-        if ([scene isKindOfClass:[UIWindowScene class]]) {
-            UIWindowScene *windowScene = (UIWindowScene *)scene;
-            UIWindow *window = windowScene.windows.firstObject;
-            if (window) {
-                UIViewController *rootVC = window.rootViewController;
-                if (rootVC) {
-                    rootVC.edgesForExtendedLayout = UIRectEdgeAll;
-                    rootVC.extendedLayoutIncludesOpaqueBars = YES;
-
-                    // Force the webview to fill the entire view
-                    CGRect fullFrame = rootVC.view.bounds;
-                    NSLog(@"[WebViewSetup] Root view bounds: %@", NSStringFromCGRect(fullFrame));
-                    NSLog(@"[WebViewSetup] WebView frame before: %@", NSStringFromCGRect(webview.frame));
-
-                    // Set frame to fill the entire root view
-                    webview.frame = fullFrame;
-                    webview.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-
-                    // Also check if webview has a superview and set constraints
-                    if (webview.superview) {
-                        webview.translatesAutoresizingMaskIntoConstraints = NO;
-                        [NSLayoutConstraint activateConstraints:@[
-                            [webview.topAnchor constraintEqualToAnchor:webview.superview.topAnchor],
-                            [webview.bottomAnchor constraintEqualToAnchor:webview.superview.bottomAnchor],
-                            [webview.leadingAnchor constraintEqualToAnchor:webview.superview.leadingAnchor],
-                            [webview.trailingAnchor constraintEqualToAnchor:webview.superview.trailingAnchor]
-                        ]];
-                        [webview.superview layoutIfNeeded];
-                        NSLog(@"[WebViewSetup] Added constraints to fill superview");
-                    }
-
-                    NSLog(@"[WebViewSetup] WebView frame after: %@", NSStringFromCGRect(webview.frame));
+        // Make WebView fill entire screen
+        UIView *current = webView;
+        while (current && current != window) {
+            current.translatesAutoresizingMaskIntoConstraints = YES;
+            NSMutableArray *toRemove = [NSMutableArray array];
+            for (NSLayoutConstraint *c in current.superview.constraints) {
+                if (c.firstItem == current || c.secondItem == current) {
+                    [toRemove addObject:c];
                 }
-                window.backgroundColor = [UIColor whiteColor];
             }
+            [current.superview removeConstraints:toRemove];
+            current.frame = screenBounds;
+            current = current.superview;
         }
+
+        // Expand layout to edges
+        UIViewController *rootVC = window.rootViewController;
+        if (rootVC) {
+            rootVC.additionalSafeAreaInsets = UIEdgeInsetsMake(-safeArea.top, 0, -safeArea.bottom, 0);
+        }
+
+        webView.scrollView.bounces = NO;
+        webView.scrollView.showsVerticalScrollIndicator = NO;
+        webView.scrollView.showsHorizontalScrollIndicator = NO;
+
+        NSLog(@"[WebViewSetup] Configured WebView. Safe area: top=%f, bottom=%f", safeArea.top, safeArea.bottom);
     }
 
-    NSLog(@"[WebViewSetup] WebView configured - contentInsetAdjustmentBehavior set to Never");
+    // Inject safe area as CSS custom properties (do this repeatedly to ensure it sticks)
+    NSString *js = [NSString stringWithFormat:
+        @"(function(){"
+        @"var s=document.documentElement.style;"
+        @"s.setProperty('--safe-area-inset-top','%fpx');"
+        @"s.setProperty('--safe-area-inset-bottom','%fpx');"
+        @"s.setProperty('--safe-area-inset-left','%fpx');"
+        @"s.setProperty('--safe-area-inset-right','%fpx');"
+        @"})();",
+        safeArea.top, safeArea.bottom, safeArea.left, safeArea.right];
+
+    [webView evaluateJavaScript:js completionHandler:nil];
 }
 
 @end

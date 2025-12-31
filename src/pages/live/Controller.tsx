@@ -371,7 +371,8 @@ export function Controller() {
   }
 
   return (
-    <div className="container mx-auto p-4 space-y-4">
+    <div className="flex flex-col h-full overflow-hidden">
+    <div className="container mx-auto p-4 space-y-4 flex-1 overflow-auto">
       {/* Header */}
       <div className="flex items-center gap-3">
         {/* Back button */}
@@ -475,6 +476,7 @@ export function Controller() {
           </Card>
         </div>
       </div>
+    </div>
     </div>
   )
 }

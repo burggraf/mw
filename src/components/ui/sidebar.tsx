@@ -8,13 +8,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
+// Sheet imports removed - using custom mobile sidebar
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
@@ -145,7 +139,7 @@ const SidebarProvider = React.forwardRef<
               } as React.CSSProperties
             }
             className={cn(
-              "group/sidebar-wrapper flex flex-1 h-full w-full has-[[data-variant=inset]]:bg-sidebar",
+              "group/sidebar-wrapper flex min-h-svh w-full has-[[data-variant=inset]]:bg-sidebar",
               className
             )}
             ref={ref}
@@ -196,27 +190,36 @@ const Sidebar = React.forwardRef<
       )
     }
 
+
     if (isMobile) {
       return (
-        <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
-          <SheetContent
+        <>
+          {/* Overlay */}
+          {openMobile && (
+            <div
+              className="fixed inset-0 z-40 bg-black/80"
+              onClick={() => setOpenMobile(false)}
+            />
+          )}
+          {/* Sidebar */}
+          <div
             data-sidebar="sidebar"
             data-mobile="true"
-            className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden pt-[47px] pb-[34px]"
-            style={
-              {
-                "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
-              } as React.CSSProperties
-            }
-            side={side}
+            className={cn(
+              "fixed left-0 z-50 flex flex-col text-sidebar-foreground transition-transform duration-300",
+              openMobile ? "translate-x-0" : "-translate-x-full"
+            )}
+            style={{
+              width: SIDEBAR_WIDTH_MOBILE,
+              top: 0,
+              bottom: 0,
+            }}
           >
-            <SheetHeader className="sr-only">
-              <SheetTitle>Sidebar</SheetTitle>
-              <SheetDescription>Displays the mobile sidebar.</SheetDescription>
-            </SheetHeader>
-            <div className="flex h-full w-full flex-col">{children}</div>
-          </SheetContent>
-        </Sheet>
+            <div className="flex-1 flex flex-col bg-sidebar overflow-hidden safe-top safe-bottom">
+              {children}
+            </div>
+          </div>
+        </>
       )
     }
 
