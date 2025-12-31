@@ -17,6 +17,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
   SidebarSeparator,
+  useSidebar,
 } from '@/components/ui/sidebar'
 import {
   Select,
@@ -78,6 +79,12 @@ export function AppSidebar() {
   const { user, signOut } = useAuth()
   const { churches, currentChurch, setCurrentChurch } = useChurch()
   const { resolvedTheme, setTheme } = useTheme()
+  const { setOpenMobile } = useSidebar()
+
+  const handleNavigation = (href: string) => {
+    navigate(href)
+    setOpenMobile(false) // Close sidebar on mobile after navigation
+  }
 
   const handleSignOut = async () => {
     await signOut()
@@ -170,7 +177,7 @@ export function AppSidebar() {
                     isActive={location.pathname === item.href || location.pathname.startsWith(item.href + '/')}
                     disabled={item.disabled}
                     tooltip={t(`nav.${item.key}`, item.key.charAt(0).toUpperCase() + item.key.slice(1))}
-                    onClick={item.disabled ? undefined : () => navigate(item.href)}
+                    onClick={item.disabled ? undefined : () => handleNavigation(item.href)}
                     className={item.disabled ? 'opacity-50' : ''}
                   >
                     <item.icon className="size-4" />
@@ -192,7 +199,7 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     isActive={location.pathname === item.href || location.pathname.startsWith(item.href + '/')}
                     tooltip={t(`live.${item.key}.title`, item.key.charAt(0).toUpperCase() + item.key.slice(1))}
-                    onClick={() => navigate(item.href)}
+                    onClick={() => handleNavigation(item.href)}
                   >
                     <item.icon className="size-4" />
                     <span>{t(`live.${item.key}.title`, item.key.charAt(0).toUpperCase() + item.key.slice(1))}</span>
@@ -216,7 +223,7 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     isActive={location.pathname === item.href || location.pathname.startsWith(item.href + '/')}
                     tooltip={item.key.charAt(0).toUpperCase() + item.key.slice(1)}
-                    onClick={() => navigate(item.href)}
+                    onClick={() => handleNavigation(item.href)}
                   >
                     <item.icon className="size-4" />
                     <span>{item.key.charAt(0).toUpperCase() + item.key.slice(1)}</span>
