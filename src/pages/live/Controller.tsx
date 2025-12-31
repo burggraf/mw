@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useChurch } from '@/contexts/ChurchContext'
 import { useWebSocketConnections } from '@/contexts/WebSocketContext'
 import { getEventItems } from '@/services/events'
@@ -15,7 +15,8 @@ import { SlidePreview, SetlistPicker, SlideNavigator, ControlButtons } from '@/c
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Loader2, ArrowLeft } from 'lucide-react'
 
 // Cache for background data URLs to avoid re-fetching
 const backgroundDataUrlCache = new Map<string, string>()
@@ -33,6 +34,7 @@ interface ControllerState {
 export function Controller() {
   const { t } = useTranslation()
   const location = useLocation()
+  const navigate = useNavigate()
   const { currentChurch } = useChurch()
   const { connected, broadcastLyrics, broadcastSlide } = useWebSocketConnections()
 
@@ -371,7 +373,12 @@ export function Controller() {
   return (
     <div className="container mx-auto p-4 space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        {/* Back button */}
+        <Button variant="ghost" size="icon" onClick={() => navigate('/events')} className="shrink-0">
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+
         {/* Event selector */}
         <div className="flex-1 max-w-md">
           <Select
