@@ -34,5 +34,13 @@ e2e/screenshots/
 # Server secrets
 .env.server
 
+# Android signing
+src-tauri/gen/android/keystore.properties
+*.jks
+
 # Git worktrees
 .worktrees/
+
+# Android builds
+*.apk
+*.apk.idsig
