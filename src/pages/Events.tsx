@@ -51,11 +51,11 @@ export function EventsPage() {
   if (!currentChurch) return null
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold">{t('events.title')}</h1>
-        <Button asChild>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold">{t('events.title')}</h1>
+        <Button asChild className="w-full sm:w-auto">
           <Link to="/events/new">
             <Plus className="h-4 w-4 mr-2" />
             {t('events.newEvent')}
@@ -64,7 +64,7 @@ export function EventsPage() {
       </div>
 
       {/* Filter tabs */}
-      <Tabs value={filter} onValueChange={(v) => setFilter(v as EventFilter)} className="mb-6">
+      <Tabs value={filter} onValueChange={(v) => setFilter(v as EventFilter)} className="mb-4 md:mb-6">
         <TabsList>
           <TabsTrigger value="upcoming">{t('events.upcomingEvents')}</TabsTrigger>
           <TabsTrigger value="past">{t('events.pastEvents')}</TabsTrigger>

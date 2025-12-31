@@ -113,16 +113,16 @@ export function SongsPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold">{t('songs.title')}</h1>
-        <Button onClick={() => navigate('/songs/new')}>
+    <div className="p-4 md:p-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold">{t('songs.title')}</h1>
+        <Button onClick={() => navigate('/songs/new')} className="w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
           {t('songs.newSong')}
         </Button>
       </div>
 
-      <div className="relative mb-6">
+      <div className="relative mb-4 md:mb-6">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           placeholder={t('songs.searchPlaceholder')}
@@ -151,14 +151,14 @@ export function SongsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="rounded-md border">
+        <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[40%]">{t('songs.form.title')}</TableHead>
-                <TableHead className="w-[30%]">{t('songs.form.author')}</TableHead>
-                <TableHead className="w-[20%]">{t('songs.form.ccliNumber')}</TableHead>
-                <TableHead className="w-[10%]"></TableHead>
+                <TableHead className="min-w-[150px]">{t('songs.form.title')}</TableHead>
+                <TableHead className="min-w-[120px] hidden sm:table-cell">{t('songs.form.author')}</TableHead>
+                <TableHead className="min-w-[100px] hidden md:table-cell">{t('songs.form.ccliNumber')}</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -168,11 +168,16 @@ export function SongsPage() {
                   className="cursor-pointer"
                   onClick={() => navigate(`/songs/${song.id}`)}
                 >
-                  <TableCell className="font-medium">{song.title}</TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="font-medium">
+                    <div>{song.title}</div>
+                    <div className="text-sm text-muted-foreground sm:hidden">
+                      {song.author || '—'}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground hidden sm:table-cell">
                     {song.author || '—'}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="text-muted-foreground hidden md:table-cell">
                     {song.ccliNumber || '—'}
                   </TableCell>
                   <TableCell>

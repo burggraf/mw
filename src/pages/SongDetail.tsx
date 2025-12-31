@@ -142,7 +142,7 @@ export function SongDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <p className="text-muted-foreground">{t('common.loading')}</p>
       </div>
     )
@@ -157,16 +157,16 @@ export function SongDetailPage() {
   const currentStyle = currentBackground?.style
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/songs')}>
+    <div className="p-4 md:p-8">
+      <div className="flex items-center justify-between gap-4 mb-6 md:mb-8">
+        <div className="flex items-center gap-3 md:gap-4 min-w-0">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/songs')} className="shrink-0">
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold">{song.title}</h1>
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold truncate">{song.title}</h1>
             {song.author && (
-              <p className="text-muted-foreground">{song.author}</p>
+              <p className="text-muted-foreground text-sm truncate">{song.author}</p>
             )}
           </div>
         </div>
@@ -200,15 +200,15 @@ export function SongDetailPage() {
 
       {/* Song metadata */}
       {(song.copyrightInfo || song.ccliNumber) && (
-        <div className="flex gap-6 text-sm text-muted-foreground mb-8">
+        <div className="flex flex-wrap gap-4 md:gap-6 text-sm text-muted-foreground mb-6 md:mb-8">
           {song.copyrightInfo && <span>{song.copyrightInfo}</span>}
           {song.ccliNumber && <span>CCLI: {song.ccliNumber}</span>}
         </div>
       )}
 
       {/* Display class toggle */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 md:mb-6">
+        <div className="flex flex-wrap gap-1 sm:gap-2 overflow-x-auto pb-2 sm:pb-0">
           {slides.map((slide, index) => (
             <Button
               key={`${slide.sectionId}-${slide.subIndex}`}

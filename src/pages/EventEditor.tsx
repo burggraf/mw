@@ -96,8 +96,8 @@ export function EventEditorPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="h-8 w-48 bg-muted animate-pulse rounded mb-8" />
+      <div className="p-4 md:p-8">
+        <div className="h-8 w-48 bg-muted animate-pulse rounded mb-6 md:mb-8" />
         <div className="max-w-2xl space-y-4">
           <div className="h-10 bg-muted animate-pulse rounded" />
           <div className="h-24 bg-muted animate-pulse rounded" />
@@ -108,13 +108,13 @@ export function EventEditorPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
+      <div className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h1 className="text-3xl font-bold">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
           {isEditing ? t('events.editEvent') : t('events.newEvent')}
         </h1>
       </div>

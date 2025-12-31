@@ -40,7 +40,7 @@ export function MediaSidebar({
   const { t } = useTranslation()
 
   return (
-    <aside className="w-56 shrink-0 border-r bg-background">
+    <aside className="w-56 shrink-0 md:border-r bg-background">
       <div className="flex flex-col gap-4 p-4">
         {/* Smart Collections */}
         <div className="flex flex-col gap-1">

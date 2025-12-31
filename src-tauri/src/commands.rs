@@ -417,7 +417,7 @@ pub struct MonitorInfo {
 }
 
 /// Get all available displays/monitors on the system (desktop only)
-#[cfg(not(target_os = "android"))]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 pub async fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<MonitorInfo>, String> {
     let window = app_handle.get_webview_window("main")
@@ -460,7 +460,7 @@ pub async fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<Monitor
 }
 
 /// Open a display window on a specific monitor (desktop only)
-#[cfg(not(target_os = "android"))]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 pub async fn open_display_window(
     app_handle: AppHandle,
@@ -526,7 +526,7 @@ pub async fn open_display_window(
 }
 
 /// Auto-start display windows for all available monitors (except primary) (desktop only)
-#[cfg(not(target_os = "android"))]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 pub async fn auto_start_display_windows(app_handle: AppHandle) -> Result<Vec<MonitorInfo>, String> {
     use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
@@ -635,7 +635,7 @@ pub async fn auto_start_display_windows(app_handle: AppHandle) -> Result<Vec<Mon
 }
 
 /// Close a display window (desktop only)
-#[cfg(not(target_os = "android"))]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 pub async fn close_display_window(
     app_handle: AppHandle,
@@ -654,13 +654,16 @@ pub async fn close_display_window(
     Ok(())
 }
 
-/// Get the current platform (desktop or android)
+/// Get the current platform (desktop, android, or ios)
 #[tauri::command]
 pub async fn get_platform() -> String {
     #[cfg(target_os = "android")]
     return "android".to_string();
 
-    #[cfg(not(target_os = "android"))]
+    #[cfg(target_os = "ios")]
+    return "ios".to_string();
+
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
     return "desktop".to_string();
 }
 

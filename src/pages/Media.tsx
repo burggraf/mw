@@ -22,7 +22,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Upload, Search, Sparkles, Palette } from 'lucide-react'
+import { Upload, Search, Sparkles, Palette, Filter } from 'lucide-react'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { toast } from 'sonner'
 
 type SmartCollection = 'all' | 'recent' | 'images' | 'videos' | 'pexels' | 'unsplash'
@@ -137,46 +138,73 @@ export function MediaPage() {
   if (!currentChurch) return null
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold">{t('media.title')}</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setColorOpen(true)}>
-            <Palette className="h-4 w-4 mr-2" />
-            Add Color
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold">{t('media.title')}</h1>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => setColorOpen(true)} className="flex-1 sm:flex-none">
+            <Palette className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Add Color</span>
           </Button>
-          <Button variant="outline" onClick={() => setStockOpen(true)}>
-            <Sparkles className="h-4 w-4 mr-2" />
-            {t('media.stockMedia')}
+          <Button variant="outline" size="sm" onClick={() => setStockOpen(true)} className="flex-1 sm:flex-none">
+            <Sparkles className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">{t('media.stockMedia')}</span>
           </Button>
-          <Button onClick={() => setUploadOpen(true)}>
-            <Upload className="h-4 w-4 mr-2" />
-            {t('media.upload')}
+          <Button size="sm" onClick={() => setUploadOpen(true)} className="flex-1 sm:flex-none">
+            <Upload className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">{t('media.upload')}</span>
           </Button>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder={t('media.searchPlaceholder')}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
+      {/* Search and Mobile Filter */}
+      <div className="flex gap-2 mb-4 md:mb-6">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={t('media.searchPlaceholder')}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        {/* Mobile filter button */}
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="icon" className="md:hidden shrink-0">
+              <Filter className="h-4 w-4" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-[280px]">
+            <SheetHeader>
+              <SheetTitle>{t('media.filters')}</SheetTitle>
+            </SheetHeader>
+            <div className="mt-4">
+              <MediaSidebar
+                activeCollection={activeCollection}
+                onCollectionChange={setActiveCollection}
+                tags={allTags}
+                selectedTags={selectedTags}
+                onTagToggle={handleTagToggle}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
 
       {/* Main content */}
       <div className="flex gap-6">
-        <MediaSidebar
-          activeCollection={activeCollection}
-          onCollectionChange={setActiveCollection}
-          tags={allTags}
-          selectedTags={selectedTags}
-          onTagToggle={handleTagToggle}
-        />
+        {/* Desktop sidebar */}
+        <div className="hidden md:block">
+          <MediaSidebar
+            activeCollection={activeCollection}
+            onCollectionChange={setActiveCollection}
+            tags={allTags}
+            selectedTags={selectedTags}
+            onTagToggle={handleTagToggle}
+          />
+        </div>
 
         <div className="flex-1">
           <MediaGrid

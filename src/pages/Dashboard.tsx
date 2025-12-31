@@ -41,9 +41,9 @@ export function DashboardPage() {
   ]
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">{t('dashboard.title')}</h1>
+    <div className="p-4 md:p-8">
+      <div className="mb-6 md:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold">{t('dashboard.title')}</h1>
         {currentChurch && (
           <p className="text-muted-foreground mt-1">
             {t('dashboard.welcome', { churchName: currentChurch.name })}
@@ -51,8 +51,8 @@ export function DashboardPage() {
         )}
       </div>
 
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold mb-4">{t('dashboard.quickActions')}</h2>
+      <div className="mb-6 md:mb-8">
+        <h2 className="text-lg font-semibold mb-3 md:mb-4">{t('dashboard.quickActions')}</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {quickActions.map((action) => (
             <Card

@@ -196,19 +196,19 @@ export function SongEditorPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <p className="text-muted-foreground">{t('common.loading')}</p>
       </div>
     )
   }
 
   return (
-    <div className="p-8">
-      <div className="flex items-center gap-4 mb-8">
+    <div className="p-4 md:p-8">
+      <div className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8">
         <Button variant="ghost" size="icon" onClick={() => navigate('/songs')}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-3xl font-bold">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
           {isNew ? t('songs.newSong') : t('songs.editSong')}
         </h1>
       </div>

@@ -134,8 +134,8 @@ export function EventDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="h-8 w-48 bg-muted animate-pulse rounded mb-8" />
+      <div className="p-4 md:p-8">
+        <div className="h-8 w-48 bg-muted animate-pulse rounded mb-6 md:mb-8" />
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="h-16 bg-muted animate-pulse rounded" />
@@ -147,7 +147,7 @@ export function EventDetailPage() {
 
   if (!event) {
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <p className="text-muted-foreground">{t('common.notFound')}</p>
       </div>
     )
@@ -156,40 +156,40 @@ export function EventDetailPage() {
   const scheduledDate = new Date(event.scheduledAt)
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
+    <div className="flex flex-col lg:flex-row min-h-[calc(100vh-4rem)]">
       {/* Main content */}
-      <div className="flex-1 p-8 overflow-y-auto">
+      <div className="flex-1 p-4 md:p-8 overflow-y-auto">
         {/* Header */}
-        <div className="flex items-start justify-between mb-8">
-          <div className="flex items-start gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/events')}>
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6 md:mb-8">
+          <div className="flex items-start gap-3 md:gap-4 min-w-0">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/events')} className="shrink-0 mt-1">
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div>
-              <h1 className="text-3xl font-bold">{event.name}</h1>
-              <div className="flex items-center gap-2 mt-1 text-muted-foreground">
-                <Calendar className="h-4 w-4" />
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">{event.name}</h1>
+              <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-muted-foreground">
+                <Calendar className="h-4 w-4 shrink-0" />
                 <span>
-                  {format(scheduledDate, 'EEEE, MMMM d, yyyy')} at {format(scheduledDate, 'h:mm a')}
+                  {format(scheduledDate, 'MMM d, yyyy')} at {format(scheduledDate, 'h:mm a')}
                 </span>
               </div>
               {event.description && (
-                <p className="text-muted-foreground mt-2">{event.description}</p>
+                <p className="text-muted-foreground mt-2 text-sm">{event.description}</p>
               )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button asChild variant="outline">
+          <div className="flex items-center gap-2 shrink-0 ml-auto sm:ml-0">
+            <Button asChild variant="outline" size="sm">
               <Link to={`/events/${event.id}/edit`}>
-                <Pencil className="h-4 w-4 mr-2" />
-                {t('common.edit')}
+                <Pencil className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">{t('common.edit')}</span>
               </Link>
             </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
+                <Button variant="outline" size="icon" className="h-9 w-9">
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -212,13 +212,13 @@ export function EventDetailPage() {
         </div>
 
         {/* Items section */}
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <ListMusic className="h-5 w-5" />
             {t('events.items')}
             <span className="text-muted-foreground font-normal">({items.length})</span>
           </h2>
-          <Button onClick={() => setAddDialogOpen(true)}>
+          <Button onClick={() => setAddDialogOpen(true)} size="sm" className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
             {t('events.addItem')}
           </Button>

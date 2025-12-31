@@ -67,7 +67,8 @@ pub fn run() {
         .manage(Arc::new(Mutex::new(websocket::WebSocketServer::new())))
         .manage(Arc::new(mdns::AdvertiserState::new()))
         .invoke_handler({
-            #[cfg(not(target_os = "android"))]
+            // Desktop: includes all commands including multi-monitor display management
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
             {
                 tauri::generate_handler![
                     commands::get_auto_start_mode,
@@ -93,7 +94,8 @@ pub fn run() {
                     commands::get_local_ip_addresses,
                 ]
             }
-            #[cfg(target_os = "android")]
+            // Mobile (Android/iOS): excludes desktop-only multi-monitor commands
+            #[cfg(any(target_os = "android", target_os = "ios"))]
             {
                 tauri::generate_handler![
                     commands::get_auto_start_mode,
