@@ -11,15 +11,13 @@ export function AppLayout({ children }: AppLayoutProps) {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset className="flex flex-col h-[100dvh] overflow-hidden">
+      <SidebarInset className="flex flex-col h-[100dvh] overflow-hidden safe-bottom">
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 bg-background safe-top">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
         </header>
         <div className="flex-1 overflow-auto min-h-0">
-          <div className="safe-bottom">
-            {children || <Outlet />}
-          </div>
+          {children || <Outlet />}
         </div>
       </SidebarInset>
     </SidebarProvider>

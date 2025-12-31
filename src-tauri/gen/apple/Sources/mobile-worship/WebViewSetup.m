@@ -50,9 +50,13 @@
 
 + (void)configureWebView:(WKWebView *)webView inWindow:(UIWindow *)window {
     static BOOL viewConfigured = NO;
+    static UIEdgeInsets originalSafeArea = {0, 0, 0, 0};
 
-    // Get safe area BEFORE any modifications
-    UIEdgeInsets safeArea = window.safeAreaInsets;
+    // Get safe area BEFORE any modifications (only on first call)
+    if (!viewConfigured) {
+        originalSafeArea = window.safeAreaInsets;
+    }
+    UIEdgeInsets safeArea = originalSafeArea;
 
     // Configure view hierarchy only once
     if (!viewConfigured) {
