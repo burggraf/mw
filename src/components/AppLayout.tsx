@@ -11,8 +11,8 @@ export function AppLayout({ children }: AppLayoutProps) {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset className="flex flex-col h-screen overflow-hidden">
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 bg-background">
+      <SidebarInset className="flex flex-col h-[100dvh] overflow-hidden">
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 bg-background pt-[env(safe-area-inset-top)]">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
         </header>
