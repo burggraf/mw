@@ -12,7 +12,7 @@ import {
   getCachedMediaUrl,
   getAllStatuses,
 } from '@/services/media-cache'
-import { updateDisplayConnection } from '@/services/displays'
+import { updateDisplayConnection, updateDisplayHeartbeat } from '@/services/displays'
 import { exit } from '@tauri-apps/plugin-process'
 
 type WsMessage =
@@ -95,6 +95,7 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
   const [showAbout, setShowAbout] = useState(false)
   const [menuIndex, setMenuIndex] = useState(0)
   const [isAndroid, setIsAndroid] = useState(false)
+  const [activeDisplayId, setActiveDisplayId] = useState<string | null>(null)
 
   // Refs to track current song/slide for refresh when media arrives
   const currentSongIdRef = useRef<string | null>(null)
@@ -108,6 +109,7 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
   const showMenuRef = useRef(false)
   const showAboutRef = useRef(false)
   const menuIndexRef = useRef(0)
+  const heartbeatIntervalRef = useRef<number | null>(null)
 
   // Keep the refs in sync with state
   useEffect(() => {
@@ -255,6 +257,37 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true })
   }, []) // Run once on mount - uses refs for current state values
 
+  // Send periodic heartbeats to keep display marked as online
+  useEffect(() => {
+    // Only send heartbeats in remote mode (not local display windows)
+    if (localMode) return
+
+    // Wait until displayId is available
+    if (!activeDisplayId) return
+
+    const sendHeartbeat = async () => {
+      try {
+        await updateDisplayHeartbeat(activeDisplayId)
+        console.log('[Display] Heartbeat sent for display:', activeDisplayId)
+      } catch (error) {
+        console.error('[Display] Heartbeat failed:', error)
+      }
+    }
+
+    // Send initial heartbeat
+    sendHeartbeat()
+
+    // Send heartbeat every 10 seconds
+    heartbeatIntervalRef.current = window.setInterval(sendHeartbeat, 10000)
+
+    return () => {
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current)
+        heartbeatIntervalRef.current = null
+      }
+    }
+  }, [localMode, activeDisplayId])
+
   // Handle precache message from controller
   const handlePrecache = useCallback(async (data: PrecacheMessage, ws?: WebSocket) => {
     console.log('[Display] Received precache message:', {
@@ -376,6 +409,9 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
         // Falls back to device ID for backward compatibility with single-display devices
         const displayId = displayIdRef.current || deviceId
         console.log('[Display] Using display ID:', displayId)
+
+        // Set active display ID to trigger heartbeat
+        setActiveDisplayId(displayId)
 
         // Start the WebSocket server
         const port = await invoke<number>('start_websocket_server')

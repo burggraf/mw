@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { invoke } from '@tauri-apps/api/core'
 import { useChurch } from '@/contexts/ChurchContext'
@@ -7,6 +7,7 @@ import {
   addDiscoveredDisplay,
   updateDisplay,
   deleteDisplay,
+  markStaleDisplaysOffline,
 } from '@/services/displays'
 import type { Display, DisplayClass, DiscoveredDisplay } from '@/types/display'
 import { Button } from '@/components/ui/button'
@@ -88,10 +89,46 @@ export function DisplaysPage() {
   const [formLocation, setFormLocation] = useState('')
   const [formDisplayClass, setFormDisplayClass] = useState<DisplayClass>('audience')
 
+  // Ref to track polling interval
+  const pollingIntervalRef = useRef<number | null>(null)
+
   // Load displays from database
   useEffect(() => {
     if (currentChurch) {
       loadDisplays()
+    }
+  }, [currentChurch])
+
+  // Poll for offline status and refresh displays list periodically
+  useEffect(() => {
+    if (!currentChurch) {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
+      }
+      return
+    }
+
+    const pollStatus = async () => {
+      try {
+        // Mark stale displays as offline (haven't been seen in 30 seconds)
+        await markStaleDisplaysOffline(currentChurch.id)
+        // Refresh the displays list to show updated status
+        const data = await getDisplaysForChurch(currentChurch.id)
+        setDisplays(data)
+      } catch (error) {
+        console.error('Failed to poll display status:', error)
+      }
+    }
+
+    // Poll every 10 seconds
+    pollingIntervalRef.current = window.setInterval(pollStatus, 10000)
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
+      }
     }
   }, [currentChurch])
 
