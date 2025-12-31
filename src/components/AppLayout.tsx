@@ -17,7 +17,9 @@ export function AppLayout({ children }: AppLayoutProps) {
           <Separator orientation="vertical" className="mr-2 h-4" />
         </header>
         <div className="flex-1 overflow-auto min-h-0">
-          {children || <Outlet />}
+          <div className="safe-bottom">
+            {children || <Outlet />}
+          </div>
         </div>
       </SidebarInset>
     </SidebarProvider>
