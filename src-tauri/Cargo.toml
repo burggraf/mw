@@ -36,5 +36,5 @@ mdns-sd = "0.12"
 if-addrs = "0.13"
 
 # UUID generation
-uuid = { version = "1", features = ["v4"] }
+uuid = { version = "1", features = ["v4", "v5"] }
 tauri-plugin-process = "2.3.1"

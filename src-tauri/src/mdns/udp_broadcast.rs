@@ -53,12 +53,19 @@ pub async fn udp_broadcast_discover(timeout_secs: u64) -> Vec<DiscoveredDevice> 
 
                     info!("UDP broadcast response from {}: port {}", addr.ip(), port);
 
+                    // UDP broadcast doesn't include display_id, generate a fallback from IP
+                    let fallback_display_id = format!("udp-fallback-{}", addr.ip().to_string().replace('.', "-"));
                     devices.push(DiscoveredDevice {
                         name: format!("Display@{}", addr.ip()),
                         host: addr.ip().to_string(),
                         port,
                         service_type: "udp-broadcast".to_string(),
+                        display_id: fallback_display_id,
                         device_id: None, // UDP broadcast doesn't include device ID
+                        display_name: None,
+                        width: None,
+                        height: None,
+                        platform: None, // UDP broadcast doesn't include platform info
                     });
                 }
             }

@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChurch } from '@/contexts/ChurchContext'
 import { useTheme } from '@/contexts/ThemeContext'
-import { DisplaysAccordion } from '@/components/displays/DisplaysAccordion'
 import {
   Sidebar,
   SidebarContent,
@@ -59,6 +58,7 @@ const navItems = [
   { key: 'songs', icon: Music, href: '/songs' },
   { key: 'media', icon: ImageIcon, href: '/media' },
   { key: 'events', icon: Calendar, href: '/events' },
+  { key: 'displays', icon: Monitor, href: '/displays' },
   { key: 'team', icon: Users, href: '/team', disabled: true },
   { key: 'settings', icon: Settings, href: '/settings', disabled: true },
 ]
@@ -209,9 +209,6 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {/* Displays Section */}
-        <DisplaysAccordion />
 
         {/* Dev/Debug Section */}
         <SidebarGroup>

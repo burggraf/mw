@@ -12,6 +12,7 @@ import { MediaPage } from '@/pages/Media'
 import { EventsPage } from '@/pages/Events'
 import { EventEditorPage } from '@/pages/EventEditor'
 import { EventDetailPage } from '@/pages/EventDetail'
+import { DisplaysPage } from '@/pages/Displays'
 import { Controller } from '@/pages/live/Controller'
 import { DisplayPage } from '@/pages/live/Display'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
@@ -107,7 +108,7 @@ const router = createBrowserRouter([
           },
           {
             path: '/displays',
-            element: <div className="p-8"><h1 className="text-2xl font-bold">Displays</h1><p className="text-muted-foreground mt-2">Coming soon</p></div>,
+            element: <DisplaysPage />,
           },
           {
             path: '/team',

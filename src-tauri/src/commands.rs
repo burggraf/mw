@@ -403,23 +403,47 @@ pub async fn test_emit_event(app_handle: AppHandle, message: String) -> Result<(
     Ok(())
 }
 
-/// Information about a display/monitor
+/// Information about a display/monitor with EDID fingerprint data
 #[derive(serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct MonitorInfo {
+    /// Persistent UUID based on EDID fingerprint (or fallback)
+    pub display_id: String,
+    /// OS-assigned index (volatile, may change between sessions)
     pub id: i32,
+    /// OS-provided name
     pub name: String,
+    /// Manufacturer ID from EDID (e.g., "DEL" for Dell)
+    pub manufacturer: String,
+    /// Model name from EDID (e.g., "DELL U2723QE")
+    pub model: String,
+    /// Serial number from EDID (may be "0" if not set)
+    pub serial_number: String,
+    /// Screen position X
     pub position_x: i32,
+    /// Screen position Y
     pub position_y: i32,
+    /// Pixel width
     pub size_x: u32,
+    /// Pixel height
     pub size_y: u32,
+    /// Physical width in centimeters from EDID
+    pub physical_width_cm: u32,
+    /// Physical height in centimeters from EDID
+    pub physical_height_cm: u32,
+    /// Scale factor
     pub scale_factor: f64,
+    /// Is primary display
     pub is_primary: bool,
 }
 
 /// Get all available displays/monitors on the system (desktop only)
+/// Now includes EDID fingerprint data for persistent display identification
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 pub async fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<MonitorInfo>, String> {
+    use crate::edid::{get_display_fingerprints, DisplayInfo};
+
     let window = app_handle.get_webview_window("main")
         .ok_or("No main window found")?;
 
@@ -430,6 +454,10 @@ pub async fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<Monitor
     let primary_monitor = window.primary_monitor()
         .ok()
         .flatten();
+
+    // Get EDID fingerprints for all displays
+    let fingerprints = get_display_fingerprints();
+    tracing::info!("Got {} EDID fingerprints for {} monitors", fingerprints.len(), monitors.len());
 
     let mut result = Vec::new();
     for (idx, monitor) in monitors.iter().enumerate() {
@@ -442,15 +470,58 @@ pub async fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<Monitor
             })
             .unwrap_or(false);
 
+        let os_name = monitor.name()
+            .map(|n| n.to_string())
+            .unwrap_or_else(|| format!("Display {}", idx + 1));
+
+        // Try to find matching EDID fingerprint by index
+        // Note: This assumes the EDID order matches the Tauri monitor order
+        // which may not always be true - ideally we'd match by some other criteria
+        let fingerprint = fingerprints.iter()
+            .find(|(fp_idx, _)| *fp_idx == idx as i32)
+            .map(|(_, fp)| fp);
+
+        let (display_id, manufacturer, model, serial_number, physical_width_cm, physical_height_cm) =
+            if let Some(fp) = fingerprint {
+                (
+                    fp.to_uuid().to_string(),
+                    fp.manufacturer_id.clone(),
+                    fp.model_name.clone(),
+                    fp.serial_number.to_string(),
+                    fp.width_cm,
+                    fp.height_cm,
+                )
+            } else {
+                // Fallback when EDID is not available
+                let fallback_id = DisplayInfo::create_fallback_id(
+                    idx as i32,
+                    &os_name,
+                    monitor.size().width,
+                    monitor.size().height,
+                );
+                (
+                    fallback_id,
+                    String::new(),
+                    String::new(),
+                    String::from("0"),
+                    0,
+                    0,
+                )
+            };
+
         result.push(MonitorInfo {
+            display_id,
             id: idx as i32,
-            name: monitor.name()
-                .map(|n| n.to_string())
-                .unwrap_or_else(|| format!("Display {}", idx + 1)),
+            name: os_name,
+            manufacturer,
+            model,
+            serial_number,
             position_x: monitor.position().x,
             position_y: monitor.position().y,
             size_x: monitor.size().width,
             size_y: monitor.size().height,
+            physical_width_cm,
+            physical_height_cm,
             scale_factor: monitor.scale_factor(),
             is_primary,
         });
@@ -460,11 +531,13 @@ pub async fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<Monitor
 }
 
 /// Open a display window on a specific monitor (desktop only)
+/// Now accepts display_id for per-display addressing
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 pub async fn open_display_window(
     app_handle: AppHandle,
     display_name: String,
+    display_id: String,
     monitor_id: i32,
 ) -> Result<String, String> {
     use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
@@ -479,7 +552,7 @@ pub async fn open_display_window(
     let target_monitor = monitors.get(monitor_id as usize)
         .ok_or(format!("Monitor {} not found", monitor_id))?;
 
-    // Generate a unique label for the display window
+    // Generate a unique label for the display window using display_id
     let window_label = format!("display-{}", monitor_id);
 
     // Check if window already exists
@@ -491,8 +564,9 @@ pub async fn open_display_window(
     let monitor_pos = target_monitor.position();
 
     tracing::info!(
-        "Opening display window '{}' on monitor {} ({}x{} at {},{})",
+        "Opening display window '{}' (display_id: {}) on monitor {} ({}x{} at {},{})",
         display_name,
+        display_id,
         monitor_id,
         monitor_size.width,
         monitor_size.height,
@@ -503,12 +577,16 @@ pub async fn open_display_window(
     // Create the display window as a borderless window sized to match the target monitor
     // This creates a "presentation mode" style window (like PowerPoint/Keynote)
     // rather than using macOS's native fullscreen which has limitations
-    // URL encode the display name to handle special characters
+    // URL encode the display name and display_id to handle special characters
     let encoded_name = urlencoding::encode(&display_name);
+    let encoded_display_id = urlencoding::encode(&display_id);
     let _display_window = WebviewWindowBuilder::new(
         &app_handle,
         &window_label,
-        WebviewUrl::App(format!("/live/display?eventId=default&displayName={}&localMode=true", encoded_name).into())
+        WebviewUrl::App(format!(
+            "/live/display?eventId=default&displayName={}&displayId={}&localMode=true",
+            encoded_name, encoded_display_id
+        ).into())
     )
     .position(monitor_pos.x as f64, monitor_pos.y as f64)
     .inner_size(monitor_size.width as f64, monitor_size.height as f64)
@@ -526,9 +604,11 @@ pub async fn open_display_window(
 }
 
 /// Auto-start display windows for all available monitors (except primary) (desktop only)
+/// Now includes EDID fingerprint data for persistent display identification
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 pub async fn auto_start_display_windows(app_handle: AppHandle) -> Result<Vec<MonitorInfo>, String> {
+    use crate::edid::{get_display_fingerprints, DisplayInfo};
     use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
     let window = app_handle.get_webview_window("main")
@@ -541,6 +621,9 @@ pub async fn auto_start_display_windows(app_handle: AppHandle) -> Result<Vec<Mon
     let primary_monitor = window.primary_monitor()
         .ok()
         .flatten();
+
+    // Get EDID fingerprints for all displays
+    let fingerprints = get_display_fingerprints();
 
     let mut opened_displays = Vec::new();
 
@@ -567,17 +650,47 @@ pub async fn auto_start_display_windows(app_handle: AppHandle) -> Result<Vec<Mon
             .unwrap_or_else(|| format!("Display {}", idx + 1));
         let window_label = format!("display-{}", idx);
 
+        // Get EDID fingerprint for this display
+        let fingerprint = fingerprints.iter()
+            .find(|(fp_idx, _)| *fp_idx == idx as i32)
+            .map(|(_, fp)| fp);
+
+        let (display_id, manufacturer, model, serial_number, physical_width_cm, physical_height_cm) =
+            if let Some(fp) = fingerprint {
+                (
+                    fp.to_uuid().to_string(),
+                    fp.manufacturer_id.clone(),
+                    fp.model_name.clone(),
+                    fp.serial_number.to_string(),
+                    fp.width_cm,
+                    fp.height_cm,
+                )
+            } else {
+                let fallback_id = DisplayInfo::create_fallback_id(
+                    idx as i32,
+                    &display_name,
+                    monitor_size.width,
+                    monitor_size.height,
+                );
+                (fallback_id, String::new(), String::new(), String::from("0"), 0, 0)
+            };
+
         // Check if window already exists
         if app_handle.get_webview_window(&window_label).is_some() {
             tracing::info!("Display window {} already exists", idx);
-            // Add to opened_displays anyway
             opened_displays.push(MonitorInfo {
+                display_id: display_id.clone(),
                 id: idx as i32,
                 name: display_name.clone(),
+                manufacturer: manufacturer.clone(),
+                model: model.clone(),
+                serial_number: serial_number.clone(),
                 position_x: monitor_pos.x,
                 position_y: monitor_pos.y,
                 size_x: monitor_size.width,
                 size_y: monitor_size.height,
+                physical_width_cm,
+                physical_height_cm,
                 scale_factor: monitor.scale_factor(),
                 is_primary: false,
             });
@@ -585,8 +698,9 @@ pub async fn auto_start_display_windows(app_handle: AppHandle) -> Result<Vec<Mon
         }
 
         tracing::info!(
-            "Auto-opening display window '{}' on monitor {} ({}x{} at {},{})",
+            "Auto-opening display window '{}' (display_id: {}) on monitor {} ({}x{} at {},{})",
             display_name,
+            display_id,
             idx,
             monitor_size.width,
             monitor_size.height,
@@ -594,13 +708,16 @@ pub async fn auto_start_display_windows(app_handle: AppHandle) -> Result<Vec<Mon
             monitor_pos.y
         );
 
-        // Create the display window
-        // URL encode the display name to handle special characters (spaces, etc.)
+        // Create the display window with display_id in URL
         let encoded_name = urlencoding::encode(&display_name);
+        let encoded_display_id = urlencoding::encode(&display_id);
         let display_window = WebviewWindowBuilder::new(
             &app_handle,
             &window_label,
-            WebviewUrl::App(format!("/live/display?eventId=default&displayName={}&localMode=true", encoded_name).into())
+            WebviewUrl::App(format!(
+                "/live/display?eventId=default&displayName={}&displayId={}&localMode=true",
+                encoded_name, encoded_display_id
+            ).into())
         )
         .position(monitor_pos.x as f64, monitor_pos.y as f64)
         .inner_size(monitor_size.width as f64, monitor_size.height as f64)
@@ -614,12 +731,18 @@ pub async fn auto_start_display_windows(app_handle: AppHandle) -> Result<Vec<Mon
             Ok(_) => {
                 tracing::info!("Display window '{}' opened successfully", display_name);
                 opened_displays.push(MonitorInfo {
+                    display_id,
                     id: idx as i32,
                     name: display_name.clone(),
+                    manufacturer,
+                    model,
+                    serial_number,
                     position_x: monitor_pos.x,
                     position_y: monitor_pos.y,
                     size_x: monitor_size.width,
                     size_y: monitor_size.height,
+                    physical_width_cm,
+                    physical_height_cm,
                     scale_factor: monitor.scale_factor(),
                     is_primary: false,
                 });
@@ -706,6 +829,8 @@ pub async fn start_websocket_server(app: tauri::AppHandle) -> Result<u16, String
 }
 
 /// Publish lyrics to connected displays
+/// If target_display_id is Some, only that display will process the message
+/// If target_display_id is None, all displays will process the message (broadcast)
 #[tauri::command]
 pub async fn publish_lyrics(
     app: tauri::AppHandle,
@@ -715,11 +840,13 @@ pub async fn publish_lyrics(
     title: String,
     lyrics: String,
     background_url: Option<String>,
+    target_display_id: Option<String>,
 ) -> Result<(), String> {
     let ws_state = app.state::<Arc<tokio::sync::Mutex<WebSocketServer>>>();
     let server = ws_state.lock().await;
 
     let message = WsMessage::Lyrics(LyricsData {
+        target_display_id,
         church_id,
         event_id,
         song_id,
@@ -736,6 +863,8 @@ pub async fn publish_lyrics(
 }
 
 /// Publish slide change to connected displays
+/// If target_display_id is Some, only that display will process the message
+/// If target_display_id is None, all displays will process the message (broadcast)
 #[tauri::command]
 pub async fn publish_slide(
     app: tauri::AppHandle,
@@ -743,11 +872,13 @@ pub async fn publish_slide(
     event_id: String,
     song_id: String,
     slide_index: usize,
+    target_display_id: Option<String>,
 ) -> Result<(), String> {
     let ws_state = app.state::<Arc<tokio::sync::Mutex<WebSocketServer>>>();
     let server = ws_state.lock().await;
 
     let message = WsMessage::Slide(SlideData {
+        target_display_id,
         church_id,
         event_id,
         song_id,
@@ -826,10 +957,24 @@ pub async fn start_advertising(
     app: tauri::AppHandle,
     name: String,
     port: u16,
+    display_id: String,
     device_id: String,
+    display_name: Option<String>,
+    width: Option<u32>,
+    height: Option<u32>,
+    platform: Option<String>,
 ) -> Result<(), String> {
     let advertiser = app.state::<Arc<crate::mdns::AdvertiserState>>();
-    advertiser.advertise(&name, port, &device_id).await
+    advertiser.advertise(
+        &name,
+        port,
+        &display_id,
+        &device_id,
+        display_name.as_deref(),
+        width,
+        height,
+        platform.as_deref(),
+    ).await
 }
 
 /// Get or generate a persistent device ID for this display instance

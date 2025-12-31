@@ -50,7 +50,7 @@ export function DisplaysAccordion() {
   const [isAdding, setIsAdding] = useState(false);
 
   // Combine discovered and connected displays
-  const allDisplays: Array<{ key: string; name: string; isConnected: boolean; host: string; port: number; deviceId?: string }> = [];
+  const allDisplays: Array<{ key: string; name: string; isConnected: boolean; host: string; port: number; displayId?: string; deviceId?: string }> = [];
 
   connected.forEach((disp) => {
     allDisplays.push({ key: disp.key, name: disp.name, isConnected: true, host: disp.host, port: disp.port });
@@ -65,6 +65,7 @@ export function DisplaysAccordion() {
         isConnected: false,
         host: disp.host,
         port: disp.port,
+        displayId: disp.displayId,
         deviceId: disp.deviceId,
       });
     }
@@ -87,10 +88,12 @@ export function DisplaysAccordion() {
 
   // Open add display dialog for discovered display
   const openAddDisplayDialog = (display: typeof allDisplays[number]) => {
-    if (!display.deviceId) {
+    // displayId is required for per-display tracking; fall back to deviceId for backward compat
+    const displayId = display.displayId || display.deviceId;
+    if (!displayId) {
       toast({
         title: 'Cannot Add Display',
-        description: 'This display does not have a device ID. Please connect to it directly.',
+        description: 'This display does not have an ID. Please connect to it directly.',
         variant: 'destructive',
       });
       return;
@@ -101,6 +104,7 @@ export function DisplaysAccordion() {
       port: display.port,
       name: display.name,
       serviceType: 'mdns',
+      displayId: displayId,
       deviceId: display.deviceId,
     });
     setDisplayDisplayName(display.name.replace('._mw-display._tcp.local.', ''));
@@ -111,7 +115,7 @@ export function DisplaysAccordion() {
 
   // Add discovered display to database
   const handleAddDisplay = async () => {
-    if (!currentChurch || !selectedDisplay || !selectedDisplay.deviceId) {
+    if (!currentChurch || !selectedDisplay || !selectedDisplay.displayId) {
       toast({
         title: 'Error',
         description: 'Missing required information',

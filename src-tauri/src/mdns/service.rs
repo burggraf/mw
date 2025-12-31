@@ -70,12 +70,29 @@ impl ServiceAdvertiser {
         Self { service_daemon: None, service_fullname: None }
     }
 
-    /// Start advertising the service
-    pub async fn advertise(&mut self, name: &str, port: u16, device_id: &str) -> Result<(), String> {
+    /// Start advertising the service with per-display identification
+    /// display_id: Unique per-display UUID (from EDID fingerprint)
+    /// device_id: Device UUID (for backward compatibility and grouping)
+    /// display_name: Human-readable display name
+    /// width, height: Display resolution in pixels
+    /// platform: Platform/OS info (e.g., "Android 11", "Fire OS 7")
+    pub async fn advertise(
+        &mut self,
+        name: &str,
+        port: u16,
+        display_id: &str,
+        device_id: &str,
+        display_name: Option<&str>,
+        width: Option<u32>,
+        height: Option<u32>,
+        platform: Option<&str>,
+    ) -> Result<(), String> {
         info!("=== Starting mDNS Advertising ===");
         info!("Service name: '{}'", name);
         info!("Port: {}", port);
+        info!("Display ID: {}", display_id);
         info!("Device ID: {}", device_id);
+        info!("Platform: {:?}", platform);
 
         // Stop any existing service first
         if self.service_daemon.is_some() {
@@ -98,18 +115,39 @@ impl ServiceAdvertiser {
         let hostname = "mobile-worship-display.local.";
 
         // Create service info with ALL IP addresses for better discovery
-        // The mdns_sd library accepts multiple addresses as a comma-separated string or slice
         let all_ips_str = all_ips.join(",");
         info!("Creating service info with IPs: {}", all_ips_str);
 
-        // TXT records with device_id for unique identification
-        let txt_records = vec![("device_id", device_id)];
+        // TXT records with display_id (primary) and device_id (for grouping)
+        // Also include display info for discovery UI
+        let width_str = width.map(|w| w.to_string()).unwrap_or_default();
+        let height_str = height.map(|h| h.to_string()).unwrap_or_default();
+        let display_name_str = display_name.unwrap_or("");
+        let platform_str = platform.unwrap_or("");
+
+        let mut txt_records: Vec<(&str, &str)> = vec![
+            ("display_id", display_id),
+            ("device_id", device_id),
+        ];
+
+        if !display_name_str.is_empty() {
+            txt_records.push(("display_name", display_name_str));
+        }
+        if !width_str.is_empty() {
+            txt_records.push(("width", &width_str));
+        }
+        if !height_str.is_empty() {
+            txt_records.push(("height", &height_str));
+        }
+        if !platform_str.is_empty() {
+            txt_records.push(("platform", platform_str));
+        }
 
         let mut service_info = mdns_sd::ServiceInfo::new(
             service_type,
             name,
             hostname,
-            all_ips.as_slice(), // Pass all addresses as a slice
+            all_ips.as_slice(),
             port,
             txt_records.as_slice(),
         )
@@ -129,12 +167,12 @@ impl ServiceAdvertiser {
             .map_err(|e| format!("Failed to register mDNS service: {}", e))?;
 
         // Start browsing on the same daemon to keep it actively processing queries
-        // This is necessary for the daemon to respond to incoming mDNS queries
         let _browse_receiver = daemon.browse(service_type);
         info!("Started browsing on advertising daemon to enable query responses");
 
         info!("✓ Advertising mDNS service '{}' on port {} with {} IP addresses",
               name, port, all_ips.len());
+        info!("  Display ID: {}", display_id);
         info!("  Device ID: {}", device_id);
         info!("  Addresses: {:?}", all_ips);
 
@@ -171,10 +209,20 @@ impl AdvertiserState {
         }
     }
 
-    pub async fn advertise(&self, name: &str, port: u16, device_id: &str) -> Result<(), String> {
+    pub async fn advertise(
+        &self,
+        name: &str,
+        port: u16,
+        display_id: &str,
+        device_id: &str,
+        display_name: Option<&str>,
+        width: Option<u32>,
+        height: Option<u32>,
+        platform: Option<&str>,
+    ) -> Result<(), String> {
         // First, stop any existing advertising
         let mut adv = self.advertiser.lock().await;
-        adv.advertise(name, port, device_id).await?;
+        adv.advertise(name, port, display_id, device_id, display_name, width, height, platform).await?;
 
         // Get a clone of the daemon for monitoring
         let daemon_clone = adv.service_daemon.clone();

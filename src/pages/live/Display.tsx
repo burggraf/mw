@@ -16,8 +16,8 @@ import { updateDisplayConnection } from '@/services/displays'
 import { exit } from '@tauri-apps/plugin-process'
 
 type WsMessage =
-  | { type: 'lyrics'; data: { church_id: string; event_id: string; song_id: string; title: string; lyrics: string; background_url?: string; timestamp: number } }
-  | { type: 'slide'; data: { church_id: string; event_id: string; song_id: string; slide_index: number; timestamp: number } }
+  | { type: 'lyrics'; data: { target_display_id?: string; church_id: string; event_id: string; song_id: string; title: string; lyrics: string; background_url?: string; timestamp: number } }
+  | { type: 'slide'; data: { target_display_id?: string; church_id: string; event_id: string; song_id: string; slide_index: number; timestamp: number } }
   | { type: 'precache'; data: PrecacheMessage }
   | { type: 'ping' }
 
@@ -53,10 +53,35 @@ interface DisplayPageProps {
 const songCache = new Map<string, { song: Song; updated_at: string }>()
 const mediaPathCache = new Map<string, { filePath: string; updatedAt: string; isColor: boolean }>()
 
+// Get displayId from URL params (set when display window is opened)
+const getDisplayIdFromUrl = (): string | null => {
+  const urlParams = new URLSearchParams(window.location.search)
+  return urlParams.get('displayId')
+}
+
 export function DisplayPage({ eventId }: DisplayPageProps) {
   const { t } = useTranslation()
   const { currentChurch } = useChurch()
   const localMode = isLocalDisplayWindow()
+
+  // Get display ID from URL - this identifies which display this window represents
+  const displayIdRef = useRef<string | null>(getDisplayIdFromUrl())
+  console.log('[Display] Display ID from URL:', displayIdRef.current)
+
+  // Check if a message is targeted at this display
+  // Returns true if message should be processed (broadcast or targeted to us)
+  const isMessageForThisDisplay = useCallback((targetDisplayId: string | undefined | null): boolean => {
+    // If no target specified, it's a broadcast - process it
+    if (!targetDisplayId) {
+      return true
+    }
+    // If we don't have a display ID, accept all messages (legacy behavior)
+    if (!displayIdRef.current) {
+      return true
+    }
+    // Check if the target matches our display ID
+    return targetDisplayId === displayIdRef.current
+  }, [])
 
   const [currentSlide, setCurrentSlide] = useState<Slide | null>(null)
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null)
@@ -344,8 +369,13 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
     const startServerAndListen = async () => {
       try {
         // Get or generate device ID first
-        const id = await invoke<string>('get_device_id')
-        console.log('[Display] Got device ID:', id)
+        const deviceId = await invoke<string>('get_device_id')
+        console.log('[Display] Got device ID:', deviceId)
+
+        // Get display ID from URL (set when display window was opened)
+        // Falls back to device ID for backward compatibility with single-display devices
+        const displayId = displayIdRef.current || deviceId
+        console.log('[Display] Using display ID:', displayId)
 
         // Start the WebSocket server
         const port = await invoke<number>('start_websocket_server')
@@ -367,20 +397,52 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
         }
 
         // Update database with new port (so controllers can find us)
+        // Uses display_id as the unique key now
         try {
-          await updateDisplayConnection(id, localIp, port)
-          console.log('[Display] Updated database with host:', localIp, 'port:', port)
+          await updateDisplayConnection(displayId, localIp, port)
+          console.log('[Display] Updated database with display_id:', displayId, 'host:', localIp, 'port:', port)
         } catch (e) {
           console.error('[Display] Failed to update display connection in database:', e)
           // Non-fatal - mDNS discovery can still work
         }
 
-        // Also advertise via mDNS
-        // Use a simple device name - will be updated when church loads
-        const deviceName = `${currentChurch?.name || 'Mobile Worship'} Display`
+        // Also advertise via mDNS with per-display information
+        const displayName = `${currentChurch?.name || 'Mobile Worship'} Display`
+        // Get screen dimensions for discovery info
+        const screenWidth = window.screen.width * (window.devicePixelRatio || 1)
+        const screenHeight = window.screen.height * (window.devicePixelRatio || 1)
+        // Extract platform info from user agent
+        const ua = navigator.userAgent
+        let platformInfo = navigator.platform || 'Unknown'
+        if (ua.includes('Android')) {
+          const match = ua.match(/Android\s+([\d.]+)/)
+          platformInfo = match ? `Android ${match[1]}` : 'Android'
+          // Check for Fire OS (Amazon devices)
+          if (ua.includes('AFTN') || ua.includes('AFTM') || ua.includes('AFTS') || ua.includes('AFTT') || ua.includes('AFTKRT')) {
+            platformInfo = `Fire OS (${platformInfo})`
+          }
+        } else if (ua.includes('iPhone') || ua.includes('iPad')) {
+          const match = ua.match(/OS\s+([\d_]+)/)
+          platformInfo = match ? `iOS ${match[1].replace(/_/g, '.')}` : 'iOS'
+        } else if (ua.includes('Mac OS')) {
+          platformInfo = 'macOS'
+        } else if (ua.includes('Windows')) {
+          platformInfo = 'Windows'
+        } else if (ua.includes('Linux')) {
+          platformInfo = 'Linux'
+        }
         try {
-          await invoke('start_advertising', { name: deviceName, port, deviceId: id })
-          console.log('[Display] Advertising as', deviceName, 'with device ID:', id)
+          await invoke('start_advertising', {
+            name: displayName,
+            port,
+            displayId,
+            deviceId,
+            displayName,
+            width: Math.round(screenWidth),
+            height: Math.round(screenHeight),
+            platform: platformInfo,
+          })
+          console.log('[Display] Advertising as', displayName, 'with display_id:', displayId, 'device_id:', deviceId, 'resolution:', screenWidth, 'x', screenHeight, 'platform:', platformInfo)
         } catch (e) {
           console.error('[Display] mDNS advertising failed:', e)
         }
@@ -419,6 +481,11 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
               console.log('[Display] Processing precache message')
               handlePrecache(message.data, ws!)
             } else if (message.type === 'lyrics') {
+              // Check if this message is targeted at this display
+              if (!isMessageForThisDisplay(message.data.target_display_id)) {
+                console.log('[Display] Ignoring lyrics message - target_display_id:', message.data.target_display_id, 'our ID:', displayIdRef.current)
+                return
+              }
               // Cache the song data (accept from any church - display is just a receiver)
               console.log('[Display] Processing lyrics message for song:', message.data.song_id)
               const song: Song = {
@@ -450,6 +517,11 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
                 loadSlide(song.id, 0)
               }
             } else if (message.type === 'slide') {
+              // Check if this message is targeted at this display
+              if (!isMessageForThisDisplay(message.data.target_display_id)) {
+                console.log('[Display] Ignoring slide message - target_display_id:', message.data.target_display_id, 'our ID:', displayIdRef.current)
+                return
+              }
               console.log('[Display] Processing slide message:', message.data.slide_index)
               loadSlide(message.data.song_id, message.data.slide_index)
             }

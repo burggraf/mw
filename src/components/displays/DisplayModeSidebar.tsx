@@ -38,19 +38,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { DisplayClass } from '@/types/display';
+import type { DisplayClass, MonitorInfo } from '@/types/display';
 import { invoke } from '@tauri-apps/api/core';
-
-interface MonitorInfo {
-  id: number;
-  name: string;
-  position_x: number;
-  position_y: number;
-  size_x: number;
-  size_y: number;
-  scale_factor: number;
-  is_primary: boolean;
-}
 
 interface DisplayTarget {
   id: string;
@@ -84,9 +73,9 @@ export function DisplayModeSidebar({
       try {
         const monitors = await invoke<MonitorInfo[]>('get_available_monitors');
         const targets: DisplayTarget[] = monitors.map((m) => ({
-          id: `monitor-${m.id}`,
-          name: m.is_primary ? t('displayMode.mainDisplay') : `${t('displayMode.display')} ${m.id + 1}`,
-          isDefault: m.is_primary,
+          id: m.displayId, // Use persistent UUID from EDID
+          name: m.isPrimary ? t('displayMode.mainDisplay') : `${t('displayMode.display')} ${m.id + 1}`,
+          isDefault: m.isPrimary,
           monitor: m,
         }));
         setAvailableDisplays(targets);
@@ -94,18 +83,24 @@ export function DisplayModeSidebar({
         console.error('Failed to fetch monitors:', error);
         // Fallback to main display only with a mock monitor object
         setAvailableDisplays([{
-          id: 'main',
+          id: 'fallback-main-display',
           name: t('displayMode.mainDisplay'),
           isDefault: true,
           monitor: {
+            displayId: 'fallback-main-display',
             id: 0,
             name: 'Main Display',
-            position_x: 0,
-            position_y: 0,
-            size_x: 1920,
-            size_y: 1080,
-            scale_factor: 1.0,
-            is_primary: true,
+            manufacturer: '',
+            model: '',
+            serialNumber: '',
+            positionX: 0,
+            positionY: 0,
+            sizeX: 1920,
+            sizeY: 1080,
+            physicalWidthCm: 0,
+            physicalHeightCm: 0,
+            scaleFactor: 1.0,
+            isPrimary: true,
           },
         }]);
       }
@@ -125,11 +120,12 @@ export function DisplayModeSidebar({
   const [openDisplayWindows, setOpenDisplayWindows] = useState<Set<number>>(new Set());
 
   // Open a display window on a specific monitor
-  const handleOpenDisplay = async (monitorId: number, displayName: string) => {
+  const handleOpenDisplay = async (monitorId: number, displayId: string, displayName: string) => {
     try {
-      console.log('[DisplayModeSidebar] Opening display window for monitor', monitorId);
+      console.log('[DisplayModeSidebar] Opening display window for monitor', monitorId, 'displayId:', displayId);
       await invoke('open_display_window', {
         displayName,
+        displayId,
         monitorId,
       });
       setOpenDisplayWindows(prev => new Set(prev).add(monitorId));
@@ -154,9 +150,9 @@ export function DisplayModeSidebar({
     }
   };
 
-  // Get registered display for a target
+  // Get registered display for a target (by displayId)
   const getRegisteredDisplay = (targetId: string): Display | undefined => {
-    return displays.find(d => d.deviceId === targetId);
+    return displays.find(d => d.displayId === targetId);
   };
 
   // Handle pairing a display
@@ -176,10 +172,11 @@ export function DisplayModeSidebar({
     setIsPairing(true);
     try {
       const newDisplay = await createDisplay(currentChurch.id, {
+        displayId: pairingDisplayId, // Per-display UUID from EDID
+        deviceId: pairingDisplayId, // Use same ID for local displays
         name: pairingName,
         location: pairingLocation || null,
         displayClass: pairingClass,
-        deviceId: pairingDisplayId,
       });
 
       onDisplayRegistered?.(newDisplay);
@@ -239,7 +236,7 @@ export function DisplayModeSidebar({
                         </SidebarMenuAction>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleOpenDisplay(target.monitor.id, registered?.name || target.name)}>
+                        <DropdownMenuItem onClick={() => handleOpenDisplay(target.monitor.id, target.id, registered?.name || target.name)}>
                           <Cast className="mr-2 h-4 w-4" />
                           {t('displayMode.openDisplay')}
                         </DropdownMenuItem>

@@ -10,8 +10,15 @@ pub struct DiscoveredDevice {
     pub port: u16,
     #[serde(rename = "serviceType")]
     pub service_type: String,
+    #[serde(rename = "displayId")]
+    pub display_id: String, // Per-display UUID from TXT records (required)
     #[serde(rename = "deviceId")]
-    pub device_id: Option<String>, // Extracted from TXT records
+    pub device_id: Option<String>, // Device UUID from TXT records (for backward compat)
+    #[serde(rename = "displayName")]
+    pub display_name: Option<String>, // Human-readable name from TXT records
+    pub width: Option<u32>, // Resolution width from TXT records
+    pub height: Option<u32>, // Resolution height from TXT records
+    pub platform: Option<String>, // Platform/OS info (e.g., "Android 11", "Fire OS 7")
 }
 
 /// Extract IPv4 address from mDNS service info
@@ -104,19 +111,50 @@ pub async fn discover_disdevices(timeout_secs: u64) -> Vec<DiscoveredDevice> {
                 info!("  Port: {}", info.get_port());
                 info!("  All addresses: {:?}", info.get_addresses());
 
-                // Extract device_id from TXT records
+                // Extract TXT records for per-display identification
                 let txt_properties = info.get_properties();
                 info!("  TXT records: {:?}", txt_properties);
+
+                // Extract all TXT record fields
+                let display_id = txt_properties
+                    .iter()
+                    .find(|prop| prop.key() == "display_id")
+                    .map(|prop| prop.val_str().to_string());
 
                 let device_id = txt_properties
                     .iter()
                     .find(|prop| prop.key() == "device_id")
                     .map(|prop| prop.val_str().to_string());
 
-                if let Some(ref id) = device_id {
-                    info!("  ✓ Found device_id in TXT records: {}", id);
+                let display_name = txt_properties
+                    .iter()
+                    .find(|prop| prop.key() == "display_name")
+                    .map(|prop| prop.val_str().to_string());
+
+                let width = txt_properties
+                    .iter()
+                    .find(|prop| prop.key() == "width")
+                    .and_then(|prop| prop.val_str().parse::<u32>().ok());
+
+                let height = txt_properties
+                    .iter()
+                    .find(|prop| prop.key() == "height")
+                    .and_then(|prop| prop.val_str().parse::<u32>().ok());
+
+                let platform = txt_properties
+                    .iter()
+                    .find(|prop| prop.key() == "platform")
+                    .map(|prop| prop.val_str().to_string());
+
+                // display_id is required for per-display tracking
+                // If not present, fall back to device_id for backward compat with legacy displays
+                let final_display_id = display_id.clone().or_else(|| device_id.clone());
+
+                if let Some(ref id) = final_display_id {
+                    info!("  ✓ Found display_id: {}", id);
                 } else {
-                    info!("  ⚠ No device_id in TXT records (legacy display?)");
+                    warn!("  ⚠ No display_id or device_id in TXT records (legacy display?)");
+                    continue; // Skip displays without any ID
                 }
 
                 // Skip if we've already seen this service (deduplication)
@@ -139,15 +177,20 @@ pub async fn discover_disdevices(timeout_secs: u64) -> Vec<DiscoveredDevice> {
                 };
 
                 found_count += 1;
-                info!("  ★ Discovered device #{}: {} at {}:{} (device_id: {:?})",
-                      found_count, info.get_fullname(), host, info.get_port(), device_id);
+                info!("  ★ Discovered display #{}: {} at {}:{} (display_id: {:?}, device_id: {:?})",
+                      found_count, info.get_fullname(), host, info.get_port(), final_display_id, device_id);
 
                 devices.push(DiscoveredDevice {
                     name: fullname,
                     host,
                     port: info.get_port(),
                     service_type: service_type.to_string(),
+                    display_id: final_display_id.unwrap(),
                     device_id,
+                    display_name,
+                    width,
+                    height,
+                    platform,
                 });
             }
             Ok(mdns_sd::ServiceEvent::ServiceFound(name, typ)) => {
