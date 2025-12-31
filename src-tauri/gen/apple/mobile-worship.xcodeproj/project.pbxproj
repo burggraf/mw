@@ -17,6 +17,7 @@
 		5D429730A2F52A8B8B876293 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 64676094B3EF3250F6405681 /* Assets.xcassets */; };
 		636972844E2BA0D158F54DD7 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D2907042C43D4A473DF5582F /* WebKit.framework */; };
 		747259106E4266AB376B26BA /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 774063AB1210CC7C3682EE61 /* CoreGraphics.framework */; };
+		8E3E7DA7988A03553B63DA25 /* WebViewSetup.m in Sources */ = {isa = PBXBuildFile; fileRef = 1C16A1B003D147237B244DFF /* WebViewSetup.m */; };
 		EB8822F6CB028D4ED438406C /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 444A531D045987638A85711D /* Metal.framework */; };
 		F8AA555835C4A09A543A4BEB /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 31752560474D04FEC84B8261 /* main.mm */; };
 /* End PBXBuildFile section */
@@ -25,6 +26,7 @@
 		0265BF1BC1E38BE8B573A3EB /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
 		0AA0FFA161517AAB0F360421 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		198B8600C3E6AEBDB95DC382 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
+		1C16A1B003D147237B244DFF /* WebViewSetup.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = WebViewSetup.m; sourceTree = "<group>"; };
 		2A1CA2AB392D637F488C917C /* commands.rs */ = {isa = PBXFileReference; path = commands.rs; sourceTree = "<group>"; };
 		31752560474D04FEC84B8261 /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
 		322A2D9CCEF0B160CFA36ACE /* server.rs */ = {isa = PBXFileReference; path = server.rs; sourceTree = "<group>"; };
@@ -132,6 +134,7 @@
 			isa = PBXGroup;
 			children = (
 				31752560474D04FEC84B8261 /* main.mm */,
+				1C16A1B003D147237B244DFF /* WebViewSetup.m */,
 				B94F1490F21FCD6940B78D19 /* bindings */,
 			);
 			path = "mobile-worship";
@@ -275,6 +278,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8E3E7DA7988A03553B63DA25 /* WebViewSetup.m in Sources */,
 				F8AA555835C4A09A543A4BEB /* main.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

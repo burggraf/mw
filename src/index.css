@@ -78,21 +78,43 @@
   * {
     @apply border-border;
   }
-  html, body, #root {
-    height: 100dvh;
-    max-height: 100dvh;
-    overflow: hidden;
-    touch-action: pan-x pan-y; /* Prevent pinch zoom */
+  html {
+    height: 100%;
+    height: var(--app-height, 100%);
   }
   body {
     @apply bg-background text-foreground;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    height: var(--app-height, 100%);
+    overflow: hidden;
+  }
+  #root {
+    @apply bg-background;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    height: var(--app-height, 100%);
+    overflow: hidden;
+    touch-action: pan-x pan-y; /* Prevent pinch zoom */
   }
 }
 
-/* iOS Safe Area utilities */
+/* iOS Safe Area utilities - high specificity to override Tailwind */
 .safe-top {
-  padding-top: max(env(safe-area-inset-top), 0px);
+  padding-top: 47px !important;
 }
 .safe-bottom {
-  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  padding-bottom: 34px !important;
+}
+
+/* Desktop: no safe areas needed */
+@media (min-width: 768px) {
+  .safe-top {
+    padding-top: 0px !important;
+  }
+  .safe-bottom {
+    padding-bottom: 0px !important;
+  }
 }
