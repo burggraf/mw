@@ -66,9 +66,44 @@ export function MediaDetailDialog({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(true)
   const [showSampleText, setShowSampleText] = useState(false)
+  const [isLightBackground, setIsLightBackground] = useState(false)
 
   // Check if this is a solid color background
   const isSolidColor = media?.backgroundColor && !media?.storagePath
+
+  // Analyze image to determine if background is light or dark
+  const analyzeImageBrightness = (imgSrc: string) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+
+      // Sample at smaller size for performance
+      const sampleSize = 50
+      canvas.width = sampleSize
+      canvas.height = sampleSize
+      ctx.drawImage(img, 0, 0, sampleSize, sampleSize)
+
+      const imageData = ctx.getImageData(0, 0, sampleSize, sampleSize)
+      const data = imageData.data
+
+      let totalLuminance = 0
+      const pixelCount = data.length / 4
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i]
+        const g = data[i + 1]
+        const b = data[i + 2]
+        totalLuminance += (0.299 * r + 0.587 * g + 0.114 * b) / 255
+      }
+
+      const avgLuminance = totalLuminance / pixelCount
+      setIsLightBackground(avgLuminance > 0.5)
+    }
+    img.src = imgSrc
+  }
 
   const SAMPLE_TEXT = `Amazing grace, how sweet the sound
 That saved a wretch like me
@@ -83,10 +118,12 @@ Was blind, but now I see`
       setNewTag('')
       setPreviewUrl(null)
       setShowSampleText(false)
+      setIsLightBackground(false)
 
-      // Skip loading for solid color backgrounds
+      // Handle solid color backgrounds
       if (media.backgroundColor && !media.storagePath) {
         setLoadingPreview(false)
+        setIsLightBackground(isLightColor(media.backgroundColor))
         return
       }
 
@@ -97,6 +134,10 @@ Was blind, but now I see`
         .then((url) => {
           setPreviewUrl(url)
           setLoadingPreview(false)
+          // Analyze image brightness for text contrast
+          if (media.type === 'image') {
+            analyzeImageBrightness(url)
+          }
         })
         .catch((err) => {
           console.error('Failed to load preview:', err)
@@ -189,14 +230,12 @@ Was blind, but now I see`
             {!loadingPreview && (previewUrl || isSolidColor) && showSampleText && (
               <div className="absolute inset-0 flex items-center justify-center">
                 <p
-                  className="text-center text-lg font-semibold whitespace-pre-line px-8 text-white"
+                  className="text-center text-lg font-semibold whitespace-pre-line px-8"
                   style={{
-                    textShadow: `
-                      -0.5px -0.5px 0 rgba(0,0,0,0.8),
-                       0.5px -0.5px 0 rgba(0,0,0,0.8),
-                      -0.5px  0.5px 0 rgba(0,0,0,0.8),
-                       0.5px  0.5px 0 rgba(0,0,0,0.8)
-                    `,
+                    color: isLightBackground ? '#000000' : '#ffffff',
+                    textShadow: isLightBackground
+                      ? '2px 2px 6px rgba(255,255,255,0.8)'
+                      : '2px 2px 6px rgba(0,0,0,0.8)',
                   }}
                 >
                   {SAMPLE_TEXT}
