@@ -9,7 +9,6 @@ import { MediaSidebar } from '@/components/media/MediaSidebar'
 import { MediaUploadDialog } from '@/components/media/MediaUploadDialog'
 import { StockMediaDialog } from '@/components/media/StockMediaDialog'
 import { MediaDetailDialog } from '@/components/media/MediaDetailDialog'
-import { SolidColorDialog } from '@/components/media/SolidColorDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -22,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Upload, Search, Sparkles, Palette, Filter } from 'lucide-react'
+import { Upload, Search, Sparkles, Filter } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { toast } from 'sonner'
 
@@ -42,7 +41,6 @@ export function SlidesPage() {
   // Dialogs
   const [uploadOpen, setUploadOpen] = useState(false)
   const [stockOpen, setStockOpen] = useState(false)
-  const [colorOpen, setColorOpen] = useState(false)
   const [editMedia, setEditMedia] = useState<Media | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Media | null>(null)
   const [deleteUsageCount, setDeleteUsageCount] = useState(0)
@@ -145,10 +143,6 @@ export function SlidesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold">{t('slides.title')}</h1>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => setColorOpen(true)} className="flex-1 sm:flex-none">
-            <Palette className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Add Color</span>
-          </Button>
           <Button variant="outline" size="sm" onClick={() => setStockOpen(true)} className="flex-1 sm:flex-none">
             <Sparkles className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">{t('slides.stockMedia')}</span>
@@ -241,15 +235,6 @@ export function SlidesPage() {
         onSuccess={() => {
           loadMedia()
           loadTags()
-        }}
-      />
-
-      <SolidColorDialog
-        open={colorOpen}
-        onOpenChange={setColorOpen}
-        category="slide"
-        onSuccess={() => {
-          loadMedia()
         }}
       />
 
