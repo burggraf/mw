@@ -60,7 +60,16 @@
     "title": "Panel",
     "welcome": "Bienvenido a {{churchName}}",
     "quickActions": "Acciones Rapidas",
-    "recentActivity": "Actividad Reciente"
+    "recentActivity": "Actividad Reciente",
+    "manageSongs": "Administrar canciones de adoracion",
+    "planEvents": "Planificar servicios y eventos",
+    "configureDisplays": "Configurar pantallas de presentacion",
+    "manageTeam": "Administrar miembros del equipo",
+    "comingSoon": "Proximamente",
+    "upcomingThisWeek": "Proximos Esta Semana",
+    "noUpcomingEvents": "No hay eventos programados esta semana",
+    "today": "Hoy",
+    "tomorrow": "Manana"
   },
   "settings": {
     "title": "Configuracion",
@@ -305,6 +314,7 @@
     "selectedCount_plural": "{{count}} pantallas seleccionadas",
     "classLabel": "Clase",
     "statusLabel": "Estado",
+    "editDisplayDescription": "Actualiza el nombre, ubicación o clase de la pantalla.",
     "class": {
       "audience": "Audiencia",
       "stage": "Escenario",

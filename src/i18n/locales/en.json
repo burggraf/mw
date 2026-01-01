@@ -60,7 +60,16 @@
     "title": "Dashboard",
     "welcome": "Welcome to {{churchName}}",
     "quickActions": "Quick Actions",
-    "recentActivity": "Recent Activity"
+    "recentActivity": "Recent Activity",
+    "manageSongs": "Manage worship songs",
+    "planEvents": "Plan services and events",
+    "configureDisplays": "Configure presentation displays",
+    "manageTeam": "Manage team members",
+    "comingSoon": "Coming soon",
+    "upcomingThisWeek": "Upcoming This Week",
+    "noUpcomingEvents": "No events scheduled this week",
+    "today": "Today",
+    "tomorrow": "Tomorrow"
   },
   "settings": {
     "title": "Settings",
@@ -305,6 +314,7 @@
     "selectedCount_plural": "{{count}} displays selected",
     "classLabel": "Class",
     "statusLabel": "Status",
+    "editDisplayDescription": "Update the display name, location, or class.",
     "class": {
       "audience": "Audience",
       "stage": "Stage",
