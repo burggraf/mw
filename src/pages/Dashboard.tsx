@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { useChurch } from '@/contexts/ChurchContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Logo } from '@/components/Logo'
 import { Music, Calendar, Monitor, ImageIcon, Clock } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect, useCallback } from 'react'
@@ -175,7 +176,10 @@ export function DashboardPage() {
   return (
     <div className="p-4 md:p-8">
       <div className="mb-6 md:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold">{t('dashboard.title')}</h1>
+        <div className="flex items-center gap-3">
+          <Logo size="md" />
+          <h1 className="text-2xl sm:text-3xl font-bold">{t('dashboard.title')}</h1>
+        </div>
         {currentChurch && (
           <p className="text-muted-foreground mt-1">
             {t('dashboard.welcome', { churchName: currentChurch.name })}

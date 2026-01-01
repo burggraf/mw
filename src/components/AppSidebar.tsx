@@ -109,7 +109,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="safe-top">
+      <SidebarHeader>
         {/* Church Selector */}
         <SidebarMenu>
           <SidebarMenuItem>
