@@ -248,22 +248,22 @@ Was blind, but now I see`
           <div className="flex items-start justify-between gap-4">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm flex-1">
             <div>
-              <span className="text-muted-foreground">{t('media.type')}</span>
+              <span className="text-muted-foreground">{t('backgrounds.type')}</span>
               <p className="font-medium capitalize">{media.type}</p>
             </div>
             <div>
-              <span className="text-muted-foreground">{t('media.size')}</span>
+              <span className="text-muted-foreground">{t('backgrounds.size')}</span>
               <p className="font-medium">{formatFileSize(media.fileSize)}</p>
             </div>
             {media.width && media.height && (
               <div>
-                <span className="text-muted-foreground">{t('media.dimensions')}</span>
+                <span className="text-muted-foreground">{t('backgrounds.dimensions')}</span>
                 <p className="font-medium">{media.width} x {media.height}</p>
               </div>
             )}
             {media.duration && (
               <div>
-                <span className="text-muted-foreground">{t('media.duration')}</span>
+                <span className="text-muted-foreground">{t('backgrounds.duration')}</span>
                 <p className="font-medium">{formatDuration(media.duration)}</p>
               </div>
             )}
@@ -284,18 +284,18 @@ Was blind, but now I see`
 
           {/* Name field */}
           <div className="space-y-2">
-            <Label htmlFor="media-name">{t('media.name')}</Label>
+            <Label htmlFor="media-name">{t('backgrounds.name')}</Label>
             <Input
               id="media-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={t('media.name')}
+              placeholder={t('backgrounds.name')}
             />
           </div>
 
           {/* Tags */}
           <div className="space-y-2">
-            <Label>{t('media.tags')}</Label>
+            <Label>{t('backgrounds.tags')}</Label>
 
             {/* Existing tags */}
             <div className="flex flex-wrap gap-2">
@@ -320,7 +320,7 @@ Was blind, but now I see`
                 value={newTag}
                 onChange={(e) => setNewTag(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={t('media.addTag')}
+                placeholder={t('backgrounds.addTag')}
                 className="flex-1"
               />
               <Button
