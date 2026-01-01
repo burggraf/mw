@@ -453,7 +453,7 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
             </div>
             {/* Show slide thumbnails */}
             <div className="grid grid-cols-2 gap-2">
-              {item.slideFolder.slides.slice(0, 4).map((slide, idx) => (
+              {item.slideFolder.slides.slice(0, 4).map((slide) => (
                 <div key={slide.id} className="aspect-video rounded bg-black overflow-hidden">
                   <img
                     src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/media/${slide.thumbnailPath || slide.storagePath}`}

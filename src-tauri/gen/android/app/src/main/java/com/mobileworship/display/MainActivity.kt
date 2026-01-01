@@ -1,4 +1,4 @@
-package com.mobileworship.app5
+package com.mobileworship.display
 
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge

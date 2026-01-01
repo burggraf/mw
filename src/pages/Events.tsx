@@ -14,7 +14,7 @@ export function EventsPage() {
   const { currentChurch } = useChurch()
 
   const [events, setEvents] = useState<Event[]>([])
-  const [itemCounts, setItemCounts] = useState<Record<string, { songs: number; media: number }>>({})
+  const [itemCounts, setItemCounts] = useState<Record<string, { songs: number; slides: number }>>({})
   const [filter, setFilter] = useState<EventFilter>('upcoming')
   const [loading, setLoading] = useState(true)
 
@@ -33,7 +33,7 @@ export function EventsPage() {
       setEvents(eventsData)
 
       // Load item counts for each event
-      const counts: Record<string, { songs: number; media: number }> = {}
+      const counts: Record<string, { songs: number; slides: number }> = {}
       await Promise.all(
         eventsData.map(async (event) => {
           const items = await getEventItems(event.id)

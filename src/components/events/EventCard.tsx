@@ -19,7 +19,7 @@ import { toast } from 'sonner'
 
 interface EventCardProps {
   event: Event
-  itemCounts?: { songs: number; media: number }
+  itemCounts?: { songs: number; slides: number }
 }
 
 export function EventCard({ event, itemCounts }: EventCardProps) {
@@ -27,7 +27,7 @@ export function EventCard({ event, itemCounts }: EventCardProps) {
   const navigate = useNavigate()
   const { currentChurch } = useChurch()
   const { connect, broadcastPrecache, discover } = useWebSocketConnections()
-  const totalItems = (itemCounts?.songs || 0) + (itemCounts?.media || 0)
+  const totalItems = (itemCounts?.songs || 0) + (itemCounts?.slides || 0)
   const scheduledDate = new Date(event.scheduledAt)
   const isPast = scheduledDate < new Date()
 
@@ -157,19 +157,34 @@ export function EventCard({ event, itemCounts }: EventCardProps) {
               }
             }
           }
-        } else if (item.itemType === 'media' && item.itemId) {
-          // Direct media items
+        } else if (item.itemType === 'slide' && item.slide) {
+          // Individual slide items
           if (!mediaIdsSeen.has(item.itemId)) {
             mediaIdsSeen.add(item.itemId)
-            const media = await getMediaById(item.itemId)
-            if (media?.storagePath) {
-              const url = await getSignedMediaUrl(media.storagePath, 3600)
+            if (item.slide.storagePath) {
+              const url = await getSignedMediaUrl(item.slide.storagePath, 3600)
               mediaItems.push({
                 mediaId: item.itemId,
                 url,
-                type: media.type as 'image' | 'video',
+                type: item.slide.type as 'image' | 'video',
                 expiresAt,
               })
+            }
+          }
+        } else if (item.itemType === 'slideFolder' && item.slideFolder) {
+          // Slide folder - add all slides in the folder
+          for (const slide of item.slideFolder.slides) {
+            if (!mediaIdsSeen.has(slide.id)) {
+              mediaIdsSeen.add(slide.id)
+              if (slide.storagePath) {
+                const url = await getSignedMediaUrl(slide.storagePath, 3600)
+                mediaItems.push({
+                  mediaId: slide.id,
+                  url,
+                  type: slide.type as 'image' | 'video',
+                  expiresAt,
+                })
+              }
             }
           }
         }
@@ -257,10 +272,10 @@ export function EventCard({ event, itemCounts }: EventCardProps) {
                 <span>{itemCounts.songs}</span>
               </div>
             )}
-            {itemCounts.media > 0 && (
+            {itemCounts.slides > 0 && (
               <div className="flex items-center gap-1">
                 <Image className="h-3.5 w-3.5" />
-                <span>{itemCounts.media}</span>
+                <span>{itemCounts.slides}</span>
               </div>
             )}
           </div>

@@ -2,7 +2,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { EventItemWithData } from '@/types/event'
 import { cn } from '@/lib/utils'
-import { GripVertical, Music, Image, FileText } from 'lucide-react'
+import { GripVertical, Music, Image, Folder, FileText } from 'lucide-react'
 
 interface EventItemCardProps {
   item: EventItemWithData
@@ -28,20 +28,23 @@ export function EventItemCard({ item, isSelected, onClick }: EventItemCardProps)
   const getIcon = () => {
     switch (item.itemType) {
       case 'song': return <Music className="h-4 w-4" />
-      case 'media': return <Image className="h-4 w-4" />
+      case 'slide': return <Image className="h-4 w-4" />
+      case 'slideFolder': return <Folder className="h-4 w-4" />
       default: return <FileText className="h-4 w-4" />
     }
   }
 
   const getTitle = () => {
     if (item.song) return item.song.title
-    if (item.media) return item.media.name
+    if (item.slide) return item.slide.name
+    if (item.slideFolder) return item.slideFolder.name
     return 'Unknown Item'
   }
 
   const getSubtitle = () => {
     if (item.song?.author) return item.song.author
-    if (item.media) return item.media.type
+    if (item.slide) return item.slide.type
+    if (item.slideFolder) return `${item.slideFolder.slides.length} slides`
     return null
   }
 

@@ -60,7 +60,7 @@ export function SetlistPicker({ items, currentItemId, onSelectItem }: SetlistPic
             <div className="flex items-center gap-2">
               {icon}
               <div className="font-medium truncate">{title}</div>
-              {item.itemType === 'slideFolder' && item.slideFolder?.defaultLoopTime > 0 && (
+              {item.itemType === 'slideFolder' && (item.slideFolder?.defaultLoopTime ?? 0) > 0 && (
                 <Clock className="h-3 w-3 ml-auto shrink-0 opacity-70" />
               )}
             </div>

@@ -47,11 +47,18 @@ export function generateSlidesFromItem(item: EventItemWithData): Slide[] {
     return generateSlides(item.song, item.customizations)
   }
 
-  if (item.itemType === 'media' && item.media) {
+  if (item.itemType === 'slide' && item.slide) {
     return [{
       text: '',
-      backgroundId: item.media.id,
+      backgroundId: item.slide.id,
     }]
+  }
+
+  if (item.itemType === 'slideFolder' && item.slideFolder) {
+    return item.slideFolder.slides.map(slide => ({
+      text: '',
+      backgroundId: slide.id,
+    }))
   }
 
   return []

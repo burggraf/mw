@@ -381,9 +381,9 @@ export async function reorderEventItems(eventId: string, itemIds: string[]): Pro
 // Helpers
 // ============================================================================
 
-export function getEventItemCount(items: EventItemWithData[]): { songs: number; media: number } {
+export function getEventItemCount(items: EventItemWithData[]): { songs: number; slides: number } {
   return {
     songs: items.filter(i => i.itemType === 'song').length,
-    media: items.filter(i => i.itemType === 'media').length,
+    slides: items.filter(i => i.itemType === 'slide' || i.itemType === 'slideFolder').length,
   }
 }

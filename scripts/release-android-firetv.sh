@@ -10,7 +10,7 @@ NC='\033[0m' # No Color
 APP_DIR="/Users/markb/dev/mw/app"
 KEYSTORE_FILE="$HOME/mobileworship-release.jks"
 KEYSTORE_PROPS="$APP_DIR/src-tauri/gen/android/keystore.properties"
-PACKAGE_NAME="com.mobileworship.app5"
+PACKAGE_NAME="com.mobileworship.display"
 
 echo -e "${GREEN}=== Mobile Worship Fire TV Release Build ===${NC}"
 
