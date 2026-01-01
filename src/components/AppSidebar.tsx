@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChurch } from '@/contexts/ChurchContext'
 import { useTheme } from '@/contexts/ThemeContext'
+import { isTauri } from '@/lib/tauri'
 import {
   Sidebar,
   SidebarContent,
@@ -187,18 +188,23 @@ export function AppSidebar() {
           <SidebarGroupLabel>Live</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {liveItems.map((item) => (
-                <SidebarMenuItem key={item.key}>
-                  <SidebarMenuButton
-                    isActive={location.pathname === item.href || location.pathname.startsWith(item.href + '/')}
-                    tooltip={t(`${item.key}.title`)}
-                    onClick={() => handleNavigation(item.href)}
-                  >
-                    <item.icon className="size-4" />
-                    <span>{t(`${item.key}.title`)}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {liveItems.map((item) => {
+                const isDisabled = !isTauri()
+                return (
+                  <SidebarMenuItem key={item.key}>
+                    <SidebarMenuButton
+                      isActive={location.pathname === item.href || location.pathname.startsWith(item.href + '/')}
+                      disabled={isDisabled}
+                      tooltip={t(`${item.key}.title`)}
+                      onClick={isDisabled ? undefined : () => handleNavigation(item.href)}
+                      className={isDisabled ? 'opacity-50' : ''}
+                    >
+                      <item.icon className="size-4" />
+                      <span>{t(`${item.key}.title`)}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
