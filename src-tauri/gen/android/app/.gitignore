@@ -1,4 +1,4 @@
-/src/main/java/com/mobileworship/app/generated
+/src/main/java/com/mobileworship/app5/generated
 /src/main/jniLibs/**/*.so
 /src/main/assets/tauri.conf.json
 /tauri.build.gradle.kts

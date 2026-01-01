@@ -16,11 +16,10 @@ val tauriProperties = Properties().apply {
 
 android {
     compileSdk = 36
-    namespace = "com.mobileworship.app"
+    namespace = "com.mobileworship.app5"
     defaultConfig {
-        // Allow cleartext traffic for localhost WebSocket connections
-        manifestPlaceholders["usesCleartextTraffic"] = "true"
-        applicationId = "com.mobileworship.app"
+        manifestPlaceholders["usesCleartextTraffic"] = "false"
+        applicationId = "com.mobileworship.app5"
         minSdk = 24
         targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
@@ -45,38 +44,15 @@ android {
             isDebuggable = true
             isJniDebuggable = true
             isMinifyEnabled = false
-            packaging {
-                // Only keep armeabi-v7a (Fire TV 4K Max uses 32-bit userspace)
-                jniLibs {
-                    keepDebugSymbols.add("*/armeabi-v7a/*.so")
-                    pickFirsts.addAll(listOf(
-                        "lib/armeabi-v7a/libmobile_worship_lib.so"
-                    ))
-                    excludes.addAll(listOf(
-                        "lib/arm64-v8a/**",
-                        "lib/x86/**",
-                        "lib/x86_64/**"
-                    ))
-                }
+            packaging {                jniLibs.keepDebugSymbols.add("*/arm64-v8a/*.so")
+                jniLibs.keepDebugSymbols.add("*/armeabi-v7a/*.so")
+                jniLibs.keepDebugSymbols.add("*/x86/*.so")
+                jniLibs.keepDebugSymbols.add("*/x86_64/*.so")
             }
         }
         getByName("release") {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
-            packaging {
-                // Only keep armeabi-v7a (Fire TV 4K Max uses 32-bit userspace)
-                jniLibs {
-                    keepDebugSymbols.add("*/armeabi-v7a/*.so")
-                    pickFirsts.addAll(listOf(
-                        "lib/armeabi-v7a/libmobile_worship_lib.so"
-                    ))
-                    excludes.addAll(listOf(
-                        "lib/arm64-v8a/**",
-                        "lib/x86/**",
-                        "lib/x86_64/**"
-                    ))
-                }
-            }
             proguardFiles(
                 *fileTree(".") { include("**/*.pro") }
                     .plus(getDefaultProguardFile("proguard-android-optimize.txt"))
