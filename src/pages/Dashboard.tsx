@@ -3,7 +3,7 @@ import { useChurch } from '@/contexts/ChurchContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Music, Calendar, Monitor, ImageIcon, Clock } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { getSongs } from '@/services/songs'
 import { getEvents } from '@/services/events'
 import { getDisplaysForChurch } from '@/services/displays'
@@ -18,58 +18,109 @@ interface DashboardStats {
   upcomingEvents: Event[]
 }
 
+const CACHE_KEY_PREFIX = 'dashboard_stats_'
+
+function getCacheKey(churchId: string): string {
+  return `${CACHE_KEY_PREFIX}${churchId}`
+}
+
+function loadCachedStats(churchId: string): DashboardStats | null {
+  try {
+    const cached = localStorage.getItem(getCacheKey(churchId))
+    if (cached) {
+      return JSON.parse(cached)
+    }
+  } catch (error) {
+    console.error('Failed to load cached dashboard stats:', error)
+  }
+  return null
+}
+
+function saveCachedStats(churchId: string, stats: DashboardStats): void {
+  try {
+    localStorage.setItem(getCacheKey(churchId), JSON.stringify(stats))
+  } catch (error) {
+    console.error('Failed to cache dashboard stats:', error)
+  }
+}
+
+const defaultStats: DashboardStats = {
+  songCount: 0,
+  eventCount: 0,
+  displayCount: 0,
+  mediaCount: 0,
+  upcomingEvents: [],
+}
+
 export function DashboardPage() {
   const { t } = useTranslation()
   const { currentChurch } = useChurch()
   const navigate = useNavigate()
-  const [stats, setStats] = useState<DashboardStats>({
-    songCount: 0,
-    eventCount: 0,
-    displayCount: 0,
-    mediaCount: 0,
-    upcomingEvents: [],
-  })
-  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState<DashboardStats>(defaultStats)
+  const [hasCachedData, setHasCachedData] = useState(false)
 
+  // Load cached data immediately when church changes
   useEffect(() => {
-    async function loadStats() {
-      if (!currentChurch) {
-        setLoading(false)
-        return
-      }
-
-      try {
-        const [songs, events, displays, media] = await Promise.all([
-          getSongs(currentChurch.id),
-          getEvents(currentChurch.id, 'upcoming'),
-          getDisplaysForChurch(currentChurch.id),
-          getMedia(currentChurch.id),
-        ])
-
-        // Filter events to only those in the next 7 days
+    if (currentChurch) {
+      const cached = loadCachedStats(currentChurch.id)
+      if (cached) {
+        // Filter out past events from cached data
         const now = new Date()
-        const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-        const upcomingThisWeek = events.filter(event => {
-          const eventDate = new Date(event.scheduledAt)
-          return eventDate >= now && eventDate <= oneWeekFromNow
-        })
-
-        setStats({
-          songCount: songs.length,
-          eventCount: events.length,
-          displayCount: displays.length,
-          mediaCount: media.length,
-          upcomingEvents: upcomingThisWeek,
-        })
-      } catch (error) {
-        console.error('Failed to load dashboard stats:', error)
-      } finally {
-        setLoading(false)
+        const filteredEvents = cached.upcomingEvents.filter(event =>
+          new Date(event.scheduledAt) >= now
+        )
+        setStats({ ...cached, upcomingEvents: filteredEvents })
+        setHasCachedData(true)
+      } else {
+        setStats(defaultStats)
+        setHasCachedData(false)
       }
+    } else {
+      setStats(defaultStats)
+      setHasCachedData(false)
     }
-
-    loadStats()
   }, [currentChurch])
+
+  // Fetch fresh data in the background
+  const fetchStats = useCallback(async () => {
+    if (!currentChurch) return
+
+    try {
+      const [songs, events, displays, media] = await Promise.all([
+        getSongs(currentChurch.id),
+        getEvents(currentChurch.id, 'upcoming'),
+        getDisplaysForChurch(currentChurch.id),
+        getMedia(currentChurch.id),
+      ])
+
+      // Filter events to only those in the next 7 days
+      const now = new Date()
+      const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+      const upcomingThisWeek = events.filter(event => {
+        const eventDate = new Date(event.scheduledAt)
+        return eventDate >= now && eventDate <= oneWeekFromNow
+      })
+
+      const newStats: DashboardStats = {
+        songCount: songs.length,
+        eventCount: events.length,
+        displayCount: displays.length,
+        mediaCount: media.length,
+        upcomingEvents: upcomingThisWeek,
+      }
+
+      setStats(newStats)
+      setHasCachedData(true)
+      saveCachedStats(currentChurch.id, newStats)
+    } catch (error) {
+      console.error('Failed to load dashboard stats:', error)
+    }
+  }, [currentChurch])
+
+  // Fetch fresh data after initial render
+  useEffect(() => {
+    fetchStats()
+  }, [fetchStats])
 
   const quickActions = [
     {
@@ -159,7 +210,7 @@ export function DashboardPage() {
               <CardContent>
                 {!action.disabled && action.count !== null && (
                   <div className="text-2xl font-bold mb-1">
-                    {loading ? '—' : action.count}
+                    {action.count}
                   </div>
                 )}
                 <CardDescription>
@@ -175,11 +226,7 @@ export function DashboardPage() {
         <h2 className="text-lg font-semibold mb-4">{t('dashboard.upcomingThisWeek')}</h2>
         <Card>
           <CardContent className="py-4">
-            {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <p className="text-muted-foreground">{t('common.loading')}</p>
-              </div>
-            ) : stats.upcomingEvents.length === 0 ? (
+            {stats.upcomingEvents.length === 0 ? (
               <div className="flex items-center justify-center py-8">
                 <p className="text-muted-foreground">{t('dashboard.noUpcomingEvents')}</p>
               </div>
