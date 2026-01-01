@@ -48,8 +48,6 @@ import {
   Moon,
   Languages,
   Church as ChurchIcon,
-  Bug,
-  Smartphone,
   Monitor,
 } from 'lucide-react'
 
@@ -63,13 +61,8 @@ const navItems = [
   { key: 'settings', icon: Settings, href: '/settings', disabled: true },
 ]
 
-const devItems = [
-  { key: 'debug', icon: Bug, href: '/debug/webrtc' },
-]
-
 const liveItems = [
-  { key: 'controller', icon: Smartphone, href: '/live/controller' },
-  { key: 'display', icon: Monitor, href: '/live/display' },
+  { key: 'displayMode', icon: Monitor, href: '/live/display' },
 ]
 
 export function AppSidebar() {
@@ -198,32 +191,11 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.key}>
                   <SidebarMenuButton
                     isActive={location.pathname === item.href || location.pathname.startsWith(item.href + '/')}
-                    tooltip={t(`live.${item.key}.title`, item.key.charAt(0).toUpperCase() + item.key.slice(1))}
+                    tooltip={t(`${item.key}.title`)}
                     onClick={() => handleNavigation(item.href)}
                   >
                     <item.icon className="size-4" />
-                    <span>{t(`live.${item.key}.title`, item.key.charAt(0).toUpperCase() + item.key.slice(1))}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Dev/Debug Section */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Debug</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {devItems.map((item) => (
-                <SidebarMenuItem key={item.key}>
-                  <SidebarMenuButton
-                    isActive={location.pathname === item.href || location.pathname.startsWith(item.href + '/')}
-                    tooltip={item.key.charAt(0).toUpperCase() + item.key.slice(1)}
-                    onClick={() => handleNavigation(item.href)}
-                  >
-                    <item.icon className="size-4" />
-                    <span>{item.key.charAt(0).toUpperCase() + item.key.slice(1)}</span>
+                    <span>{t(`${item.key}.title`)}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
