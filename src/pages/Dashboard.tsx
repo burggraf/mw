@@ -57,7 +57,6 @@ export function DashboardPage() {
   const { currentChurch } = useChurch()
   const navigate = useNavigate()
   const [stats, setStats] = useState<DashboardStats>(defaultStats)
-  const [hasCachedData, setHasCachedData] = useState(false)
 
   // Load cached data immediately when church changes
   useEffect(() => {
@@ -70,14 +69,11 @@ export function DashboardPage() {
           new Date(event.scheduledAt) >= now
         )
         setStats({ ...cached, upcomingEvents: filteredEvents })
-        setHasCachedData(true)
       } else {
         setStats(defaultStats)
-        setHasCachedData(false)
       }
     } else {
       setStats(defaultStats)
-      setHasCachedData(false)
     }
   }, [currentChurch])
 
@@ -110,7 +106,6 @@ export function DashboardPage() {
       }
 
       setStats(newStats)
-      setHasCachedData(true)
       saveCachedStats(currentChurch.id, newStats)
     } catch (error) {
       console.error('Failed to load dashboard stats:', error)

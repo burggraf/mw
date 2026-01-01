@@ -44,3 +44,4 @@ src-tauri/gen/android/keystore.properties
 # Android builds
 *.apk
 *.apk.idsig
+scripts/deploy-cloudflare.sh
