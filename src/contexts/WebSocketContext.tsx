@@ -33,7 +33,7 @@ interface WebSocketContextValue {
   connected: Map<string, ConnectedDisplay>
   isDiscovering: boolean
   precacheAcks: Map<string, PrecacheAck> // key = displayKey
-  discover: () => Promise<void>
+  discover: () => Promise<DiscoveredDisplay[]>
   connect: (display: DiscoveredDisplay | { host: string; port: number; name: string }) => void
   disconnect: (key: string) => void
   broadcastLyrics: (message: LyricsMessage) => void
@@ -52,18 +52,18 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const wsRef = useRef<Map<string, WebSocket>>(new Map())
   const discoveredRef = useRef<DiscoveredDisplay[]>([])
 
-  const discover = useCallback(async () => {
+  const discover = useCallback(async (): Promise<DiscoveredDisplay[]> => {
     // Skip discovery if we're on the display route
     const isDisplayRoute = window.location.pathname.startsWith('/live/display')
     if (isDisplayRoute) {
       console.log('[WebSocketContext] Display route detected, skipping discovery')
-      return
+      return discoveredRef.current
     }
 
     // Skip mDNS discovery in web - browsers can't do multicast DNS
     // Web users will use the Displays page which queries Supabase directly
     if (!isTauri()) {
-      return
+      return discoveredRef.current
     }
 
     setIsDiscovering(true)
@@ -71,7 +71,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       const found = await safeInvoke<DiscoveredDisplay[]>('discover_display_devices', { timeoutSecs: 5 })
       if (!found) {
         setIsDiscovering(false)
-        return
+        return discoveredRef.current
       }
 
       // Deduplicate by name (same device might be returned for multiple IP addresses)
@@ -102,8 +102,10 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       } else {
         console.log('[WebSocketContext] No new devices found, keeping', discoveredRef.current.length, 'existing')
       }
+      return discoveredRef.current
     } catch (e) {
       console.error('[WebSocketContext] Discovery failed:', e)
+      return discoveredRef.current
     } finally {
       setIsDiscovering(false)
     }

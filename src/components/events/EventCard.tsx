@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useChurch } from '@/contexts/ChurchContext'
 import { useWebSocketConnections } from '@/contexts/WebSocketContext'
 import type { Event } from '@/types/event'
-import type { Display } from '@/types/display'
+import type { Display, DiscoveredDisplay } from '@/types/display'
 import type { PrecacheMediaItem, PrecacheSongItem } from '@/types/live'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -26,7 +26,7 @@ export function EventCard({ event, itemCounts }: EventCardProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { currentChurch } = useChurch()
-  const { connect, broadcastPrecache } = useWebSocketConnections()
+  const { connect, broadcastPrecache, discover } = useWebSocketConnections()
   const totalItems = (itemCounts?.songs || 0) + (itemCounts?.media || 0)
   const scheduledDate = new Date(event.scheduledAt)
   const isPast = scheduledDate < new Date()
@@ -62,7 +62,10 @@ export function EventCard({ event, itemCounts }: EventCardProps) {
     setStartStatus(t('events.connecting', 'Connecting to displays...'))
 
     try {
-      // 1. Connect to selected displays using their stored host/port from database
+      // 1. Connect to selected displays
+      // First, do a fresh mDNS discovery to get current host/port
+      const freshDiscovered = await discover()
+
       const selectedDisplays = displays.filter(d => selectedDisplayIds.includes(d.id) && d.isOnline)
 
       if (selectedDisplays.length === 0) {
@@ -71,10 +74,28 @@ export function EventCard({ event, itemCounts }: EventCardProps) {
         return
       }
 
-      // Connect using stored display info (host/port from database)
+      // Helper to find mDNS-discovered display by matching displayId or deviceId
+      const findDiscoveredDisplay = (dbDisplay: Display): DiscoveredDisplay | undefined => {
+        return freshDiscovered.find(d =>
+          d.displayId === dbDisplay.displayId ||
+          d.deviceId === dbDisplay.deviceId ||
+          d.displayId === dbDisplay.deviceId // fallback for single-display devices
+        )
+      }
+
+      // Connect using mDNS-discovered data (live) if available, otherwise database data (may be stale)
       for (const display of selectedDisplays) {
-        if (display.host && display.port) {
+        const discoveredDisplay = findDiscoveredDisplay(display)
+        if (discoveredDisplay) {
+          // Use live mDNS data - this has the current port
+          console.log('[EventCard] Using mDNS discovery data for', display.name, 'host:', discoveredDisplay.host, 'port:', discoveredDisplay.port)
+          connect({ host: discoveredDisplay.host, port: discoveredDisplay.port, name: display.name })
+        } else if (display.host && display.port) {
+          // Fallback to database data (may have stale port)
+          console.log('[EventCard] Using database data for', display.name, 'host:', display.host, 'port:', display.port, '(mDNS not found)')
           connect({ host: display.host, port: display.port, name: display.name })
+        } else {
+          console.warn('[EventCard] No connection info for display:', display.name)
         }
       }
 

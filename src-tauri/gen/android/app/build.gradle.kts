@@ -16,10 +16,10 @@ val tauriProperties = Properties().apply {
 
 android {
     compileSdk = 36
-    namespace = "com.mobileworship.app5"
+    namespace = "com.mobileworship.display"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
-        applicationId = "com.mobileworship.app5"
+        applicationId = "com.mobileworship.display"
         minSdk = 24
         targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
@@ -51,6 +51,7 @@ android {
             }
         }
         getByName("release") {
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             proguardFiles(
