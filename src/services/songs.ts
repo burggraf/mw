@@ -190,3 +190,49 @@ export async function searchSongs(churchId: string, query: string): Promise<Song
   if (error) throw error
   return (data || []).map(rowToSong)
 }
+
+// Genius API types
+export interface GeniusSong {
+  id: number
+  title: string
+  artist: string
+  albumArt: string
+  url: string
+}
+
+export interface GeniusSearchResult {
+  results: GeniusSong[]
+}
+
+export interface GeniusLyricsResult {
+  lyrics: string | null
+}
+
+export async function searchGeniusSongs(query: string): Promise<GeniusSearchResult> {
+  const supabase = getSupabase()
+
+  const { data, error } = await supabase.functions.invoke('genius-search', {
+    body: {
+      action: 'search',
+      query,
+    },
+  })
+
+  if (error) throw error
+  return data as GeniusSearchResult
+}
+
+export async function getGeniusLyrics(title: string, artist: string): Promise<GeniusLyricsResult> {
+  const supabase = getSupabase()
+
+  const { data, error } = await supabase.functions.invoke('genius-search', {
+    body: {
+      action: 'lyrics',
+      title,
+      artist,
+    },
+  })
+
+  if (error) throw error
+  return data as GeniusLyricsResult
+}

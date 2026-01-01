@@ -32,8 +32,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Card, CardContent } from '@/components/ui/card'
-import { Plus, Search, MoreHorizontal, Pencil, Copy, Trash2, Music } from 'lucide-react'
+import { Plus, Search, MoreHorizontal, Pencil, Copy, Trash2, Music, Globe } from 'lucide-react'
 import { toast } from 'sonner'
+import { GeniusSongSearch } from '@/components/songs/GeniusSongSearch'
 
 export function SongsPage() {
   const { t } = useTranslation()
@@ -44,6 +45,7 @@ export function SongsPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [songToDelete, setSongToDelete] = useState<Song | null>(null)
+  const [showGeniusSearch, setShowGeniusSearch] = useState(false)
 
   useEffect(() => {
     if (currentChurch) {
@@ -116,10 +118,20 @@ export function SongsPage() {
     <div className="p-4 md:p-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold">{t('songs.title')}</h1>
-        <Button onClick={() => navigate('/songs/new')} className="w-full sm:w-auto">
-          <Plus className="h-4 w-4 mr-2" />
-          {t('songs.newSong')}
-        </Button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button
+            variant="outline"
+            onClick={() => setShowGeniusSearch(true)}
+            className="flex-1 sm:flex-initial"
+          >
+            <Globe className="h-4 w-4 mr-2" />
+            {t('songs.webSearch')}
+          </Button>
+          <Button onClick={() => navigate('/songs/new')} className="flex-1 sm:flex-initial">
+            <Plus className="h-4 w-4 mr-2" />
+            {t('songs.newSong')}
+          </Button>
+        </div>
       </div>
 
       <div className="relative mb-4 md:mb-6">
@@ -252,6 +264,12 @@ export function SongsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <GeniusSongSearch
+        open={showGeniusSearch}
+        onOpenChange={setShowGeniusSearch}
+        onSuccess={loadSongs}
+      />
     </div>
   )
 }

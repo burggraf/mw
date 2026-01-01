@@ -362,6 +362,9 @@ deno_version = 2
 [functions.stock-media-search]
 verify_jwt = false
 
+[functions.genius-search]
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

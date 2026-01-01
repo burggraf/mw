@@ -26,10 +26,16 @@ if [ -z "$PIXABAY_API_KEY" ] || [ "$PIXABAY_API_KEY" = "your_pixabay_key_here" ]
   exit 1
 fi
 
+if [ -z "$GENIUS_ACCESS_TOKEN" ] || [ "$GENIUS_ACCESS_TOKEN" = "your_genius_token_here" ]; then
+  echo "Error: GENIUS_ACCESS_TOKEN not set in .env.server"
+  exit 1
+fi
+
 echo "Deploying secrets to Supabase..."
 
 supabase secrets set PEXELS_API_KEY="$PEXELS_API_KEY"
 supabase secrets set UNSPLASH_ACCESS_KEY="$UNSPLASH_ACCESS_KEY"
 supabase secrets set PIXABAY_API_KEY="$PIXABAY_API_KEY"
+supabase secrets set GENIUS_ACCESS_TOKEN="$GENIUS_ACCESS_TOKEN"
 
 echo "Secrets deployed successfully!"

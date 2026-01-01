@@ -81,6 +81,7 @@
   "songs": {
     "title": "Canciones",
     "newSong": "Nueva Cancion",
+    "webSearch": "Buscar en Web",
     "editSong": "Editar Cancion",
     "deleteSong": "Eliminar Cancion",
     "duplicateSong": "Duplicar Cancion",
@@ -114,7 +115,21 @@
       "interlude": "Interludio"
     },
     "arrangement": "Arreglo",
-    "preview": "Vista Previa"
+    "preview": "Vista Previa",
+    "genius": {
+      "title": "Buscar Canciones",
+      "description": "Busca canciones e importa letras desde Genius",
+      "searchPlaceholder": "Buscar por titulo o artista...",
+      "searchPrompt": "Ingresa un titulo o artista para buscar",
+      "noResults": "No se encontraron canciones",
+      "noLyrics": "Letras no disponibles",
+      "viewOnGenius": "Ver en Genius",
+      "import": "Importar Cancion",
+      "poweredBy": "Desarrollado por",
+      "searchError": "Error al buscar canciones",
+      "lyricsError": "Error al cargar letras",
+      "importError": "Error al importar cancion"
+    }
   },
   "media": {
     "title": "Biblioteca de Medios",

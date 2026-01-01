@@ -81,6 +81,7 @@
   "songs": {
     "title": "Songs",
     "newSong": "New Song",
+    "webSearch": "Web Search",
     "editSong": "Edit Song",
     "deleteSong": "Delete Song",
     "duplicateSong": "Duplicate Song",
@@ -114,7 +115,21 @@
       "interlude": "Interlude"
     },
     "arrangement": "Arrangement",
-    "preview": "Preview"
+    "preview": "Preview",
+    "genius": {
+      "title": "Search Songs",
+      "description": "Search for songs and import lyrics from Genius",
+      "searchPlaceholder": "Search by song title or artist...",
+      "searchPrompt": "Enter a song title or artist to search",
+      "noResults": "No songs found",
+      "noLyrics": "Lyrics not available",
+      "viewOnGenius": "View on Genius",
+      "import": "Import Song",
+      "poweredBy": "Powered by",
+      "searchError": "Failed to search songs",
+      "lyricsError": "Failed to load lyrics",
+      "importError": "Failed to import song"
+    }
   },
   "media": {
     "title": "Media Library",
