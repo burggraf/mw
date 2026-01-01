@@ -565,6 +565,9 @@ export function DisplaysPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('displays.editDisplay', 'Edit Display')}</DialogTitle>
+            <DialogDescription>
+              {t('displays.editDisplayDescription', 'Update the display name, location, or class.')}
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
