@@ -508,7 +508,8 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
         thisRunCompleted = true
 
         // Connect to our own server to receive messages
-        ws = new WebSocket(`ws://localhost:${port}`)
+        // Use 127.0.0.1 instead of localhost to avoid IPv6 resolution issues on Android
+        ws = new WebSocket(`ws://127.0.0.1:${port}`)
         wsConnectionRef.current = ws
 
         ws.onopen = () => {

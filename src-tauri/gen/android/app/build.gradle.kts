@@ -18,7 +18,8 @@ android {
     compileSdk = 36
     namespace = "com.mobileworship.app"
     defaultConfig {
-        manifestPlaceholders["usesCleartextTraffic"] = "false"
+        // Allow cleartext traffic for localhost WebSocket connections
+        manifestPlaceholders["usesCleartextTraffic"] = "true"
         applicationId = "com.mobileworship.app"
         minSdk = 24
         targetSdk = 36
