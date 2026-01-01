@@ -240,7 +240,10 @@
     "folderUpdated": "Folder updated",
     "folderDeleted": "Folder deleted",
     "deleteFolderConfirm": "Delete this folder?",
-    "deleteFolderWarning": "Deleting \"{{name}}\" will move all slides in this folder back to the main slides list. This cannot be undone."
+    "deleteFolderWarning": "Deleting \"{{name}}\" will move all slides in this folder back to the main slides list. This cannot be undone.",
+    "viewAllSlides": "View All",
+    "emptyFolder": "This folder is empty",
+    "emptyFolderDescription": "Upload slides to add them to this folder"
   },
   "styles": {
     "title": "Styles",

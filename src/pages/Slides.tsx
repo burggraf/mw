@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Upload, Search, Sparkles, Filter } from 'lucide-react'
+import { Upload, Search, Sparkles, Filter, Folder } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { toast } from 'sonner'
 
@@ -310,14 +310,38 @@ export function SlidesPage() {
         </div>
 
         <div className="flex-1">
+          {/* Folder header when viewing a specific folder */}
+          {selectedFolderId && (
+            <div className="flex items-center gap-3 mb-4 pb-3 border-b">
+              <Folder className="h-5 w-5 text-muted-foreground" />
+              <div className="flex-1">
+                <h2 className="font-semibold">
+                  {folders.find(f => f.id === selectedFolderId)?.name}
+                </h2>
+                {folders.find(f => f.id === selectedFolderId)?.description && (
+                  <p className="text-sm text-muted-foreground">
+                    {folders.find(f => f.id === selectedFolderId)?.description}
+                  </p>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedFolderId(null)}
+              >
+                {t('slides.viewAllSlides')}
+              </Button>
+            </div>
+          )}
+
           <MediaGrid
             media={media}
             loading={loading}
             onClick={(m) => !isBuiltInMedia(m) && setEditMedia(m)}
             onEdit={(m) => !isBuiltInMedia(m) && setEditMedia(m)}
             onDelete={(m) => !isBuiltInMedia(m) && handleDeleteClick(m)}
-            emptyTitle={t('slides.noSlides')}
-            emptyDescription={t('slides.noSlidesDescription')}
+            emptyTitle={selectedFolderId ? t('slides.emptyFolder') : t('slides.noSlides')}
+            emptyDescription={selectedFolderId ? t('slides.emptyFolderDescription') : t('slides.noSlidesDescription')}
           />
         </div>
       </div>

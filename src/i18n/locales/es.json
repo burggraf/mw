@@ -240,7 +240,10 @@
     "folderUpdated": "Carpeta actualizada",
     "folderDeleted": "Carpeta eliminada",
     "deleteFolderConfirm": "¿Eliminar esta carpeta?",
-    "deleteFolderWarning": "Eliminar \"{{name}}\" moverá todas las diapositivas de esta carpeta a la lista principal. Esta acción no se puede deshacer."
+    "deleteFolderWarning": "Eliminar \"{{name}}\" moverá todas las diapositivas de esta carpeta a la lista principal. Esta acción no se puede deshacer.",
+    "viewAllSlides": "Ver Todas",
+    "emptyFolder": "Esta carpeta está vacía",
+    "emptyFolderDescription": "Sube diapositivas para agregarlas a esta carpeta"
   },
   "styles": {
     "title": "Estilos",
