@@ -303,6 +303,8 @@
     "forEvent": "Displays for this event",
     "selectedCount": "{{count}} display selected",
     "selectedCount_plural": "{{count}} displays selected",
+    "classLabel": "Class",
+    "statusLabel": "Status",
     "class": {
       "audience": "Audience",
       "stage": "Stage",

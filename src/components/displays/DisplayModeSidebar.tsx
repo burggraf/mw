@@ -39,7 +39,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { DisplayClass, MonitorInfo } from '@/types/display';
-import { invoke } from '@tauri-apps/api/core';
+import { isTauri, safeInvoke } from '@/lib/tauri';
 
 interface DisplayTarget {
   id: string;
@@ -70,8 +70,12 @@ export function DisplayModeSidebar({
 
   useEffect(() => {
     const fetchMonitors = async () => {
+      // This component is Tauri-only - skip in web
+      if (!isTauri()) return;
+
       try {
-        const monitors = await invoke<MonitorInfo[]>('get_available_monitors');
+        const monitors = await safeInvoke<MonitorInfo[]>('get_available_monitors');
+        if (!monitors) return;
         const targets: DisplayTarget[] = monitors.map((m) => ({
           id: m.displayId, // Use persistent UUID from EDID
           name: m.isPrimary ? t('displayMode.mainDisplay') : `${t('displayMode.display')} ${m.id + 1}`,
@@ -121,9 +125,11 @@ export function DisplayModeSidebar({
 
   // Open a display window on a specific monitor
   const handleOpenDisplay = async (monitorId: number, displayId: string, displayName: string) => {
+    if (!isTauri()) return;
+
     try {
       console.log('[DisplayModeSidebar] Opening display window for monitor', monitorId, 'displayId:', displayId);
-      await invoke('open_display_window', {
+      await safeInvoke('open_display_window', {
         displayName,
         displayId,
         monitorId,
@@ -137,9 +143,11 @@ export function DisplayModeSidebar({
 
   // Close a display window
   const handleCloseDisplay = async (monitorId: number) => {
+    if (!isTauri()) return;
+
     try {
       console.log('[DisplayModeSidebar] Closing display window for monitor', monitorId);
-      await invoke('close_display_window', { monitorId });
+      await safeInvoke('close_display_window', { monitorId });
       setOpenDisplayWindows(prev => {
         const next = new Set(prev);
         next.delete(monitorId);

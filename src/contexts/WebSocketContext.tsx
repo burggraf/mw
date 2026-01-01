@@ -1,5 +1,5 @@
 import { createContext, useContext, useRef, useState, useCallback, useEffect, type ReactNode } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { isTauri, safeInvoke } from '@/lib/tauri'
 import type { DiscoveredDisplay } from '@/types/display'
 import type { PrecacheMessage, PrecacheAck } from '@/types/live'
 
@@ -60,9 +60,19 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    // Skip mDNS discovery in web - browsers can't do multicast DNS
+    // Web users will use the Displays page which queries Supabase directly
+    if (!isTauri()) {
+      return
+    }
+
     setIsDiscovering(true)
     try {
-      const found = await invoke<DiscoveredDisplay[]>('discover_display_devices', { timeoutSecs: 5 })
+      const found = await safeInvoke<DiscoveredDisplay[]>('discover_display_devices', { timeoutSecs: 5 })
+      if (!found) {
+        setIsDiscovering(false)
+        return
+      }
 
       // Deduplicate by name (same device might be returned for multiple IP addresses)
       const uniqueDevices = new Map<string, DiscoveredDisplay>()

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke } from '@/lib/tauri';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,7 +42,7 @@ export function PairingModal({ open, onOpenChange, onPair }: PairingModalProps) 
 
     try {
       // Step 1: Verify pairing code
-      const reachable = await invoke<VerifyPairingResult | null>('verify_pairing_code', {
+      const reachable = await safeInvoke<VerifyPairingResult | null>('verify_pairing_code', {
         pairing_code: code.toUpperCase(),
       });
 

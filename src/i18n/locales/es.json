@@ -303,6 +303,8 @@
     "forEvent": "Pantallas para este evento",
     "selectedCount": "{{count}} pantalla seleccionada",
     "selectedCount_plural": "{{count}} pantallas seleccionadas",
+    "classLabel": "Clase",
+    "statusLabel": "Estado",
     "class": {
       "audience": "Audiencia",
       "stage": "Escenario",

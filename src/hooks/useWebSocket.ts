@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { isTauri, safeInvoke } from '@/lib/tauri'
 
 export interface DisplayDevice {
   name: string
@@ -43,10 +43,14 @@ export function useWebSocket() {
     connectionsRef.current = connections
   }, [connections])
 
-  // Start WebSocket server (for displays)
+  // Start WebSocket server (for displays) - Tauri only
   const startServer = useCallback(async () => {
+    if (!isTauri()) {
+      throw new Error('WebSocket server requires Tauri')
+    }
     try {
-      const port = await invoke<number>('start_websocket_server')
+      const port = await safeInvoke<number>('start_websocket_server')
+      if (port === null) throw new Error('Failed to start server')
       setServerPort(port)
       setIsServerRunning(true)
       return port
@@ -56,10 +60,14 @@ export function useWebSocket() {
     }
   }, [])
 
-  // Discover devices via mDNS
+  // Discover devices via mDNS - Tauri only
   const discoverDevices = useCallback(async (timeout = 5) => {
+    if (!isTauri()) {
+      return []
+    }
     try {
-      const found = await invoke<DisplayDevice[]>('discover_display_devices', { timeoutSecs: timeout })
+      const found = await safeInvoke<DisplayDevice[]>('discover_display_devices', { timeoutSecs: timeout })
+      if (!found) return []
       setDevices(found)
       return found
     } catch (e) {

@@ -1,9 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { invoke } from '@tauri-apps/api/core'
-import { listen } from '@tauri-apps/api/event'
 import { useChurch } from '@/contexts/ChurchContext'
 import { generateSlides } from '@/lib/slide-generator'
+import { isTauri, safeInvoke } from '@/lib/tauri'
 import type { Slide, PrecacheMessage, PrecacheAck } from '@/types/live'
 import type { Song } from '@/types/song'
 import {
@@ -13,7 +12,6 @@ import {
   getAllStatuses,
 } from '@/services/media-cache'
 import { updateDisplayConnection, updateDisplayHeartbeat } from '@/services/displays'
-import { exit } from '@tauri-apps/plugin-process'
 
 type WsMessage =
   | { type: 'lyrics'; data: { target_display_id?: string; church_id: string; event_id: string; song_id: string; title: string; lyrics: string; background_url?: string; timestamp: number } }
@@ -128,7 +126,7 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
   useEffect(() => {
     const checkPlatform = async () => {
       try {
-        const platform = await invoke<string>('get_platform')
+        const platform = await safeInvoke<string>('get_platform')
         setIsAndroid(platform === 'android')
         console.log('[Display] Platform detected:', platform)
       } catch {
@@ -164,9 +162,12 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
           const androidApp = (window as any).AndroidApp
           if (androidApp?.exitApp) {
             androidApp.exitApp()
-          } else {
+          } else if (isTauri()) {
             // Fallback to Tauri exit
+            const { exit } = await import('@tauri-apps/plugin-process')
             await exit(0)
+          } else {
+            window.close()
           }
         } catch (e) {
           console.error('[Display] Failed to exit:', e)
@@ -382,8 +383,7 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
     isInitializingRef.current = true
 
     // Check if Tauri APIs are available
-    const hasTauri = typeof window !== 'undefined' &&
-      ('__TAURI__' in window || '__TAURI_INTERNALS__' in window)
+    const hasTauri = isTauri()
     console.log('[Display] Tauri available:', hasTauri)
 
     if (localMode) {
@@ -402,7 +402,11 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
     const startServerAndListen = async () => {
       try {
         // Get or generate device ID first
-        const deviceId = await invoke<string>('get_device_id')
+        const deviceId = await safeInvoke<string>('get_device_id')
+        if (!deviceId) {
+          console.error('[Display] Failed to get device ID')
+          return
+        }
         console.log('[Display] Got device ID:', deviceId)
 
         // Get display ID from URL (set when display window was opened)
@@ -414,20 +418,26 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
         setActiveDisplayId(displayId)
 
         // Start the WebSocket server
-        const port = await invoke<number>('start_websocket_server')
+        const port = await safeInvoke<number>('start_websocket_server')
+        if (!port) {
+          console.error('[Display] Failed to start WebSocket server')
+          return
+        }
         serverPortRef.current = port
         console.log('[Display] WebSocket server started on port', port)
 
         // Get local IP address for database update
         let localIp = '127.0.0.1'
         try {
-          const ips = await invoke<string[]>('get_local_ip_addresses')
-          // Prefer non-localhost IPs
-          const nonLoopback = ips.filter(ip => !ip.startsWith('127.') && !ip.startsWith('::1'))
-          if (nonLoopback.length > 0) {
-            localIp = nonLoopback[0]
+          const ips = await safeInvoke<string[]>('get_local_ip_addresses')
+          if (ips) {
+            // Prefer non-localhost IPs
+            const nonLoopback = ips.filter(ip => !ip.startsWith('127.') && !ip.startsWith('::1'))
+            if (nonLoopback.length > 0) {
+              localIp = nonLoopback[0]
+            }
+            console.log('[Display] Local IP addresses:', ips, 'using:', localIp)
           }
-          console.log('[Display] Local IP addresses:', ips, 'using:', localIp)
         } catch (e) {
           console.error('[Display] Failed to get local IP:', e)
         }
@@ -468,7 +478,7 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
           platformInfo = 'Linux'
         }
         try {
-          await invoke('start_advertising', {
+          await safeInvoke('start_advertising', {
             name: displayName,
             port,
             displayId,
@@ -486,7 +496,7 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
         // Start UDP listener for broadcast discovery fallback
         // This allows discovery on networks where mDNS is blocked
         try {
-          await invoke('start_udp_listener', { port: 48488, wsPort: port })
+          await safeInvoke('start_udp_listener', { port: 48488, wsPort: port })
           console.log('[Display] UDP listener started on port 48488')
         } catch (e) {
           console.error('[Display] UDP listener failed:', e)
@@ -695,45 +705,51 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
 
   // Listen for data messages (Tauri events for local displays)
   useEffect(() => {
-    if (localMode) {
+    if (localMode && isTauri()) {
       console.log('[Display] Registering Tauri display:slide event handler (local mode)')
 
-      const unlistenPromise = listen<{ songData?: { song: Song & { updated_at: string }, backgroundDataUrls?: Record<string, string> }, itemId?: string, slideIndex?: number }>(
-        'display:slide',
-        (event) => {
-          console.log('[Display] Received local Tauri event:', event.payload)
+      let unlistenFn: (() => void) | null = null
 
-          const { songData, itemId, slideIndex } = event.payload
+      import('@tauri-apps/api/event').then(({ listen }) => {
+        listen<{ songData?: { song: Song & { updated_at: string }, backgroundDataUrls?: Record<string, string> }, itemId?: string, slideIndex?: number }>(
+          'display:slide',
+          (event) => {
+            console.log('[Display] Received local Tauri event:', event.payload)
 
-          if (songData?.song) {
-            const cached = songCache.get(songData.song.id)
-            if (!cached || cached.updated_at < songData.song.updated_at) {
-              songCache.set(songData.song.id, { song: songData.song, updated_at: songData.song.updated_at })
+            const { songData, itemId, slideIndex } = event.payload
 
-              if (songData.backgroundDataUrls) {
-                for (const [key, dataUrl] of Object.entries(songData.backgroundDataUrls)) {
-                  const mediaId = songData.song.backgrounds?.[key]
-                  if (mediaId && dataUrl) {
-                    mediaPathCache.set(mediaId, {
-                      filePath: dataUrl,
-                      updatedAt: songData.song.updatedAt,
-                      isColor: false,
-                    })
+            if (songData?.song) {
+              const cached = songCache.get(songData.song.id)
+              if (!cached || cached.updated_at < songData.song.updated_at) {
+                songCache.set(songData.song.id, { song: songData.song, updated_at: songData.song.updated_at })
+
+                if (songData.backgroundDataUrls) {
+                  for (const [key, dataUrl] of Object.entries(songData.backgroundDataUrls)) {
+                    const mediaId = songData.song.backgrounds?.[key]
+                    if (mediaId && dataUrl) {
+                      mediaPathCache.set(mediaId, {
+                        filePath: dataUrl,
+                        updatedAt: songData.song.updatedAt,
+                        isColor: false,
+                      })
+                    }
                   }
                 }
               }
             }
-          }
 
-          if (itemId && slideIndex !== undefined) {
-            loadSlide(itemId, slideIndex)
-            setIsWaiting(false)
+            if (itemId && slideIndex !== undefined) {
+              loadSlide(itemId, slideIndex)
+              setIsWaiting(false)
+            }
           }
-        }
-      )
+        ).then(unlisten => {
+          unlistenFn = unlisten
+        })
+      })
 
       return () => {
-        unlistenPromise.then?.(unlisten => unlisten?.()).catch?.(() => {})
+        unlistenFn?.()
       }
     } else {
       // Remote mode - WebSocket listening handled in the initialization useEffect above

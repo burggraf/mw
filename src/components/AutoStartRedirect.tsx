@@ -1,11 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { invoke } from '@tauri-apps/api/core'
-
-const checkIsTauri = (): boolean => {
-  if (typeof window === 'undefined') return false
-  return '__TAURI__' in window || '__TAURI_INTERNALS__' in window
-}
+import { isTauri, safeInvoke } from '@/lib/tauri'
 
 export const isAndroidTV = (): boolean => {
   if (typeof window === 'undefined') return false
@@ -31,7 +26,7 @@ interface AutoStartRedirectProps {
 export function AutoStartRedirect({ children }: AutoStartRedirectProps) {
   const navigate = useNavigate()
   const location = useLocation()
-  const [isChecking, setIsChecking] = useState(() => checkIsTauri())
+  const [isChecking, setIsChecking] = useState(() => isTauri())
   const [hasRedirected, setHasRedirected] = useState(false)
 
   useEffect(() => {
@@ -47,7 +42,7 @@ export function AutoStartRedirect({ children }: AutoStartRedirectProps) {
     }
 
     // Not Tauri - show content immediately
-    if (!checkIsTauri()) {
+    if (!isTauri()) {
       setIsChecking(false)
       return
     }
@@ -55,7 +50,7 @@ export function AutoStartRedirect({ children }: AutoStartRedirectProps) {
     const checkPlatformAndAutoStart = async () => {
       try {
         // Check platform first - Android always goes to display mode
-        const platform = await invoke<string>('get_platform')
+        const platform = await safeInvoke<string>('get_platform')
         console.log('[AutoStartRedirect] Platform:', platform)
 
         if (platform === 'android') {
@@ -66,7 +61,7 @@ export function AutoStartRedirect({ children }: AutoStartRedirectProps) {
         }
 
         // Desktop: Check auto-start mode
-        const mode = await invoke<string>('get_auto_start_mode')
+        const mode = await safeInvoke<string>('get_auto_start_mode')
         if (mode === 'controller') {
           setHasRedirected(true)
           navigate('/live/controller', { replace: true })

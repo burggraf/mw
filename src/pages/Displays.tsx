@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { invoke } from '@tauri-apps/api/core'
+import { isTauri, safeInvoke } from '@/lib/tauri'
 import { useChurch } from '@/contexts/ChurchContext'
 import {
   getDisplaysForChurch,
@@ -69,8 +69,8 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
-// Check if Tauri APIs are available
-const hasTauri = typeof window !== 'undefined' && ('__TAURI__' in window || '__TAURI_INTERNALS__' in window)
+// Check if Tauri APIs are available (use centralized helper)
+const hasTauri = isTauri()
 
 export function DisplaysPage() {
   const { t } = useTranslation()
@@ -158,7 +158,11 @@ export function DisplaysPage() {
     setDiscoveredDisplays([])
 
     try {
-      const discovered = await invoke<DiscoveredDisplay[]>('discover_display_devices', { timeoutSecs: 5 })
+      const discovered = await safeInvoke<DiscoveredDisplay[]>('discover_display_devices', { timeoutSecs: 5 })
+      if (!discovered) {
+        setIsDiscovering(false)
+        return
+      }
 
       // Refresh the displays list from the database to ensure we have current data
       // This prevents duplicates if the user discovered and added quickly
@@ -416,10 +420,10 @@ export function DisplaysPage() {
               <TableRow>
                 <TableHead className="min-w-[180px]">{t('displays.name', 'Name')}</TableHead>
                 <TableHead className="min-w-[100px] hidden sm:table-cell">{t('displays.location', 'Location')}</TableHead>
-                <TableHead className="min-w-[100px] hidden md:table-cell">{t('displays.class', 'Class')}</TableHead>
-                <TableHead className="min-w-[120px] hidden lg:table-cell">{t('displays.resolution', 'Resolution')}</TableHead>
+                <TableHead className="min-w-[120px] hidden md:table-cell">{t('displays.resolution', 'Resolution')}</TableHead>
+                <TableHead className="min-w-[100px] hidden lg:table-cell text-center">{t('displays.classLabel', 'Class')}</TableHead>
                 <TableHead className="min-w-[100px] hidden xl:table-cell">{t('displays.platform', 'Platform')}</TableHead>
-                <TableHead className="min-w-[80px]">{t('displays.status', 'Status')}</TableHead>
+                <TableHead className="min-w-[80px] text-center">{t('displays.statusLabel', 'Status')}</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -440,18 +444,18 @@ export function DisplaysPage() {
                   <TableCell className="text-muted-foreground hidden sm:table-cell">
                     {display.location || '—'}
                   </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    <Badge variant="secondary" className={cn(getDisplayClassBadgeColor(display.displayClass))}>
-                      {t(`displays.classes.${display.displayClass}`, display.displayClass)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground hidden lg:table-cell">
+                  <TableCell className="text-muted-foreground hidden md:table-cell">
                     {display.width && display.height ? `${display.width}x${display.height}` : '—'}
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell text-center">
+                    <Badge variant="secondary" className={cn(getDisplayClassBadgeColor(display.displayClass))}>
+                      {t(`displays.class.${display.displayClass}`, display.displayClass)}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground hidden xl:table-cell">
                     {display.platform || '—'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     {display.isOnline ? (
                       <Badge variant="secondary" className="bg-green-500/10 text-green-500 gap-1">
                         <Wifi className="h-3 w-3" />
@@ -524,15 +528,15 @@ export function DisplaysPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="class">{t('displays.class', 'Display Class')}</Label>
+              <Label htmlFor="class">{t('displays.classLabel', 'Display Class')}</Label>
               <Select value={formDisplayClass} onValueChange={(v) => setFormDisplayClass(v as DisplayClass)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="audience">{t('displays.classes.audience', 'Audience')}</SelectItem>
-                  <SelectItem value="stage">{t('displays.classes.stage', 'Stage')}</SelectItem>
-                  <SelectItem value="lobby">{t('displays.classes.lobby', 'Lobby')}</SelectItem>
+                  <SelectItem value="audience">{t('displays.class.audience', 'Audience')}</SelectItem>
+                  <SelectItem value="stage">{t('displays.class.stage', 'Stage')}</SelectItem>
+                  <SelectItem value="lobby">{t('displays.class.lobby', 'Lobby')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -580,15 +584,15 @@ export function DisplaysPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-class">{t('displays.class', 'Display Class')}</Label>
+              <Label htmlFor="edit-class">{t('displays.classLabel', 'Display Class')}</Label>
               <Select value={formDisplayClass} onValueChange={(v) => setFormDisplayClass(v as DisplayClass)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="audience">{t('displays.classes.audience', 'Audience')}</SelectItem>
-                  <SelectItem value="stage">{t('displays.classes.stage', 'Stage')}</SelectItem>
-                  <SelectItem value="lobby">{t('displays.classes.lobby', 'Lobby')}</SelectItem>
+                  <SelectItem value="audience">{t('displays.class.audience', 'Audience')}</SelectItem>
+                  <SelectItem value="stage">{t('displays.class.stage', 'Stage')}</SelectItem>
+                  <SelectItem value="lobby">{t('displays.class.lobby', 'Lobby')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

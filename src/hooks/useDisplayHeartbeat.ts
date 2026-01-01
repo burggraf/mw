@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { isTauri, safeInvoke } from '@/lib/tauri';
 
 interface UseDisplayHeartbeatOptions {
   /** The pairing code for this display */
@@ -37,8 +37,8 @@ export function useDisplayHeartbeat({
   const intervalRef = useRef<number | null>(null);
 
   useEffect(() => {
-    // Don't start if not enabled or no pairing code
-    if (!enabled || !pairingCode) {
+    // Don't start if not enabled, no pairing code, or not in Tauri
+    if (!enabled || !pairingCode || !isTauri()) {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -49,7 +49,7 @@ export function useDisplayHeartbeat({
     // Send heartbeat immediately
     const sendHeartbeat = async () => {
       try {
-        await invoke('send_display_heartbeat', {
+        await safeInvoke('send_display_heartbeat', {
           pairingCode,
         });
         onHeartbeat?.();

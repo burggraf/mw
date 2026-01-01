@@ -1,21 +1,26 @@
-import { invoke } from '@tauri-apps/api/core';
+import { isTauri, safeInvoke } from '@/lib/tauri';
 
-export type Platform = 'desktop' | 'android-tv';
+export type Platform = 'desktop' | 'android-tv' | 'web';
 export type AppMode = 'controller' | 'display';
 
 let cachedPlatform: Platform | null = null;
 
 /**
  * Detect the current platform using Tauri's platform detection
+ * Returns 'web' when running in a browser without Tauri
  */
 export async function detectPlatform(): Promise<Platform> {
   if (cachedPlatform) return cachedPlatform;
 
-  try {
-    const platform = await invoke<string>('get_platform');
-    cachedPlatform = platform === 'android' ? 'android-tv' : 'desktop';
-  } catch {
-    // Fallback for web/dev mode - assume desktop/controller
+  if (!isTauri()) {
+    cachedPlatform = 'web';
+    return cachedPlatform;
+  }
+
+  const platform = await safeInvoke<string>('get_platform');
+  if (platform === 'android') {
+    cachedPlatform = 'android-tv';
+  } else {
     cachedPlatform = 'desktop';
   }
 

@@ -7,7 +7,7 @@ import { getEventItems } from '@/services/events'
 import { getSong } from '@/services/songs'
 import { getMediaById, getSignedMediaUrl } from '@/services/media'
 import { generateSlides } from '@/lib/slide-generator'
-import { emit } from '@tauri-apps/api/event'
+import { isTauri } from '@/lib/tauri'
 import type { Slide } from '@/types/live'
 import type { Song } from '@/types/song'
 import type { Event, EventItemWithData } from '@/types/event'
@@ -137,14 +137,17 @@ export function Controller() {
       })
     )
 
-    // Emit Tauri event for local displays
-    try {
-      await emit('display:slide', {
-        songData: { song, backgroundDataUrls },
-      })
-      console.log('[Controller] Sent song data via Tauri event for local displays')
-    } catch (error) {
-      console.error('[Controller] Failed to emit Tauri event:', error)
+    // Emit Tauri event for local displays (only in Tauri)
+    if (isTauri()) {
+      try {
+        const { emit } = await import('@tauri-apps/api/event')
+        await emit('display:slide', {
+          songData: { song, backgroundDataUrls },
+        })
+        console.log('[Controller] Sent song data via Tauri event for local displays')
+      } catch (error) {
+        console.error('[Controller] Failed to emit Tauri event:', error)
+      }
     }
 
     // Broadcast to remote displays via WebSocket
@@ -285,18 +288,21 @@ export function Controller() {
           }
         }
 
-        await emit('display:slide', {
-          songData: {
-            song: {
-              ...song,
-              updated_at: song.updatedAt,
+        if (isTauri()) {
+          const { emit } = await import('@tauri-apps/api/event')
+          await emit('display:slide', {
+            songData: {
+              song: {
+                ...song,
+                updated_at: song.updatedAt,
+              },
+              backgroundDataUrls,
             },
-            backgroundDataUrls,
-          },
-          itemId: songId,
-          slideIndex,
-        })
-        console.log('[Controller] Sent slide update via Tauri event for local displays')
+            itemId: songId,
+            slideIndex,
+          })
+          console.log('[Controller] Sent slide update via Tauri event for local displays')
+        }
       }
     } catch (error) {
       console.error('[Controller] Failed to emit Tauri event for slide:', error)

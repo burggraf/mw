@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke } from '@/lib/tauri';
 import { useTranslation } from 'react-i18next';
 import { useDisplayHeartbeat } from '@/hooks/useDisplayHeartbeat';
 import { QRCode } from '@/components/ui/qr-code';
@@ -16,7 +16,7 @@ export function TVPairingScreen() {
     setPairingCode(code);
 
     // Announce to signaling server
-    invoke('send_pairing_advertisement', {
+    safeInvoke('send_pairing_advertisement', {
       pairingCode: code,
       deviceId: 'tv-device', // TODO: get actual device ID
     }).catch(console.error);

@@ -1,25 +1,7 @@
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { PeerType, PeerInfo, LeaderStatus } from '@/types/live';
 import { BrowserWebRTCClient } from '@/lib/webrtc-browser';
-
-// Check if running in Tauri by trying to access the Tauri API
-// In dev mode, __TAURI__ might not be on window, but the imported APIs should work
-const checkIsTauri = (): boolean => {
-  // Check for Tauri globals first (production build)
-  if (typeof window !== 'undefined' && ('__TAURI__' in window || '__TAURI_INTERNALS__' in window)) {
-    return true;
-  }
-  // In dev mode, try to detect by checking if we can access the Tauri API
-  // The @tauri-apps/api modules will throw when accessed outside Tauri
-  try {
-    // Check if invoke function exists and is the Tauri version
-    return typeof invoke === 'function' && invoke.name !== 'invoke';
-  } catch {
-    return false;
-  }
-};
+import { isTauri, safeInvoke } from '@/lib/tauri';
 
 // Re-export types for convenience
 export type { PeerInfo, LeaderStatus };
@@ -37,22 +19,25 @@ export interface UseWebRTCReturn {
   error: string | null;
 }
 
-function invokeWrapper<T>(command: string, args?: Record<string, unknown>): Promise<T> {
-  const isTauri = checkIsTauri();
-  if (!isTauri) {
+async function invokeWrapper<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+  if (!isTauri()) {
     // Browser fallback for testing
     console.log('[Browser Mock] invoke:', command, args);
     return Promise.reject(new Error('Not running in Tauri - WebRTC only works in the desktop app'));
   }
-  return invoke<T>(command, args);
+  const result = await safeInvoke<T>(command, args);
+  if (result === null) {
+    throw new Error(`Failed to invoke ${command}`);
+  }
+  return result;
 }
 
-function listenWrapper<T>(event: string, handler: (event: { payload: T }) => void) {
-  const isTauri = checkIsTauri();
-  if (!isTauri) {
+async function listenWrapper<T>(event: string, handler: (event: { payload: T }) => void) {
+  if (!isTauri()) {
     // Browser fallback - do nothing
-    return { then: () => {}, catch: () => {} } as any;
+    return () => {};
   }
+  const { listen } = await import('@tauri-apps/api/event');
   return listen<T>(event, handler);
 }
 
@@ -69,11 +54,11 @@ export function useWebRTC(): UseWebRTCReturn {
     'disconnected' | 'discovering' | 'connected' | 'error'
   >('disconnected');
   const [error, setError] = useState<string | null>(null);
-  const [isRunningInTauri] = useState(checkIsTauri());
+  const [isRunningInTauri] = useState(isTauri());
 
   // Store browser client instance
   const [browserClient] = useState<BrowserWebRTCClient | null>(() =>
-    checkIsTauri() ? null : new BrowserWebRTCClient({
+    isTauri() ? null : new BrowserWebRTCClient({
       signalingUrl: 'ws://localhost:3010',
       peerType: 'controller',
       displayName: 'Browser Client',
@@ -98,7 +83,7 @@ export function useWebRTC(): UseWebRTCReturn {
       setConnectionState('discovering');
       setError(null);
 
-      if (checkIsTauri()) {
+      if (isTauri()) {
         // Use Tauri backend
         const peerId = await invokeWrapper<string>('start_peer', { peerType, displayName });
         myPeerIdRef.current = peerId;  // Update ref
@@ -144,7 +129,7 @@ export function useWebRTC(): UseWebRTCReturn {
 
   const sendMessage = useCallback(async (targetPeerId: string, message: string) => {
     try {
-      if (checkIsTauri()) {
+      if (isTauri()) {
         await invokeWrapper('send_control_message', { targetPeerId, message });
       } else {
         if (!browserClient) {
@@ -160,7 +145,7 @@ export function useWebRTC(): UseWebRTCReturn {
 
   // Tauri-specific event listeners
   useEffect(() => {
-    if (!checkIsTauri()) return;
+    if (!isTauri()) return;
     const unbindPromise = listenWrapper<PeerInfo[]>('webrtc:peer_list_changed', (event) => {
       setPeers(event.payload);
     });
@@ -170,7 +155,7 @@ export function useWebRTC(): UseWebRTCReturn {
   }, []);
 
   useEffect(() => {
-    if (!checkIsTauri()) return;
+    if (!isTauri()) return;
     const unbindPromise = listenWrapper<string>('webrtc:leader_changed', (event) => {
       const newLeaderId = event.payload;
       const myId = myPeerIdRef.current;
@@ -188,9 +173,9 @@ export function useWebRTC(): UseWebRTCReturn {
 
   // Bridge Tauri's webrtc:data_received event to window event for pages to listen
   useEffect(() => {
-    const isTauri = checkIsTauri();
-    console.log('[useWebRTC] Setting up webrtc:data_received bridge, isTauri:', isTauri);
-    if (!isTauri) {
+    const inTauri = isTauri();
+    console.log('[useWebRTC] Setting up webrtc:data_received bridge, isTauri:', inTauri);
+    if (!inTauri) {
       console.warn('[useWebRTC] NOT in Tauri - event bridge will NOT work!');
       return;
     }
@@ -233,7 +218,7 @@ export function useWebRTC(): UseWebRTCReturn {
   }, []);
 
   useEffect(() => {
-    if (!isConnected || !checkIsTauri()) return;
+    if (!isConnected || !isTauri()) return;
     const interval = setInterval(async () => {
       try {
         // Poll for leader status
