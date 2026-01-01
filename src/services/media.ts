@@ -1,5 +1,5 @@
 import { getSupabase } from '@/lib/supabase'
-import type { Media, MediaInput, MediaFilters, StockMediaItem, StockSearchResult, MediaCategory } from '@/types/media'
+import type { Media, MediaInput, MediaFilters, StockMediaItem, StockSearchResult, MediaCategory, SlideFolder, SlideFolderInput } from '@/types/media'
 import { generateStoragePath, generateImageThumbnail } from '@/lib/media-utils'
 import { rowToStyle } from './styles'
 import type { Style } from '@/types/style'
@@ -25,6 +25,19 @@ function rowToMedia(row: any): Media {
     styleId: row.style_id,
     backgroundColor: row.background_color,
     category: row.category || 'background',
+    folderId: row.folder_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+// Convert database row to SlideFolder type
+function rowToSlideFolder(row: any): SlideFolder {
+  return {
+    id: row.id,
+    churchId: row.church_id,
+    name: row.name,
+    description: row.description,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -55,6 +68,15 @@ export async function getMedia(churchId: string, filters?: MediaFilters): Promis
   if (filters?.tags && filters.tags.length > 0) {
     // Use cs (contains) operator with JSON array format for JSONB
     query = query.filter('tags', 'cs', JSON.stringify(filters.tags))
+  }
+
+  // Filter by folder - null means slides not in any folder
+  if (filters?.folderId !== undefined) {
+    if (filters.folderId === null) {
+      query = query.is('folder_id', null)
+    } else {
+      query = query.eq('folder_id', filters.folderId)
+    }
   }
 
   const { data, error } = await query.order('created_at', { ascending: false })
@@ -103,6 +125,7 @@ export async function createMedia(churchId: string, input: MediaInput): Promise<
       style_id: input.styleId || null,
       background_color: input.backgroundColor || null,
       category: input.category || 'background',
+      folder_id: input.folderId || null,
     })
     .select()
     .single()
@@ -111,13 +134,14 @@ export async function createMedia(churchId: string, input: MediaInput): Promise<
   return rowToMedia(data)
 }
 
-export async function updateMedia(id: string, input: { name?: string; tags?: string[] }): Promise<Media> {
+export async function updateMedia(id: string, input: { name?: string; tags?: string[]; folderId?: string | null }): Promise<Media> {
   const supabase = getSupabase()
 
   const updateData: Record<string, any> = {}
 
   if (input.name !== undefined) updateData.name = input.name
   if (input.tags !== undefined) updateData.tags = input.tags
+  if (input.folderId !== undefined) updateData.folder_id = input.folderId
 
   const { data, error } = await supabase
     .from('media')
@@ -433,4 +457,101 @@ export async function createSolidColorBackground(
 
   if (error) throw error
   return rowToMedia(data)
+}
+
+// ============ Slide Folder Functions ============
+
+export async function getSlideFolders(churchId: string): Promise<SlideFolder[]> {
+  const supabase = getSupabase()
+
+  const { data, error } = await supabase
+    .from('slide_folders')
+    .select('*')
+    .eq('church_id', churchId)
+    .order('name', { ascending: true })
+
+  if (error) throw error
+  return (data || []).map(rowToSlideFolder)
+}
+
+export async function getSlideFolderById(id: string): Promise<SlideFolder | null> {
+  const supabase = getSupabase()
+
+  const { data, error } = await supabase
+    .from('slide_folders')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error) {
+    if (error.code === 'PGRST116') return null // Not found
+    throw error
+  }
+
+  return rowToSlideFolder(data)
+}
+
+export async function createSlideFolder(churchId: string, input: SlideFolderInput): Promise<SlideFolder> {
+  const supabase = getSupabase()
+
+  const { data, error } = await supabase
+    .from('slide_folders')
+    .insert({
+      church_id: churchId,
+      name: input.name,
+      description: input.description || null,
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return rowToSlideFolder(data)
+}
+
+export async function updateSlideFolder(id: string, input: Partial<SlideFolderInput>): Promise<SlideFolder> {
+  const supabase = getSupabase()
+
+  const updateData: Record<string, any> = {}
+  if (input.name !== undefined) updateData.name = input.name
+  if (input.description !== undefined) updateData.description = input.description
+
+  const { data, error } = await supabase
+    .from('slide_folders')
+    .update(updateData)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return rowToSlideFolder(data)
+}
+
+export async function deleteSlideFolder(id: string): Promise<void> {
+  const supabase = getSupabase()
+
+  // Note: Due to ON DELETE SET NULL, slides in this folder will have their folder_id set to null
+  const { error } = await supabase
+    .from('slide_folders')
+    .delete()
+    .eq('id', id)
+
+  if (error) throw error
+}
+
+export async function getSlidesInFolder(folderId: string): Promise<Media[]> {
+  const supabase = getSupabase()
+
+  const { data, error } = await supabase
+    .from('media')
+    .select('*')
+    .eq('folder_id', folderId)
+    .eq('category', 'slide')
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return (data || []).map(rowToMedia)
+}
+
+export async function moveSlideToFolder(slideId: string, folderId: string | null): Promise<Media> {
+  return updateMedia(slideId, { folderId })
 }

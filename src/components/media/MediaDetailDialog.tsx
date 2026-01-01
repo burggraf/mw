@@ -196,7 +196,7 @@ Was blind, but now I see`
 
         <div className="space-y-6">
           {/* Preview */}
-          <div className="aspect-video relative rounded-lg overflow-hidden bg-muted border border-gray-400">
+          <div className="aspect-video relative rounded-lg overflow-hidden bg-black border border-gray-400">
             {loadingPreview ? (
               <Skeleton className="absolute inset-0" />
             ) : isSolidColor ? (
@@ -211,13 +211,13 @@ Was blind, but now I see`
                   autoPlay
                   loop
                   muted
-                  className="absolute inset-0 w-full h-full object-cover bg-black"
+                  className="absolute inset-0 w-full h-full object-contain bg-black"
                 />
               ) : (
                 <img
                   src={previewUrl}
                   alt={media.name}
-                  className="absolute inset-0 w-full h-full object-cover"
+                  className="absolute inset-0 w-full h-full object-contain"
                 />
               )
             ) : (

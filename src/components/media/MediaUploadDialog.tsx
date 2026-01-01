@@ -29,6 +29,7 @@ interface MediaUploadDialogProps {
   onOpenChange: (open: boolean) => void
   onSuccess?: () => void
   category?: MediaCategory
+  folderId?: string  // Optional folder to upload slides to
 }
 
 interface UploadingFile {
@@ -45,6 +46,7 @@ export function MediaUploadDialog({
   onOpenChange,
   onSuccess,
   category = 'background',
+  folderId,
 }: MediaUploadDialogProps) {
   const { currentChurch } = useChurch()
   const [isDragging, setIsDragging] = useState(false)
@@ -147,6 +149,7 @@ export function MediaUploadDialog({
           duration: 'duration' in dimensions ? dimensions.duration : undefined,
           source: 'upload',
           category,
+          folderId,
         })
 
         // Step 7: Complete (100%)

@@ -1,14 +1,24 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useChurch } from '@/contexts/ChurchContext'
-import { getMedia, deleteMedia, getAllTags, getMediaUsage } from '@/services/media'
-import type { Media, MediaFilters } from '@/types/media'
+import {
+  getMedia,
+  deleteMedia,
+  getAllTags,
+  getMediaUsage,
+  getSlideFolders,
+  createSlideFolder,
+  updateSlideFolder,
+  deleteSlideFolder,
+} from '@/services/media'
+import type { Media, MediaFilters, SlideFolder } from '@/types/media'
 import { isBuiltInMedia } from '@/types/media'
 import { MediaGrid } from '@/components/media/MediaGrid'
 import { MediaSidebar } from '@/components/media/MediaSidebar'
 import { MediaUploadDialog } from '@/components/media/MediaUploadDialog'
 import { StockMediaDialog } from '@/components/media/StockMediaDialog'
 import { MediaDetailDialog } from '@/components/media/MediaDetailDialog'
+import { SlideFolderDialog } from '@/components/media/SlideFolderDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -38,6 +48,10 @@ export function SlidesPage() {
   const [allTags, setAllTags] = useState<string[]>([])
   const [selectedTags, setSelectedTags] = useState<string[]>([])
 
+  // Folders
+  const [folders, setFolders] = useState<SlideFolder[]>([])
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
+
   // Dialogs
   const [uploadOpen, setUploadOpen] = useState(false)
   const [stockOpen, setStockOpen] = useState(false)
@@ -45,10 +59,16 @@ export function SlidesPage() {
   const [deleteTarget, setDeleteTarget] = useState<Media | null>(null)
   const [deleteUsageCount, setDeleteUsageCount] = useState(0)
 
+  // Folder dialogs
+  const [folderDialogOpen, setFolderDialogOpen] = useState(false)
+  const [editingFolder, setEditingFolder] = useState<SlideFolder | null>(null)
+  const [deleteFolderTarget, setDeleteFolderTarget] = useState<SlideFolder | null>(null)
+
   useEffect(() => {
     if (currentChurch) {
       loadMedia()
       loadTags()
+      loadFolders()
     }
   }, [currentChurch])
 
@@ -56,7 +76,7 @@ export function SlidesPage() {
     if (currentChurch) {
       loadMedia()
     }
-  }, [activeCollection, selectedTags, searchQuery])
+  }, [activeCollection, selectedTags, searchQuery, selectedFolderId])
 
   async function loadMedia() {
     if (!currentChurch) return
@@ -73,6 +93,11 @@ export function SlidesPage() {
       if (activeCollection === 'unsplash') filters.source = 'unsplash'
       if (activeCollection === 'pixabay') filters.source = 'pixabay'
       if (selectedTags.length > 0) filters.tags = selectedTags
+
+      // Filter by folder if one is selected
+      if (selectedFolderId !== null) {
+        filters.folderId = selectedFolderId
+      }
 
       let data = await getMedia(currentChurch.id, filters)
 
@@ -107,10 +132,78 @@ export function SlidesPage() {
     }
   }
 
+  async function loadFolders() {
+    if (!currentChurch) return
+
+    try {
+      const data = await getSlideFolders(currentChurch.id)
+      setFolders(data)
+    } catch (error) {
+      console.error('Failed to load folders:', error)
+    }
+  }
+
   function handleTagToggle(tag: string) {
     setSelectedTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
     )
+  }
+
+  function handleFolderSelect(folderId: string | null) {
+    setSelectedFolderId(folderId)
+    // Reset smart collection when selecting a specific folder
+    if (folderId !== null) {
+      setActiveCollection('all')
+    }
+  }
+
+  function handleCreateFolder() {
+    setEditingFolder(null)
+    setFolderDialogOpen(true)
+  }
+
+  function handleEditFolder(folder: SlideFolder) {
+    setEditingFolder(folder)
+    setFolderDialogOpen(true)
+  }
+
+  async function handleSaveFolder(input: { name: string; description?: string }) {
+    if (!currentChurch) return
+
+    try {
+      if (editingFolder) {
+        await updateSlideFolder(editingFolder.id, input)
+        toast.success(t('slides.folderUpdated'))
+      } else {
+        await createSlideFolder(currentChurch.id, input)
+        toast.success(t('slides.folderCreated'))
+      }
+      loadFolders()
+    } catch (error) {
+      console.error('Failed to save folder:', error)
+      toast.error(t('common.error'))
+      throw error
+    }
+  }
+
+  async function handleDeleteFolder() {
+    if (!deleteFolderTarget) return
+
+    try {
+      await deleteSlideFolder(deleteFolderTarget.id)
+      // If we were viewing the deleted folder, go back to all slides
+      if (selectedFolderId === deleteFolderTarget.id) {
+        setSelectedFolderId(null)
+      }
+      toast.success(t('slides.folderDeleted'))
+      loadFolders()
+      loadMedia() // Reload to show slides that were in the folder
+    } catch (error) {
+      console.error('Failed to delete folder:', error)
+      toast.error(t('common.error'))
+    } finally {
+      setDeleteFolderTarget(null)
+    }
   }
 
   async function handleDeleteClick(media: Media) {
@@ -184,6 +277,12 @@ export function SlidesPage() {
                 selectedTags={selectedTags}
                 onTagToggle={handleTagToggle}
                 translationNamespace="slides"
+                folders={folders}
+                selectedFolderId={selectedFolderId}
+                onFolderSelect={handleFolderSelect}
+                onCreateFolder={handleCreateFolder}
+                onEditFolder={handleEditFolder}
+                onDeleteFolder={setDeleteFolderTarget}
               />
             </div>
           </SheetContent>
@@ -201,6 +300,12 @@ export function SlidesPage() {
             selectedTags={selectedTags}
             onTagToggle={handleTagToggle}
             translationNamespace="slides"
+            folders={folders}
+            selectedFolderId={selectedFolderId}
+            onFolderSelect={handleFolderSelect}
+            onCreateFolder={handleCreateFolder}
+            onEditFolder={handleEditFolder}
+            onDeleteFolder={setDeleteFolderTarget}
           />
         </div>
 
@@ -222,6 +327,7 @@ export function SlidesPage() {
         open={uploadOpen}
         onOpenChange={setUploadOpen}
         category="slide"
+        folderId={selectedFolderId || undefined}
         onSuccess={() => {
           loadMedia()
           loadTags()
@@ -262,6 +368,35 @@ export function SlidesPage() {
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Folder Dialog */}
+      <SlideFolderDialog
+        open={folderDialogOpen}
+        onOpenChange={setFolderDialogOpen}
+        folder={editingFolder}
+        onSave={handleSaveFolder}
+      />
+
+      {/* Delete Folder Confirmation */}
+      <AlertDialog open={!!deleteFolderTarget} onOpenChange={() => setDeleteFolderTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('slides.deleteFolderConfirm')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('slides.deleteFolderWarning', { name: deleteFolderTarget?.name })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteFolder}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {t('common.delete')}

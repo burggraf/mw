@@ -18,7 +18,8 @@
     "import": "Importar",
     "saving": "Guardando...",
     "noChurchSelected": "No hay iglesia seleccionada",
-    "notFound": "No encontrado"
+    "notFound": "No encontrado",
+    "optional": "opcional"
   },
   "nav": {
     "dashboard": "Panel",
@@ -192,6 +193,7 @@
     "noSlidesDescription": "Sube imágenes para anuncios, pantallas de bienvenida y otro contenido",
     "filters": "Filtros",
     "allMedia": "Todas las Diapositivas",
+    "allSlides": "Todas las Diapositivas",
     "recentlyAdded": "Agregadas Recientemente",
     "images": "Imágenes",
     "videos": "Videos",
@@ -224,7 +226,21 @@
     "uploaded": "Subido",
     "noResults": "No se encontraron resultados",
     "searchStockPlaceholder": "Buscar imágenes...",
-    "preview": "Vista previa"
+    "preview": "Vista previa",
+    "folders": "Carpetas",
+    "createFolder": "Crear Carpeta",
+    "editFolder": "Editar Carpeta",
+    "createFolderDescription": "Crea una nueva carpeta para organizar tus diapositivas.",
+    "editFolderDescription": "Actualiza el nombre o descripción de la carpeta.",
+    "folderName": "Nombre de la Carpeta",
+    "folderNamePlaceholder": "ej., Anuncios",
+    "folderDescription": "Descripción",
+    "folderDescriptionPlaceholder": "ej., Diapositivas de anuncios previos al servicio",
+    "folderCreated": "Carpeta creada",
+    "folderUpdated": "Carpeta actualizada",
+    "folderDeleted": "Carpeta eliminada",
+    "deleteFolderConfirm": "¿Eliminar esta carpeta?",
+    "deleteFolderWarning": "Eliminar \"{{name}}\" moverá todas las diapositivas de esta carpeta a la lista principal. Esta acción no se puede deshacer."
   },
   "styles": {
     "title": "Estilos",

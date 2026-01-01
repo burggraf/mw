@@ -117,7 +117,7 @@ export function MediaCard({
       onClick={handleClick}
     >
       {/* Thumbnail with aspect-video ratio */}
-      <div className="aspect-video relative">
+      <div className="aspect-video relative bg-black">
         {isLoading ? (
           <Skeleton className="absolute inset-0" />
         ) : isSolidColor ? (
@@ -133,7 +133,7 @@ export function MediaCard({
           <img
             src={thumbnailUrl || ''}
             alt={media.name}
-            className="absolute inset-0 w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-contain"
           />
         )}
 

@@ -18,7 +18,8 @@
     "import": "Import",
     "saving": "Saving...",
     "noChurchSelected": "No church selected",
-    "notFound": "Not found"
+    "notFound": "Not found",
+    "optional": "optional"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -192,6 +193,7 @@
     "noSlidesDescription": "Upload images for announcements, welcome screens, and other standalone content",
     "filters": "Filters",
     "allMedia": "All Slides",
+    "allSlides": "All Slides",
     "recentlyAdded": "Recently Added",
     "images": "Images",
     "videos": "Videos",
@@ -224,7 +226,21 @@
     "uploaded": "Uploaded",
     "noResults": "No results found",
     "searchStockPlaceholder": "Search for images...",
-    "preview": "Preview"
+    "preview": "Preview",
+    "folders": "Folders",
+    "createFolder": "Create Folder",
+    "editFolder": "Edit Folder",
+    "createFolderDescription": "Create a new folder to organize your slides.",
+    "editFolderDescription": "Update the folder name or description.",
+    "folderName": "Folder Name",
+    "folderNamePlaceholder": "e.g., Announcements",
+    "folderDescription": "Description",
+    "folderDescriptionPlaceholder": "e.g., Pre-service announcement slides",
+    "folderCreated": "Folder created",
+    "folderUpdated": "Folder updated",
+    "folderDeleted": "Folder deleted",
+    "deleteFolderConfirm": "Delete this folder?",
+    "deleteFolderWarning": "Deleting \"{{name}}\" will move all slides in this folder back to the main slides list. This cannot be undone."
   },
   "styles": {
     "title": "Styles",
