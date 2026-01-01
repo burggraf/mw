@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useChurch } from '@/contexts/ChurchContext'
 import { createSolidColorBackground } from '@/services/media'
+import type { MediaCategory } from '@/types/media'
 import {
   Dialog,
   DialogContent,
@@ -18,6 +19,7 @@ interface SolidColorDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
+  category?: MediaCategory
 }
 
 const PRESET_COLORS = [
@@ -57,6 +59,7 @@ export function SolidColorDialog({
   open,
   onOpenChange,
   onSuccess,
+  category = 'background',
 }: SolidColorDialogProps) {
   const { t } = useTranslation()
   const { currentChurch } = useChurch()
@@ -70,14 +73,14 @@ export function SolidColorDialog({
 
     setSaving(true)
     try {
-      await createSolidColorBackground(currentChurch.id, name.trim(), color)
-      toast.success('Background created')
+      await createSolidColorBackground(currentChurch.id, name.trim(), color, undefined, category)
+      toast.success(category === 'slide' ? 'Slide created' : 'Background created')
       onSuccess()
       onOpenChange(false)
       setName('')
       setColor('#3B82F6')
     } catch (error) {
-      console.error('Failed to create background:', error)
+      console.error('Failed to create:', error)
       toast.error(t('common.error'))
     } finally {
       setSaving(false)

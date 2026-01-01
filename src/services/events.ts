@@ -239,6 +239,7 @@ export async function getEventItems(eventId: string): Promise<EventItemWithData[
         tags: m.tags || [],
         styleId: m.style_id,
         backgroundColor: m.background_color,
+        category: m.category || 'background',
         createdAt: m.created_at,
         updatedAt: m.updated_at,
       }

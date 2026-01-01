@@ -14,6 +14,8 @@ interface MediaGridProps {
   selectedId?: string
   selectable?: boolean
   emptyMessage?: string
+  emptyTitle?: string
+  emptyDescription?: string
 }
 
 export function MediaGrid({
@@ -26,6 +28,8 @@ export function MediaGrid({
   selectedId,
   selectable = false,
   emptyMessage,
+  emptyTitle,
+  emptyDescription,
 }: MediaGridProps) {
   const { t } = useTranslation()
 
@@ -43,7 +47,10 @@ export function MediaGrid({
     return (
       <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
         <ImageIcon className="h-12 w-12 mb-4" />
-        <p>{emptyMessage || t('media.noMedia')}</p>
+        <p className="font-medium">{emptyTitle || emptyMessage || t('backgrounds.noMedia')}</p>
+        {emptyDescription && (
+          <p className="text-sm mt-1">{emptyDescription}</p>
+        )}
       </div>
     )
   }

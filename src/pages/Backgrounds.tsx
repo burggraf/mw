@@ -29,7 +29,7 @@ import { toast } from 'sonner'
 
 type SmartCollection = 'all' | 'recent' | 'images' | 'videos' | 'pexels' | 'unsplash' | 'pixabay'
 
-export function MediaPage() {
+export function BackgroundsPage() {
   const { t } = useTranslation()
   const { currentChurch } = useChurch()
 
@@ -67,7 +67,9 @@ export function MediaPage() {
 
     setLoading(true)
     try {
-      const filters: MediaFilters = {}
+      const filters: MediaFilters = {
+        category: 'background', // Only show backgrounds
+      }
 
       if (activeCollection === 'images') filters.type = 'image'
       if (activeCollection === 'videos') filters.type = 'video'
@@ -91,7 +93,7 @@ export function MediaPage() {
 
       setMedia(data)
     } catch (error) {
-      console.error('Failed to load media:', error)
+      console.error('Failed to load backgrounds:', error)
       toast.error(t('common.error'))
     } finally {
       setLoading(false)
@@ -102,7 +104,7 @@ export function MediaPage() {
     if (!currentChurch) return
 
     try {
-      const tags = await getAllTags(currentChurch.id)
+      const tags = await getAllTags(currentChurch.id, 'background')
       setAllTags(tags)
     } catch (error) {
       console.error('Failed to load tags:', error)
@@ -127,9 +129,9 @@ export function MediaPage() {
     try {
       await deleteMedia(deleteTarget.id)
       setMedia((prev) => prev.filter((m) => m.id !== deleteTarget.id))
-      toast.success(t('media.mediaDeleted'))
+      toast.success(t('backgrounds.mediaDeleted'))
     } catch (error) {
-      console.error('Failed to delete media:', error)
+      console.error('Failed to delete background:', error)
       toast.error(t('common.error'))
     } finally {
       setDeleteTarget(null)
@@ -143,7 +145,7 @@ export function MediaPage() {
     <div className="p-4 md:p-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold">{t('media.title')}</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">{t('backgrounds.title')}</h1>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => setColorOpen(true)} className="flex-1 sm:flex-none">
             <Palette className="h-4 w-4 sm:mr-2" />
@@ -151,11 +153,11 @@ export function MediaPage() {
           </Button>
           <Button variant="outline" size="sm" onClick={() => setStockOpen(true)} className="flex-1 sm:flex-none">
             <Sparkles className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">{t('media.stockMedia')}</span>
+            <span className="hidden sm:inline">{t('backgrounds.stockMedia')}</span>
           </Button>
           <Button size="sm" onClick={() => setUploadOpen(true)} className="flex-1 sm:flex-none">
             <Upload className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">{t('media.upload')}</span>
+            <span className="hidden sm:inline">{t('backgrounds.upload')}</span>
           </Button>
         </div>
       </div>
@@ -165,7 +167,7 @@ export function MediaPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder={t('media.searchPlaceholder')}
+            placeholder={t('backgrounds.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -180,7 +182,7 @@ export function MediaPage() {
           </SheetTrigger>
           <SheetContent side="left" className="w-[280px]">
             <SheetHeader>
-              <SheetTitle>{t('media.filters')}</SheetTitle>
+              <SheetTitle>{t('backgrounds.filters')}</SheetTitle>
             </SheetHeader>
             <div className="mt-4">
               <MediaSidebar
@@ -189,6 +191,7 @@ export function MediaPage() {
                 tags={allTags}
                 selectedTags={selectedTags}
                 onTagToggle={handleTagToggle}
+                translationNamespace="backgrounds"
               />
             </div>
           </SheetContent>
@@ -205,6 +208,7 @@ export function MediaPage() {
             tags={allTags}
             selectedTags={selectedTags}
             onTagToggle={handleTagToggle}
+            translationNamespace="backgrounds"
           />
         </div>
 
@@ -216,6 +220,8 @@ export function MediaPage() {
             onEdit={(m) => !isBuiltInMedia(m) && setEditMedia(m)}
             onDelete={(m) => !isBuiltInMedia(m) && handleDeleteClick(m)}
             onConfigureStyle={(m) => !isBuiltInMedia(m) && setStyleEditorMedia(m)}
+            emptyTitle={t('backgrounds.noMedia')}
+            emptyDescription={t('backgrounds.noMediaDescription')}
           />
         </div>
       </div>
@@ -224,6 +230,7 @@ export function MediaPage() {
       <MediaUploadDialog
         open={uploadOpen}
         onOpenChange={setUploadOpen}
+        category="background"
         onSuccess={() => {
           loadMedia()
           loadTags()
@@ -233,6 +240,7 @@ export function MediaPage() {
       <StockMediaDialog
         open={stockOpen}
         onOpenChange={setStockOpen}
+        category="background"
         onSuccess={() => {
           loadMedia()
           loadTags()
@@ -242,6 +250,7 @@ export function MediaPage() {
       <SolidColorDialog
         open={colorOpen}
         onOpenChange={setColorOpen}
+        category="background"
         onSuccess={() => {
           loadMedia()
         }}
@@ -273,11 +282,11 @@ export function MediaPage() {
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('media.deleteConfirm')}</AlertDialogTitle>
+            <AlertDialogTitle>{t('backgrounds.deleteConfirm')}</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteUsageCount > 0
-                ? t('media.deleteWarningUsed', { count: deleteUsageCount })
-                : t('media.deleteWarning')}
+                ? t('backgrounds.deleteWarningUsed', { count: deleteUsageCount })
+                : t('backgrounds.deleteWarning')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

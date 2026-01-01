@@ -1,5 +1,5 @@
 import { getSupabase } from '@/lib/supabase'
-import type { Media, MediaInput, MediaFilters, StockMediaItem, StockSearchResult } from '@/types/media'
+import type { Media, MediaInput, MediaFilters, StockMediaItem, StockSearchResult, MediaCategory } from '@/types/media'
 import { generateStoragePath, generateImageThumbnail } from '@/lib/media-utils'
 import { rowToStyle } from './styles'
 import type { Style } from '@/types/style'
@@ -24,6 +24,7 @@ function rowToMedia(row: any): Media {
     tags: row.tags || [],
     styleId: row.style_id,
     backgroundColor: row.background_color,
+    category: row.category || 'background',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -37,6 +38,11 @@ export async function getMedia(churchId: string, filters?: MediaFilters): Promis
     .from('media')
     .select('*')
     .or(`church_id.eq.${churchId},church_id.is.null`)
+
+  // Filter by category (defaults to 'background' if not specified)
+  if (filters?.category) {
+    query = query.eq('category', filters.category)
+  }
 
   if (filters?.type) {
     query = query.eq('type', filters.type)
@@ -96,6 +102,7 @@ export async function createMedia(churchId: string, input: MediaInput): Promise<
       tags: input.tags || [],
       style_id: input.styleId || null,
       background_color: input.backgroundColor || null,
+      category: input.category || 'background',
     })
     .select()
     .single()
@@ -163,6 +170,11 @@ export async function searchMedia(churchId: string, query: string, filters?: Med
     .eq('church_id', churchId)
     .ilike('name', `%${query}%`)
 
+  // Filter by category
+  if (filters?.category) {
+    dbQuery = dbQuery.eq('category', filters.category)
+  }
+
   if (filters?.type) {
     dbQuery = dbQuery.eq('type', filters.type)
   }
@@ -184,13 +196,19 @@ export async function searchMedia(churchId: string, query: string, filters?: Med
   return (data || []).map(rowToMedia)
 }
 
-export async function getAllTags(churchId: string): Promise<string[]> {
+export async function getAllTags(churchId: string, category?: MediaCategory): Promise<string[]> {
   const supabase = getSupabase()
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('media')
     .select('tags')
     .eq('church_id', churchId)
+
+  if (category) {
+    query = query.eq('category', category)
+  }
+
+  const { data, error } = await query
 
   if (error) throw error
 
@@ -275,7 +293,8 @@ export async function searchStockMedia(
 
 export async function importStockMedia(
   churchId: string,
-  item: StockMediaItem
+  item: StockMediaItem,
+  category: MediaCategory = 'background'
 ): Promise<Media> {
   const supabase = getSupabase()
 
@@ -350,6 +369,7 @@ export async function importStockMedia(
     source: item.provider as 'pexels' | 'unsplash' | 'pixabay',
     sourceId: item.id,
     sourceUrl: item.downloadUrl,
+    category,
   })
 }
 
@@ -388,7 +408,8 @@ export async function createSolidColorBackground(
   churchId: string,
   name: string,
   color: string,
-  styleId?: string
+  styleId?: string,
+  category: MediaCategory = 'background'
 ): Promise<Media> {
   const supabase = getSupabase()
 
@@ -405,6 +426,7 @@ export async function createSolidColorBackground(
       tags: ['color'],
       style_id: styleId || null,
       background_color: color,
+      category,
     })
     .select()
     .single()

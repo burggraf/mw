@@ -4,7 +4,7 @@ import { Search, Download, Loader2, Image, Video, Eye, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useChurch } from '@/contexts/ChurchContext'
 import { searchStockMedia, importStockMedia } from '@/services/media'
-import type { StockMediaItem } from '@/types/media'
+import type { StockMediaItem, MediaCategory } from '@/types/media'
 import {
   Dialog,
   DialogContent,
@@ -22,12 +22,14 @@ interface StockMediaDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess?: () => void
+  category?: MediaCategory
 }
 
 export function StockMediaDialog({
   open,
   onOpenChange,
   onSuccess,
+  category = 'background',
 }: StockMediaDialogProps) {
   const { t } = useTranslation()
   const { currentChurch } = useChurch()
@@ -85,13 +87,13 @@ export function StockMediaDialog({
     setImporting(item.id)
 
     try {
-      await importStockMedia(currentChurch.id, item)
-      toast.success(t('media.importSuccess'))
+      await importStockMedia(currentChurch.id, item, category)
+      toast.success(t('backgrounds.importSuccess'))
       onSuccess?.()
       onOpenChange(false)
     } catch (error) {
       console.error('Stock media import failed:', error)
-      toast.error(t('media.importError'))
+      toast.error(t('backgrounds.importError'))
     } finally {
       setImporting(null)
     }

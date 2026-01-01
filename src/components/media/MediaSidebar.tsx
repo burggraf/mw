@@ -19,16 +19,18 @@ export interface MediaSidebarProps {
   tags: string[]
   selectedTags: string[]
   onTagToggle: (tag: string) => void
+  translationNamespace?: 'backgrounds' | 'slides'
 }
 
+// Collection config with label keys relative to namespace
 const collections = [
-  { key: 'all' as const, icon: Sparkles, labelKey: 'media.allMedia' },
-  { key: 'recent' as const, icon: Clock, labelKey: 'media.recentlyAdded' },
-  { key: 'images' as const, icon: ImageIcon, labelKey: 'media.images' },
-  { key: 'videos' as const, icon: Video, labelKey: 'media.videos' },
-  { key: 'pexels' as const, icon: Camera, labelKey: 'media.fromPexels' },
-  { key: 'unsplash' as const, icon: Camera, labelKey: 'media.fromUnsplash' },
-  { key: 'pixabay' as const, icon: Camera, labelKey: 'media.fromPixabay' },
+  { key: 'all' as const, icon: Sparkles, labelKey: 'allMedia' },
+  { key: 'recent' as const, icon: Clock, labelKey: 'recentlyAdded' },
+  { key: 'images' as const, icon: ImageIcon, labelKey: 'images' },
+  { key: 'videos' as const, icon: Video, labelKey: 'videos' },
+  { key: 'pexels' as const, icon: Camera, labelKey: 'fromPexels' },
+  { key: 'unsplash' as const, icon: Camera, labelKey: 'fromUnsplash' },
+  { key: 'pixabay' as const, icon: Camera, labelKey: 'fromPixabay' },
 ]
 
 export function MediaSidebar({
@@ -37,8 +39,10 @@ export function MediaSidebar({
   tags,
   selectedTags,
   onTagToggle,
+  translationNamespace = 'backgrounds',
 }: MediaSidebarProps) {
   const { t } = useTranslation()
+  const ns = translationNamespace
 
   return (
     <aside className="w-56 shrink-0 md:border-r bg-background">
@@ -46,7 +50,7 @@ export function MediaSidebar({
         {/* Smart Collections */}
         <div className="flex flex-col gap-1">
           <h3 className="mb-2 text-sm font-medium text-muted-foreground">
-            {t('media.filters')}
+            {t(`${ns}.filters`)}
           </h3>
           {collections.map((collection) => {
             const Icon = collection.icon
@@ -63,7 +67,7 @@ export function MediaSidebar({
                 )}
               >
                 <Icon className="h-4 w-4" />
-                <span>{t(collection.labelKey)}</span>
+                <span>{t(`${ns}.${collection.labelKey}`)}</span>
               </button>
             )
           })}
@@ -75,7 +79,7 @@ export function MediaSidebar({
         <div className="flex flex-col gap-2">
           <h3 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
             <Tag className="h-4 w-4" />
-            {t('media.tags')}
+            {t(`${ns}.tags`)}
           </h3>
           {tags.length > 0 ? (
             <div className="flex flex-wrap gap-2">
@@ -95,7 +99,7 @@ export function MediaSidebar({
             </div>
           ) : (
             <p className="text-xs text-muted-foreground">
-              {t('media.noResults')}
+              {t(`${ns}.noResults`)}
             </p>
           )}
         </div>

@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { useChurch } from '@/contexts/ChurchContext'
 import { getSupabase } from '@/lib/supabase'
 import { createMedia } from '@/services/media'
+import type { MediaCategory } from '@/types/media'
 import {
   validateFile,
   generateImageThumbnail,
@@ -27,6 +28,7 @@ interface MediaUploadDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess?: () => void
+  category?: MediaCategory
 }
 
 interface UploadingFile {
@@ -42,6 +44,7 @@ export function MediaUploadDialog({
   open,
   onOpenChange,
   onSuccess,
+  category = 'background',
 }: MediaUploadDialogProps) {
   const { currentChurch } = useChurch()
   const [isDragging, setIsDragging] = useState(false)
@@ -143,6 +146,7 @@ export function MediaUploadDialog({
           height: dimensions.height,
           duration: 'duration' in dimensions ? dimensions.duration : undefined,
           source: 'upload',
+          category,
         })
 
         // Step 7: Complete (100%)

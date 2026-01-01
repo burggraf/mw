@@ -50,12 +50,14 @@ import {
   Languages,
   Church as ChurchIcon,
   Monitor,
+  Presentation,
 } from 'lucide-react'
 
 const navItems = [
   { key: 'dashboard', icon: LayoutDashboard, href: '/dashboard' },
   { key: 'songs', icon: Music, href: '/songs' },
-  { key: 'media', icon: ImageIcon, href: '/media' },
+  { key: 'backgrounds', icon: ImageIcon, href: '/backgrounds' },
+  { key: 'slides', icon: Presentation, href: '/slides' },
   { key: 'events', icon: Calendar, href: '/events' },
   { key: 'displays', icon: Monitor, href: '/displays' },
   { key: 'team', icon: Users, href: '/team', disabled: true },

@@ -8,7 +8,8 @@ import { SetupChurchPage } from '@/pages/SetupChurch'
 import { SongsPage } from '@/pages/Songs'
 import { SongEditorPage } from '@/pages/SongEditor'
 import { SongDetailPage } from '@/pages/SongDetail'
-import { MediaPage } from '@/pages/Media'
+import { BackgroundsPage } from '@/pages/Backgrounds'
+import { SlidesPage } from '@/pages/Slides'
 import { EventsPage } from '@/pages/Events'
 import { EventEditorPage } from '@/pages/EventEditor'
 import { EventDetailPage } from '@/pages/EventDetail'
@@ -87,8 +88,12 @@ const router = createBrowserRouter([
             element: <SongEditorPage />,
           },
           {
-            path: '/media',
-            element: <MediaPage />,
+            path: '/backgrounds',
+            element: <BackgroundsPage />,
+          },
+          {
+            path: '/slides',
+            element: <SlidesPage />,
           },
           {
             path: '/events',

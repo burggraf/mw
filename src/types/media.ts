@@ -1,3 +1,5 @@
+export type MediaCategory = 'background' | 'slide'
+
 export interface Media {
   id: string
   churchId: string | null  // null for built-in media shared across all churches
@@ -16,6 +18,7 @@ export interface Media {
   tags: string[]
   styleId: string | null
   backgroundColor: string | null  // hex for solid colors, null for images/videos
+  category: MediaCategory  // 'background' (behind lyrics) or 'slide' (standalone content)
   createdAt: string
   updatedAt: string
 }
@@ -36,12 +39,14 @@ export interface MediaInput {
   tags?: string[]
   styleId?: string
   backgroundColor?: string
+  category?: MediaCategory  // defaults to 'background'
 }
 
 export interface MediaFilters {
   type?: 'image' | 'video'
   source?: 'upload' | 'pexels' | 'unsplash' | 'pixabay'
   tags?: string[]
+  category?: MediaCategory
 }
 
 export interface StockMediaItem {
