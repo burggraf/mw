@@ -31,7 +31,7 @@ export function StockMediaDialog({
   const { t } = useTranslation()
   const { currentChurch } = useChurch()
 
-  const [provider, setProvider] = useState<'pexels' | 'unsplash'>('pexels')
+  const [provider, setProvider] = useState<'pexels' | 'unsplash' | 'pixabay'>('pexels')
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<StockMediaItem[]>([])
   const [loading, setLoading] = useState(false)
@@ -82,7 +82,7 @@ export function StockMediaDialog({
   }
 
   const handleProviderChange = (value: string) => {
-    setProvider(value as 'pexels' | 'unsplash')
+    setProvider(value as 'pexels' | 'unsplash' | 'pixabay')
     setResults([])
   }
 
@@ -97,9 +97,10 @@ export function StockMediaDialog({
         </DialogHeader>
 
         <Tabs value={provider} onValueChange={handleProviderChange}>
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="pexels">Pexels</TabsTrigger>
             <TabsTrigger value="unsplash">Unsplash</TabsTrigger>
+            <TabsTrigger value="pixabay">Pixabay</TabsTrigger>
           </TabsList>
 
           <TabsContent value={provider} className="mt-4 flex flex-col gap-4">
@@ -125,7 +126,7 @@ export function StockMediaDialog({
             </div>
 
             {/* Results grid */}
-            <div className="flex-1 overflow-y-auto min-h-[300px]">
+            <div className="overflow-y-auto max-h-[50vh]">
               {loading ? (
                 <div className="grid grid-cols-3 gap-4">
                   {Array.from({ length: 6 }).map((_, i) => (

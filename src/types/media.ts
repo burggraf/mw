@@ -10,7 +10,7 @@ export interface Media {
   width: number | null
   height: number | null
   duration: number | null
-  source: 'upload' | 'pexels' | 'unsplash'
+  source: 'upload' | 'pexels' | 'unsplash' | 'pixabay'
   sourceId: string | null
   sourceUrl: string | null
   tags: string[]
@@ -30,7 +30,7 @@ export interface MediaInput {
   width?: number
   height?: number
   duration?: number
-  source?: 'upload' | 'pexels' | 'unsplash'
+  source?: 'upload' | 'pexels' | 'unsplash' | 'pixabay'
   sourceId?: string
   sourceUrl?: string
   tags?: string[]
@@ -40,13 +40,13 @@ export interface MediaInput {
 
 export interface MediaFilters {
   type?: 'image' | 'video'
-  source?: 'upload' | 'pexels' | 'unsplash'
+  source?: 'upload' | 'pexels' | 'unsplash' | 'pixabay'
   tags?: string[]
 }
 
 export interface StockMediaItem {
   id: string
-  provider: 'pexels' | 'unsplash'
+  provider: 'pexels' | 'unsplash' | 'pixabay'
   thumbnailUrl: string
   previewUrl: string
   downloadUrl: string

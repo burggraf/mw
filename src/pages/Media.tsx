@@ -27,7 +27,7 @@ import { Upload, Search, Sparkles, Palette, Filter } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { toast } from 'sonner'
 
-type SmartCollection = 'all' | 'recent' | 'images' | 'videos' | 'pexels' | 'unsplash'
+type SmartCollection = 'all' | 'recent' | 'images' | 'videos' | 'pexels' | 'unsplash' | 'pixabay'
 
 export function MediaPage() {
   const { t } = useTranslation()
@@ -73,6 +73,7 @@ export function MediaPage() {
       if (activeCollection === 'videos') filters.type = 'video'
       if (activeCollection === 'pexels') filters.source = 'pexels'
       if (activeCollection === 'unsplash') filters.source = 'unsplash'
+      if (activeCollection === 'pixabay') filters.source = 'pixabay'
       if (selectedTags.length > 0) filters.tags = selectedTags
 
       let data = await getMedia(currentChurch.id, filters)

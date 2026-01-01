@@ -21,9 +21,15 @@ if [ -z "$UNSPLASH_ACCESS_KEY" ] || [ "$UNSPLASH_ACCESS_KEY" = "your_unsplash_ke
   exit 1
 fi
 
+if [ -z "$PIXABAY_API_KEY" ] || [ "$PIXABAY_API_KEY" = "your_pixabay_key_here" ]; then
+  echo "Error: PIXABAY_API_KEY not set in .env.server"
+  exit 1
+fi
+
 echo "Deploying secrets to Supabase..."
 
 supabase secrets set PEXELS_API_KEY="$PEXELS_API_KEY"
 supabase secrets set UNSPLASH_ACCESS_KEY="$UNSPLASH_ACCESS_KEY"
+supabase secrets set PIXABAY_API_KEY="$PIXABAY_API_KEY"
 
 echo "Secrets deployed successfully!"

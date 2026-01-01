@@ -253,7 +253,7 @@ export async function getSignedMediaUrl(path: string, expiresIn: number = 3600):
 }
 
 export async function searchStockMedia(
-  provider: 'pexels' | 'unsplash',
+  provider: 'pexels' | 'unsplash' | 'pixabay',
   query: string,
   options: { page?: number; perPage?: number; type?: 'image' | 'video' } = {}
 ): Promise<StockSearchResult> {
@@ -319,7 +319,7 @@ export async function importStockMedia(
     fileSize: blob.size,
     width: item.width,
     height: item.height,
-    source: item.provider as 'pexels' | 'unsplash',
+    source: item.provider as 'pexels' | 'unsplash' | 'pixabay',
     sourceId: item.id,
     sourceUrl: item.downloadUrl,
   })

@@ -11,7 +11,7 @@ import {
   Tag,
 } from 'lucide-react'
 
-export type SmartCollection = 'all' | 'recent' | 'images' | 'videos' | 'pexels' | 'unsplash'
+export type SmartCollection = 'all' | 'recent' | 'images' | 'videos' | 'pexels' | 'unsplash' | 'pixabay'
 
 export interface MediaSidebarProps {
   activeCollection: SmartCollection
@@ -28,6 +28,7 @@ const collections = [
   { key: 'videos' as const, icon: Video, labelKey: 'media.videos' },
   { key: 'pexels' as const, icon: Camera, labelKey: 'media.fromPexels' },
   { key: 'unsplash' as const, icon: Camera, labelKey: 'media.fromUnsplash' },
+  { key: 'pixabay' as const, icon: Camera, labelKey: 'media.fromPixabay' },
 ]
 
 export function MediaSidebar({
