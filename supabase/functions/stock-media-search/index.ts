@@ -157,8 +157,10 @@ async function searchPixabayImages(query: string, page: number, apiKey: string):
 }
 
 async function searchPixabayVideos(query: string, page: number, apiKey: string): Promise<SearchResponse> {
+  // Pixabay video API requires per_page between 3-200
+  const perPage = Math.max(3, PER_PAGE);
   const response = await fetch(
-    `https://pixabay.com/api/videos/?key=${apiKey}&q=${encodeURIComponent(query)}&per_page=${PER_PAGE}&page=${page}&safesearch=true`
+    `https://pixabay.com/api/videos/?key=${apiKey}&q=${encodeURIComponent(query)}&per_page=${perPage}&page=${page}&safesearch=true`
   );
 
   if (!response.ok) {
@@ -172,11 +174,13 @@ async function searchPixabayVideos(query: string, page: number, apiKey: string):
       const videoFiles = video.videos;
       const downloadUrl = videoFiles.large?.url || videoFiles.medium?.url || videoFiles.small?.url || videoFiles.tiny?.url;
       const previewUrl = videoFiles.medium?.url || videoFiles.small?.url || videoFiles.tiny?.url || downloadUrl;
+      // Use thumbnail from video files, preferring medium quality
+      const thumbnailUrl = videoFiles.medium?.thumbnail || videoFiles.small?.thumbnail || videoFiles.large?.thumbnail || videoFiles.tiny?.thumbnail;
 
       return {
         id: video.id.toString(),
         provider: "pixabay" as Provider,
-        thumbnailUrl: `https://i.vimeocdn.com/video/${video.picture_id}_295x166.jpg`,
+        thumbnailUrl: thumbnailUrl || "",
         previewUrl: previewUrl || "",
         downloadUrl: downloadUrl || "",
         width: videoFiles.large?.width || videoFiles.medium?.width || 1920,
@@ -186,7 +190,7 @@ async function searchPixabayVideos(query: string, page: number, apiKey: string):
     }),
     total: data.totalHits,
     page,
-    per_page: PER_PAGE,
+    per_page: perPage,
   };
 }
 

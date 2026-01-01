@@ -279,19 +279,44 @@ export async function importStockMedia(
 ): Promise<Media> {
   const supabase = getSupabase()
 
-  // Download the image
+  // Download the media
   const response = await fetch(item.downloadUrl)
   if (!response.ok) throw new Error('Failed to download media')
 
   const blob = await response.blob()
-  const file = new File([blob], `${item.id}.jpg`, { type: blob.type })
+
+  // Determine if this is a video based on mime type
+  const isVideo = blob.type.startsWith('video/')
+  const extension = isVideo ? 'mp4' : 'jpg'
+  const file = new File([blob], `${item.id}.${extension}`, { type: blob.type })
 
   // Generate storage paths
   const storagePath = generateStoragePath(churchId, file.name)
-  const thumbnailPath = generateStoragePath(churchId, file.name, true)
+  const thumbnailPath = generateStoragePath(churchId, `${item.id}.jpg`, true)
 
-  // Generate thumbnail
-  const thumbnailBlob = await generateImageThumbnail(file)
+  let thumbnailBlob: Blob | null = null
+  let thumbError: Error | null = null
+
+  if (isVideo) {
+    // For videos, download the thumbnail from the provider
+    try {
+      const thumbResponse = await fetch(item.thumbnailUrl)
+      if (thumbResponse.ok) {
+        thumbnailBlob = await thumbResponse.blob()
+      }
+    } catch (err) {
+      console.error('Failed to download video thumbnail:', err)
+      thumbError = err as Error
+    }
+  } else {
+    // For images, generate thumbnail locally
+    try {
+      thumbnailBlob = await generateImageThumbnail(file)
+    } catch (err) {
+      console.error('Failed to generate thumbnail:', err)
+      thumbError = err as Error
+    }
+  }
 
   // Upload original
   const { error: uploadError } = await supabase.storage
@@ -300,22 +325,25 @@ export async function importStockMedia(
 
   if (uploadError) throw uploadError
 
-  // Upload thumbnail
-  const { error: thumbError } = await supabase.storage
-    .from('media')
-    .upload(thumbnailPath, thumbnailBlob)
+  // Upload thumbnail if we have one
+  if (thumbnailBlob) {
+    const { error: thumbUploadError } = await supabase.storage
+      .from('media')
+      .upload(thumbnailPath, thumbnailBlob)
 
-  if (thumbError) {
-    console.error('Thumbnail upload failed:', thumbError)
+    if (thumbUploadError) {
+      console.error('Thumbnail upload failed:', thumbUploadError)
+      thumbError = thumbUploadError
+    }
   }
 
   // Create media record
   return createMedia(churchId, {
     name: item.attribution,
-    type: 'image',
-    mimeType: blob.type || 'image/jpeg',
+    type: isVideo ? 'video' : 'image',
+    mimeType: blob.type || (isVideo ? 'video/mp4' : 'image/jpeg'),
     storagePath,
-    thumbnailPath: thumbError ? undefined : thumbnailPath,
+    thumbnailPath: thumbError || !thumbnailBlob ? undefined : thumbnailPath,
     fileSize: blob.size,
     width: item.width,
     height: item.height,

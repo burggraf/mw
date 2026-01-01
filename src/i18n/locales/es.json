@@ -162,7 +162,8 @@
     "uploaded": "Subido",
     "selectBackground": "Seleccionar Fondo",
     "noResults": "No se encontraron resultados",
-    "searchStockPlaceholder": "Buscar imágenes..."
+    "searchStockPlaceholder": "Buscar imágenes...",
+    "preview": "Vista previa"
   },
   "styles": {
     "title": "Estilos",

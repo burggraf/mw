@@ -162,7 +162,8 @@
     "uploaded": "Uploaded",
     "selectBackground": "Select Background",
     "noResults": "No results found",
-    "searchStockPlaceholder": "Search for images..."
+    "searchStockPlaceholder": "Search for images...",
+    "preview": "Preview"
   },
   "styles": {
     "title": "Styles",
