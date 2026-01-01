@@ -1,18 +1,20 @@
 import { useTranslation } from 'react-i18next'
 import { useChurch } from '@/contexts/ChurchContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Music, Calendar, Monitor, Users, Clock } from 'lucide-react'
+import { Music, Calendar, Monitor, ImageIcon, Clock } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { getSongs } from '@/services/songs'
 import { getEvents } from '@/services/events'
 import { getDisplaysForChurch } from '@/services/displays'
+import { getMedia } from '@/services/media'
 import type { Event } from '@/types/event'
 
 interface DashboardStats {
   songCount: number
   eventCount: number
   displayCount: number
+  mediaCount: number
   upcomingEvents: Event[]
 }
 
@@ -24,6 +26,7 @@ export function DashboardPage() {
     songCount: 0,
     eventCount: 0,
     displayCount: 0,
+    mediaCount: 0,
     upcomingEvents: [],
   })
   const [loading, setLoading] = useState(true)
@@ -36,10 +39,11 @@ export function DashboardPage() {
       }
 
       try {
-        const [songs, events, displays] = await Promise.all([
+        const [songs, events, displays, media] = await Promise.all([
           getSongs(currentChurch.id),
           getEvents(currentChurch.id, 'upcoming'),
           getDisplaysForChurch(currentChurch.id),
+          getMedia(currentChurch.id),
         ])
 
         // Filter events to only those in the next 7 days
@@ -54,6 +58,7 @@ export function DashboardPage() {
           songCount: songs.length,
           eventCount: events.length,
           displayCount: displays.length,
+          mediaCount: media.length,
           upcomingEvents: upcomingThisWeek,
         })
       } catch (error) {
@@ -92,12 +97,12 @@ export function DashboardPage() {
       count: stats.displayCount,
     },
     {
-      title: t('nav.team'),
-      description: t('dashboard.manageTeam'),
-      icon: Users,
-      href: '/team',
-      disabled: true,
-      count: null,
+      title: t('nav.media'),
+      description: t('dashboard.manageMedia'),
+      icon: ImageIcon,
+      href: '/media',
+      disabled: false,
+      count: stats.mediaCount,
     },
   ]
 
