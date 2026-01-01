@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Play, MoreHorizontal, Pencil, Trash2, Palette } from 'lucide-react'
 import type { Media } from '@/types/media'
+import { isBuiltInMedia } from '@/types/media'
 import { getSignedMediaUrl } from '@/services/media'
 import { cn } from '@/lib/utils'
 import {
@@ -108,7 +109,7 @@ export function MediaCard({
   return (
     <div
       className={cn(
-        'group relative cursor-pointer rounded-lg overflow-hidden bg-muted',
+        'group relative cursor-pointer rounded-lg overflow-hidden bg-muted border border-gray-400',
         selectable && 'ring-2 ring-transparent hover:ring-primary/50',
         selected && 'ring-2 ring-primary',
         onClick && 'cursor-pointer'
@@ -147,8 +148,8 @@ export function MediaCard({
 
         {/* Hover overlay with actions */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors">
-          {/* Edit/Delete/Style dropdown menu */}
-          {(onEdit || onDelete || onConfigureStyle) && (
+          {/* Edit/Delete/Style dropdown menu - hidden for built-in media */}
+          {(onEdit || onDelete || onConfigureStyle) && !isBuiltInMedia(media) && (
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

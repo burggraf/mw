@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useChurch } from '@/contexts/ChurchContext'
 import { getMedia, deleteMedia, getAllTags, getMediaUsage, updateMediaStyle } from '@/services/media'
 import type { Media, MediaFilters } from '@/types/media'
+import { isBuiltInMedia } from '@/types/media'
 import { MediaGrid } from '@/components/media/MediaGrid'
 import { MediaSidebar } from '@/components/media/MediaSidebar'
 import { MediaUploadDialog } from '@/components/media/MediaUploadDialog'
@@ -210,10 +211,10 @@ export function MediaPage() {
           <MediaGrid
             media={media}
             loading={loading}
-            onClick={setEditMedia}
-            onEdit={setEditMedia}
-            onDelete={handleDeleteClick}
-            onConfigureStyle={setStyleEditorMedia}
+            onClick={(m) => !isBuiltInMedia(m) && setEditMedia(m)}
+            onEdit={(m) => !isBuiltInMedia(m) && setEditMedia(m)}
+            onDelete={(m) => !isBuiltInMedia(m) && handleDeleteClick(m)}
+            onConfigureStyle={(m) => !isBuiltInMedia(m) && setStyleEditorMedia(m)}
           />
         </div>
       </div>

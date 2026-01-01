@@ -1,6 +1,6 @@
 export interface Media {
   id: string
-  churchId: string
+  churchId: string | null  // null for built-in media shared across all churches
   name: string
   type: 'image' | 'video'
   mimeType: string
@@ -64,4 +64,9 @@ export interface StockSearchResult {
 // Check if media is a solid color background
 export function isSolidColor(media: Media): boolean {
   return media.backgroundColor !== null
+}
+
+// Check if media is built-in (shared across all churches, not editable)
+export function isBuiltInMedia(media: Media): boolean {
+  return media.churchId === null
 }

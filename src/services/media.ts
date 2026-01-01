@@ -47,7 +47,8 @@ export async function getMedia(churchId: string, filters?: MediaFilters): Promis
   }
 
   if (filters?.tags && filters.tags.length > 0) {
-    query = query.contains('tags', filters.tags)
+    // Use cs (contains) operator with JSON array format for JSONB
+    query = query.filter('tags', 'cs', JSON.stringify(filters.tags))
   }
 
   const { data, error } = await query.order('created_at', { ascending: false })
@@ -171,7 +172,8 @@ export async function searchMedia(churchId: string, query: string, filters?: Med
   }
 
   if (filters?.tags && filters.tags.length > 0) {
-    dbQuery = dbQuery.contains('tags', filters.tags)
+    // Use cs (contains) operator with JSON array format for JSONB
+    dbQuery = dbQuery.filter('tags', 'cs', JSON.stringify(filters.tags))
   }
 
   const { data, error } = await dbQuery
@@ -372,7 +374,7 @@ export async function createSolidColorBackground(
       storage_path: null,
       file_size: 0,
       source: 'upload',
-      tags: [],
+      tags: ['color'],
       style_id: styleId || null,
       background_color: color,
     })

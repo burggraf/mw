@@ -33,6 +33,26 @@ const PRESET_COLORS = [
   { name: 'Teal', color: '#0D9488' },
 ]
 
+// Normalize short hex (#fff) to full format (#ffffff)
+function normalizeHex(hex: string): string {
+  const c = hex.replace('#', '')
+  if (c.length === 3) {
+    return '#' + c[0] + c[0] + c[1] + c[1] + c[2] + c[2]
+  }
+  return hex
+}
+
+// Helper to determine if a color is light (for text contrast)
+function isLightColor(hex: string): boolean {
+  const normalized = normalizeHex(hex)
+  const c = normalized.replace('#', '')
+  const r = parseInt(c.substr(0, 2), 16)
+  const g = parseInt(c.substr(2, 2), 16)
+  const b = parseInt(c.substr(4, 2), 16)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return luminance > 0.5
+}
+
 export function SolidColorDialog({
   open,
   onOpenChange,
@@ -93,13 +113,14 @@ export function SolidColorDialog({
             <div className="flex gap-2">
               <Input
                 type="color"
-                value={color}
+                value={normalizeHex(color)}
                 onChange={(e) => setColor(e.target.value)}
                 className="w-16 h-10 p-1 cursor-pointer"
               />
               <Input
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
+                onBlur={(e) => setColor(normalizeHex(e.target.value))}
                 placeholder="#000000"
                 className="flex-1 font-mono"
               />
@@ -150,14 +171,4 @@ export function SolidColorDialog({
       </DialogContent>
     </Dialog>
   )
-}
-
-// Helper to determine if a color is light (for text contrast)
-function isLightColor(hex: string): boolean {
-  const c = hex.replace('#', '')
-  const r = parseInt(c.substr(0, 2), 16)
-  const g = parseInt(c.substr(2, 2), 16)
-  const b = parseInt(c.substr(4, 2), 16)
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-  return luminance > 0.5
 }
