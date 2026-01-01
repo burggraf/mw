@@ -8,6 +8,7 @@ import type {
   EventItemCustomizations,
   EventFilter
 } from '@/types/event'
+import type { Media, SlideFolder } from '@/types/media'
 
 // Convert database row to Event type
 function rowToEvent(row: any): Event {
@@ -151,6 +152,33 @@ export async function duplicateEvent(id: string, newScheduledAt: string): Promis
 // Event Items
 // ============================================================================
 
+// Helper to convert media database row to Media type
+function rowToMedia(m: any): Media {
+  return {
+    id: m.id,
+    churchId: m.church_id,
+    name: m.name,
+    type: m.type,
+    mimeType: m.mime_type,
+    storagePath: m.storage_path,
+    thumbnailPath: m.thumbnail_path,
+    fileSize: m.file_size,
+    width: m.width,
+    height: m.height,
+    duration: m.duration,
+    source: m.source,
+    sourceId: m.source_id,
+    sourceUrl: m.source_url,
+    tags: m.tags || [],
+    styleId: m.style_id,
+    backgroundColor: m.background_color,
+    category: m.category || 'background',
+    folderId: m.folder_id,
+    createdAt: m.created_at,
+    updatedAt: m.updated_at,
+  }
+}
+
 export async function getEventItems(eventId: string): Promise<EventItemWithData[]> {
   const supabase = getSupabase()
 
@@ -166,7 +194,8 @@ export async function getEventItems(eventId: string): Promise<EventItemWithData[
 
   // Collect IDs by type
   const songIds = items.filter(i => i.item_type === 'song').map(i => i.item_id)
-  const mediaIds = items.filter(i => i.item_type === 'media').map(i => i.item_id)
+  const slideIds = items.filter(i => i.item_type === 'slide').map(i => i.item_id)
+  const slideFolderIds = items.filter(i => i.item_type === 'slideFolder').map(i => i.item_id)
 
   // Fetch songs
   const songsMap: Record<string, any> = {}
@@ -181,16 +210,56 @@ export async function getEventItems(eventId: string): Promise<EventItemWithData[
     }
   }
 
-  // Fetch media
-  const mediaMap: Record<string, any> = {}
-  if (mediaIds.length > 0) {
-    const { data: media } = await supabase
+  // Fetch individual slides (media)
+  const slidesMap: Record<string, Media> = {}
+  if (slideIds.length > 0) {
+    const { data: slides } = await supabase
       .from('media')
       .select('*')
-      .in('id', mediaIds)
+      .in('id', slideIds)
 
-    for (const m of media || []) {
-      mediaMap[m.id] = m
+    for (const m of slides || []) {
+      slidesMap[m.id] = rowToMedia(m)
+    }
+  }
+
+  // Fetch slide folders with their slides
+  const foldersMap: Record<string, SlideFolder & { slides: Media[] }> = {}
+  if (slideFolderIds.length > 0) {
+    // Fetch folders
+    const { data: folders } = await supabase
+      .from('slide_folders')
+      .select('*')
+      .in('id', slideFolderIds)
+
+    // Fetch slides in these folders
+    const { data: folderSlides } = await supabase
+      .from('media')
+      .select('*')
+      .in('folder_id', slideFolderIds)
+      .eq('category', 'slide')
+      .order('created_at', { ascending: true })
+
+    // Group slides by folder
+    const slidesByFolder: Record<string, Media[]> = {}
+    for (const m of folderSlides || []) {
+      const folderId = m.folder_id
+      if (!slidesByFolder[folderId]) slidesByFolder[folderId] = []
+      slidesByFolder[folderId].push(rowToMedia(m))
+    }
+
+    // Map folders with their slides
+    for (const f of folders || []) {
+      foldersMap[f.id] = {
+        id: f.id,
+        churchId: f.church_id,
+        name: f.name,
+        description: f.description,
+        defaultLoopTime: f.default_loop_time,
+        createdAt: f.created_at,
+        updatedAt: f.updated_at,
+        slides: slidesByFolder[f.id] || [],
+      }
     }
   }
 
@@ -219,30 +288,12 @@ export async function getEventItems(eventId: string): Promise<EventItemWithData[
       }
     }
 
-    if (item.itemType === 'media' && mediaMap[item.itemId]) {
-      const m = mediaMap[item.itemId]
-      result.media = {
-        id: m.id,
-        churchId: m.church_id,
-        name: m.name,
-        type: m.type,
-        mimeType: m.mime_type,
-        storagePath: m.storage_path,
-        thumbnailPath: m.thumbnail_path,
-        fileSize: m.file_size,
-        width: m.width,
-        height: m.height,
-        duration: m.duration,
-        source: m.source,
-        sourceId: m.source_id,
-        sourceUrl: m.source_url,
-        tags: m.tags || [],
-        styleId: m.style_id,
-        backgroundColor: m.background_color,
-        category: m.category || 'background',
-        createdAt: m.created_at,
-        updatedAt: m.updated_at,
-      }
+    if (item.itemType === 'slide' && slidesMap[item.itemId]) {
+      result.slide = slidesMap[item.itemId]
+    }
+
+    if (item.itemType === 'slideFolder' && foldersMap[item.itemId]) {
+      result.slideFolder = foldersMap[item.itemId]
     }
 
     return result

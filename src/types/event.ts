@@ -1,5 +1,5 @@
 import type { Song } from './song'
-import type { Media } from './media'
+import type { Media, SlideFolder } from './media'
 
 // Event type
 export interface Event {
@@ -20,7 +20,7 @@ export interface EventInput {
 }
 
 // Event item types (extensible for future content types)
-export type EventItemType = 'song' | 'media' | 'scripture' | 'deck'
+export type EventItemType = 'song' | 'slide' | 'slideFolder' | 'scripture' | 'deck'
 
 // Customizations for a song within an event
 export interface EventItemCustomizations {
@@ -45,7 +45,8 @@ export interface EventItem {
 // Event item with resolved data (for UI)
 export interface EventItemWithData extends EventItem {
   song?: Song
-  media?: Media
+  slide?: Media           // Individual slide (media with category='slide')
+  slideFolder?: SlideFolder & { slides: Media[] }  // Folder with its slides
 }
 
 // Event with items (for detail view)

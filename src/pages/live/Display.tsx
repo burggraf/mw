@@ -16,6 +16,7 @@ import { updateDisplayConnection, updateDisplayHeartbeat } from '@/services/disp
 type WsMessage =
   | { type: 'lyrics'; data: { target_display_id?: string; church_id: string; event_id: string; song_id: string; title: string; lyrics: string; background_url?: string; timestamp: number } }
   | { type: 'slide'; data: { target_display_id?: string; church_id: string; event_id: string; song_id: string; slide_index: number; timestamp: number } }
+  | { type: 'media'; data: { target_display_id?: string; church_id: string; event_id: string; media_url: string; media_type: 'image' | 'video'; timestamp: number } }
   | { type: 'precache'; data: PrecacheMessage }
   | { type: 'ping' }
 
@@ -84,6 +85,8 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
   const [currentSlide, setCurrentSlide] = useState<Slide | null>(null)
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null)
   const [backgroundColor, setBackgroundColor] = useState<string | null>(null)
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null)
+  const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null)
   // @ts-expect-error - isWaiting is used indirectly via setIsWaiting
   const [isWaiting, setIsWaiting] = useState(true)
   const [opacity, setOpacity] = useState(0)
@@ -571,6 +574,22 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
               }
               console.log('[Display] Processing slide message:', message.data.slide_index)
               loadSlide(message.data.song_id, message.data.slide_index)
+            } else if (message.type === 'media') {
+              // Check if this message is targeted at this display
+              if (!isMessageForThisDisplay(message.data.target_display_id)) {
+                console.log('[Display] Ignoring media message - target_display_id:', message.data.target_display_id, 'our ID:', displayIdRef.current)
+                return
+              }
+              console.log('[Display] Processing media message:', message.data.media_type)
+              // Clear song slide and show media
+              setCurrentSlide(null)
+              setOpacity(0)
+              setTimeout(() => {
+                setMediaUrl(message.data.media_url)
+                setMediaType(message.data.media_type)
+                setOpacity(1)
+                setIsWaiting(false)
+              }, 300)
             }
           } catch (e) {
             console.error('[Display] Failed to parse WebSocket message:', e)
@@ -629,6 +648,10 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
   // Load slide from cached song data
   const loadSlide = useCallback((songId: string, slideIndex: number) => {
     console.log('[Display] Loading slide from cache:', { songId, slideIndex })
+
+    // Clear media when showing song slide
+    setMediaUrl(null)
+    setMediaType(null)
 
     currentSongIdRef.current = songId
     currentSlideIndexRef.current = slideIndex
@@ -707,17 +730,23 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
   // Listen for data messages (Tauri events for local displays)
   useEffect(() => {
     if (localMode && isTauri()) {
-      console.log('[Display] Registering Tauri display:slide event handler (local mode)')
+      console.log('[Display] Registering Tauri display:slide and display:media event handlers (local mode)')
 
-      let unlistenFn: (() => void) | null = null
+      let unlistenSlideFn: (() => void) | null = null
+      let unlistenMediaFn: (() => void) | null = null
 
       import('@tauri-apps/api/event').then(({ listen }) => {
+        // Listen for slide events (songs)
         listen<{ songData?: { song: Song & { updated_at: string }, backgroundDataUrls?: Record<string, string> }, itemId?: string, slideIndex?: number }>(
           'display:slide',
           (event) => {
-            console.log('[Display] Received local Tauri event:', event.payload)
+            console.log('[Display] Received local Tauri slide event:', event.payload)
 
             const { songData, itemId, slideIndex } = event.payload
+
+            // Clear media when showing song
+            setMediaUrl(null)
+            setMediaType(null)
 
             if (songData?.song) {
               const cached = songCache.get(songData.song.id)
@@ -745,12 +774,35 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
             }
           }
         ).then(unlisten => {
-          unlistenFn = unlisten
+          unlistenSlideFn = unlisten
+        })
+
+        // Listen for media events (slides/folders)
+        listen<{ mediaUrl: string, mediaType: 'image' | 'video' }>(
+          'display:media',
+          (event) => {
+            console.log('[Display] Received local Tauri media event:', event.payload)
+
+            const { mediaUrl: url, mediaType: type } = event.payload
+
+            // Clear song slide and show media
+            setCurrentSlide(null)
+            setOpacity(0)
+            setTimeout(() => {
+              setMediaUrl(url)
+              setMediaType(type)
+              setOpacity(1)
+              setIsWaiting(false)
+            }, 300)
+          }
+        ).then(unlisten => {
+          unlistenMediaFn = unlisten
         })
       })
 
       return () => {
-        unlistenFn?.()
+        unlistenSlideFn?.()
+        unlistenMediaFn?.()
       }
     } else {
       // Remote mode - WebSocket listening handled in the initialization useEffect above
@@ -794,6 +846,28 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
           <div className="text-5xl font-bold text-white leading-relaxed whitespace-pre-wrap drop-shadow-2xl">
             {currentSlide.text}
           </div>
+        </div>
+      ) : mediaUrl ? (
+        /* Media display (slides/folders) */
+        <div
+          className="absolute inset-0 flex items-center justify-center transition-opacity duration-300"
+          style={{ opacity }}
+        >
+          {mediaType === 'video' ? (
+            <video
+              src={mediaUrl}
+              autoPlay
+              loop
+              muted
+              className="w-full h-full object-contain"
+            />
+          ) : (
+            <img
+              src={mediaUrl}
+              alt=""
+              className="w-full h-full object-contain"
+            />
+          )}
         </div>
       ) : (
         /* Waiting screen with app branding */

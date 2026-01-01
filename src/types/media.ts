@@ -5,6 +5,7 @@ export interface SlideFolder {
   churchId: string
   name: string
   description: string | null
+  defaultLoopTime: number  // seconds to display each slide when looping, 0 = no loop
   createdAt: string
   updatedAt: string
 }
@@ -12,6 +13,7 @@ export interface SlideFolder {
 export interface SlideFolderInput {
   name: string
   description?: string
+  defaultLoopTime?: number  // defaults to 0 (no looping)
 }
 
 export interface Media {

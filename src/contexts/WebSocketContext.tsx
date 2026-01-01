@@ -28,6 +28,14 @@ interface SlideMessage {
   timestamp: number
 }
 
+interface MediaMessage {
+  church_id: string
+  event_id: string
+  media_url: string
+  media_type: 'image' | 'video'
+  timestamp: number
+}
+
 interface WebSocketContextValue {
   discovered: DiscoveredDisplay[]
   connected: Map<string, ConnectedDisplay>
@@ -38,6 +46,7 @@ interface WebSocketContextValue {
   disconnect: (key: string) => void
   broadcastLyrics: (message: LyricsMessage) => void
   broadcastSlide: (message: SlideMessage) => void
+  broadcastMedia: (message: MediaMessage) => void
   broadcastPrecache: (message: PrecacheMessage) => void
   clearPrecacheAcks: () => void
 }
@@ -199,6 +208,21 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     console.log(`[WebSocketContext] Broadcast slide to ${wsRef.current.size} connections`)
   }, [])
 
+  const broadcastMedia = useCallback((message: MediaMessage) => {
+    const payload = { type: 'media', data: message }
+    const json = JSON.stringify(payload)
+
+    wsRef.current.forEach((ws, key) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(json)
+      } else {
+        console.warn(`[WebSocketContext] Cannot send to ${key}: not ready`)
+      }
+    })
+
+    console.log(`[WebSocketContext] Broadcast media to ${wsRef.current.size} connections`)
+  }, [])
+
   const broadcastPrecache = useCallback((message: PrecacheMessage) => {
     const payload = { type: 'precache', data: message }
     const json = JSON.stringify(payload)
@@ -244,6 +268,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     disconnect,
     broadcastLyrics,
     broadcastSlide,
+    broadcastMedia,
     broadcastPrecache,
     clearPrecacheAcks,
   }

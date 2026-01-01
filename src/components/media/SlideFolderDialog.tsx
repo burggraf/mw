@@ -30,6 +30,7 @@ export function SlideFolderDialog({
   const { t } = useTranslation()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [defaultLoopTime, setDefaultLoopTime] = useState(0)
   const [saving, setSaving] = useState(false)
 
   const isEditing = !!folder
@@ -39,9 +40,11 @@ export function SlideFolderDialog({
       if (folder) {
         setName(folder.name)
         setDescription(folder.description || '')
+        setDefaultLoopTime(folder.defaultLoopTime)
       } else {
         setName('')
         setDescription('')
+        setDefaultLoopTime(0)
       }
     }
   }, [open, folder])
@@ -55,6 +58,7 @@ export function SlideFolderDialog({
       await onSave({
         name: name.trim(),
         description: description.trim() || undefined,
+        defaultLoopTime,
       })
       onOpenChange(false)
     } finally {
@@ -102,6 +106,27 @@ export function SlideFolderDialog({
                 placeholder={t('slides.folderDescriptionPlaceholder')}
                 rows={3}
               />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="folder-loop-time">
+                {t('slides.defaultLoopTime')}
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="folder-loop-time"
+                  type="number"
+                  min={0}
+                  value={defaultLoopTime}
+                  onChange={(e) => setDefaultLoopTime(Math.max(0, parseInt(e.target.value) || 0))}
+                  className="w-24"
+                />
+                <span className="text-sm text-muted-foreground">
+                  {t('slides.loopTimeSeconds')}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {t('slides.loopTimeDescription')}
+              </p>
             </div>
           </div>
 

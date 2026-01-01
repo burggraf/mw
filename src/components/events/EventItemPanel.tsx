@@ -163,13 +163,13 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
       setLobbyBgId(item.customizations.lobbyBackgroundId || null)
     }
 
-    // Load media preview URL for media items
-    if (item?.media) {
+    // Load media preview URL for slide items
+    if (item?.slide) {
       setMediaLoading(true)
-      getSignedMediaUrl(item.media.storagePath)
+      getSignedMediaUrl(item.slide.storagePath)
         .then(setMediaPreviewUrl)
         .catch(err => {
-          console.error('Failed to load media preview:', err)
+          console.error('Failed to load slide preview:', err)
           setMediaPreviewUrl(null)
         })
         .finally(() => setMediaLoading(false))
@@ -181,6 +181,8 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
   if (!item) return null
 
   const isSong = item.itemType === 'song' && item.song
+  const isSlide = item.itemType === 'slide' && item.slide
+  const isSlideFolder = item.itemType === 'slideFolder' && item.slideFolder
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
@@ -303,7 +305,7 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b">
         <h3 className="font-semibold truncate">
-          {item.song?.title || item.media?.name || 'Item'}
+          {item.song?.title || item.slide?.name || item.slideFolder?.name || 'Item'}
         </h3>
         <Button variant="ghost" size="icon" onClick={onClose}>
           <X className="h-4 w-4" />
@@ -416,21 +418,56 @@ export function EventItemPanel({ item, onClose, onUpdate, onRemove }: EventItemP
           </>
         )}
 
-        {!isSong && item.media && (
-          <div className="aspect-video rounded-lg overflow-hidden bg-muted">
+        {isSlide && item.slide && (
+          <div className="aspect-video rounded-lg overflow-hidden bg-black">
             {mediaLoading ? (
               <Skeleton className="w-full h-full" />
             ) : mediaPreviewUrl ? (
               <img
                 src={mediaPreviewUrl}
-                alt={item.media.name}
-                className="w-full h-full object-cover"
+                alt={item.slide.name}
+                className="w-full h-full object-contain"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
                 Failed to load
               </div>
             )}
+          </div>
+        )}
+
+        {isSlideFolder && item.slideFolder && (
+          <div className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+              {item.slideFolder.description && (
+                <p className="mb-2">{item.slideFolder.description}</p>
+              )}
+              <p>
+                {t('events.folderSlideCount', { count: item.slideFolder.slides.length })}
+              </p>
+              {item.slideFolder.defaultLoopTime > 0 && (
+                <p className="text-xs">
+                  {t('events.folderAutoLoop', { seconds: item.slideFolder.defaultLoopTime })}
+                </p>
+              )}
+            </div>
+            {/* Show slide thumbnails */}
+            <div className="grid grid-cols-2 gap-2">
+              {item.slideFolder.slides.slice(0, 4).map((slide, idx) => (
+                <div key={slide.id} className="aspect-video rounded bg-black overflow-hidden">
+                  <img
+                    src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/media/${slide.thumbnailPath || slide.storagePath}`}
+                    alt={slide.name}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              ))}
+              {item.slideFolder.slides.length > 4 && (
+                <div className="aspect-video rounded bg-muted flex items-center justify-center text-sm text-muted-foreground">
+                  +{item.slideFolder.slides.length - 4} more
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

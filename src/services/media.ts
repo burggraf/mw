@@ -38,6 +38,7 @@ function rowToSlideFolder(row: any): SlideFolder {
     churchId: row.church_id,
     name: row.name,
     description: row.description,
+    defaultLoopTime: row.default_loop_time,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -500,6 +501,7 @@ export async function createSlideFolder(churchId: string, input: SlideFolderInpu
       church_id: churchId,
       name: input.name,
       description: input.description || null,
+      default_loop_time: input.defaultLoopTime ?? 0,
     })
     .select()
     .single()
@@ -514,6 +516,7 @@ export async function updateSlideFolder(id: string, input: Partial<SlideFolderIn
   const updateData: Record<string, any> = {}
   if (input.name !== undefined) updateData.name = input.name
   if (input.description !== undefined) updateData.description = input.description
+  if (input.defaultLoopTime !== undefined) updateData.default_loop_time = input.defaultLoopTime
 
   const { data, error } = await supabase
     .from('slide_folders')
