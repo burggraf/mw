@@ -226,8 +226,8 @@ Was blind, but now I see`
               </div>
             )}
 
-            {/* Sample text overlay - shown for all media types */}
-            {!loadingPreview && (previewUrl || isSolidColor) && showSampleText && (
+            {/* Sample text overlay - only for backgrounds, not slides */}
+            {!loadingPreview && (previewUrl || isSolidColor) && showSampleText && media.category === 'background' && (
               <div className="absolute inset-0 flex items-center justify-center">
                 <p
                   className="text-center text-lg font-semibold whitespace-pre-line px-8"
@@ -269,8 +269,8 @@ Was blind, but now I see`
             )}
             </div>
 
-            {/* Sample text toggle button */}
-            {!loadingPreview && (previewUrl || isSolidColor) && (
+            {/* Sample text toggle button - only for backgrounds, not slides */}
+            {!loadingPreview && (previewUrl || isSolidColor) && media.category === 'background' && (
               <Button
                 variant="outline"
                 size="sm"
