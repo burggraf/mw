@@ -930,27 +930,32 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
           </div>
         </div>
       ) : mediaUrl ? (
-        /* Media display (slides/folders) - black background ensures clean transitions */
-        <div
-          className="absolute inset-0 bg-black flex items-center justify-center transition-opacity duration-300"
-          style={{ opacity }}
-        >
-          {mediaType === 'video' ? (
-            <video
-              src={mediaUrl}
-              autoPlay
-              loop
-              muted
-              className="w-full h-full object-contain"
-            />
-          ) : (
-            <img
-              src={mediaUrl}
-              alt=""
-              className="w-full h-full object-contain"
-            />
-          )}
-        </div>
+        /* Media display (slides/folders) */
+        <>
+          {/* Black backdrop - stays solid during transitions to hide song background */}
+          <div className="absolute inset-0 bg-black" />
+          {/* Media content with fade transition */}
+          <div
+            className="absolute inset-0 flex items-center justify-center transition-opacity duration-300"
+            style={{ opacity }}
+          >
+            {mediaType === 'video' ? (
+              <video
+                src={mediaUrl}
+                autoPlay
+                loop
+                muted
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <img
+                src={mediaUrl}
+                alt=""
+                className="w-full h-full object-contain"
+              />
+            )}
+          </div>
+        </>
       ) : (
         /* Waiting screen with app branding */
         <div className="relative z-10 text-center space-y-8">
