@@ -38,3 +38,6 @@ if-addrs = "0.13"
 # UUID generation
 uuid = { version = "1", features = ["v4", "v5"] }
 tauri-plugin-process = "2.3.1"
+
+# Machine UID for persistent device identification
+tauri-plugin-machine-uid = "0.1"

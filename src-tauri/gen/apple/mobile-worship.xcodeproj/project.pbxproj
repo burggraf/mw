@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -18,38 +18,46 @@
 		636972844E2BA0D158F54DD7 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D2907042C43D4A473DF5582F /* WebKit.framework */; };
 		747259106E4266AB376B26BA /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 774063AB1210CC7C3682EE61 /* CoreGraphics.framework */; };
 		8E3E7DA7988A03553B63DA25 /* WebViewSetup.m in Sources */ = {isa = PBXBuildFile; fileRef = 1C16A1B003D147237B244DFF /* WebViewSetup.m */; };
+		D65AB1192071AFAE9B8BEAA6 /* libapp.a in Resources */ = {isa = PBXBuildFile; fileRef = D006008A9D6EC77BEEADC500 /* libapp.a */; };
+		D855176E0246CE8D24241C88 /* libapp.a in Resources */ = {isa = PBXBuildFile; fileRef = 0BD385F1A60EDA264CAB0AE6 /* libapp.a */; };
 		EB8822F6CB028D4ED438406C /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 444A531D045987638A85711D /* Metal.framework */; };
 		F8AA555835C4A09A543A4BEB /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 31752560474D04FEC84B8261 /* main.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		0265BF1BC1E38BE8B573A3EB /* main.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = main.rs; sourceTree = "<group>"; };
+		0265BF1BC1E38BE8B573A3EB /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
 		0AA0FFA161517AAB0F360421 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		0BD385F1A60EDA264CAB0AE6 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 		198B8600C3E6AEBDB95DC382 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 		1C16A1B003D147237B244DFF /* WebViewSetup.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = WebViewSetup.m; sourceTree = "<group>"; };
-		2A1CA2AB392D637F488C917C /* commands.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = commands.rs; sourceTree = "<group>"; };
+		2A1CA2AB392D637F488C917C /* commands.rs */ = {isa = PBXFileReference; path = commands.rs; sourceTree = "<group>"; };
 		31752560474D04FEC84B8261 /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
-		322A2D9CCEF0B160CFA36ACE /* server.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = server.rs; sourceTree = "<group>"; };
+		322A2D9CCEF0B160CFA36ACE /* server.rs */ = {isa = PBXFileReference; path = server.rs; sourceTree = "<group>"; };
 		330D8EEB3255D6CD39B5CB4F /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
 		345A9AE55CFC61D903B504F1 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
-		3573E5B8729416522E38ED76 /* discovery.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = discovery.rs; sourceTree = "<group>"; };
+		3573E5B8729416522E38ED76 /* discovery.rs */ = {isa = PBXFileReference; path = discovery.rs; sourceTree = "<group>"; };
 		3AC66EB9742E8F5C3588D65E /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
-		425084597532B4238D23F094 /* types.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = types.rs; sourceTree = "<group>"; };
+		425084597532B4238D23F094 /* types.rs */ = {isa = PBXFileReference; path = types.rs; sourceTree = "<group>"; };
 		444A531D045987638A85711D /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
-		5C400FEF3DB9D47A5C3B9598 /* udp_broadcast.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = udp_broadcast.rs; sourceTree = "<group>"; };
+		5C400FEF3DB9D47A5C3B9598 /* udp_broadcast.rs */ = {isa = PBXFileReference; path = udp_broadcast.rs; sourceTree = "<group>"; };
 		64676094B3EF3250F6405681 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		70857E1CEB5E7B849B0D2331 /* linux.rs */ = {isa = PBXFileReference; path = linux.rs; sourceTree = "<group>"; };
 		774063AB1210CC7C3682EE61 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
-		874FF77F83729FF49CDE80EC /* Mobile Worship.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Mobile Worship.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		874FF77F83729FF49CDE80EC /* mobile-worship_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "mobile-worship_iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		9DBBD40EB1167ED1956CD974 /* windows.rs */ = {isa = PBXFileReference; path = windows.rs; sourceTree = "<group>"; };
 		9E4038267BAD71A5B1E1BE3A /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
-		A0A7D37A6FD855FA40C503C9 /* lib.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = lib.rs; sourceTree = "<group>"; };
-		A348221683FB7910FC400892 /* mod.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = mod.rs; sourceTree = "<group>"; };
+		A0A7D37A6FD855FA40C503C9 /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
+		A348221683FB7910FC400892 /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 		A60D46C095B66CBE7DE5FD5D /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		AD0BF6C85218573CB922B7B8 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		B2F7F99DB058D0DA92DDC6AD /* mobile-worship_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "mobile-worship_iOS.entitlements"; sourceTree = "<group>"; };
-		CE975C37B01091136832683F /* service.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = service.rs; sourceTree = "<group>"; };
+		C45E8F138B4AAEE12FCD4A28 /* macos.rs */ = {isa = PBXFileReference; path = macos.rs; sourceTree = "<group>"; };
+		CE975C37B01091136832683F /* service.rs */ = {isa = PBXFileReference; path = service.rs; sourceTree = "<group>"; };
+		D006008A9D6EC77BEEADC500 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 		D2907042C43D4A473DF5582F /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 		DAE6478B26A2220E75906192 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		FA76175DE0416902C4B291AE /* mod.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = mod.rs; sourceTree = "<group>"; };
+		DEFD2423051CAD34BA91BF4E /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
+		FA76175DE0416902C4B291AE /* mod.rs */ = {isa = PBXFileReference; path = mod.rs; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -82,6 +90,7 @@
 		204E7763D98604CA1C487220 /* Externals */ = {
 			isa = PBXGroup;
 			children = (
+				5072C5490D597E9A2B450FAB /* arm64 */,
 			);
 			path = Externals;
 			sourceTree = "<group>";
@@ -94,6 +103,23 @@
 				425084597532B4238D23F094 /* types.rs */,
 			);
 			path = websocket;
+			sourceTree = "<group>";
+		};
+		304A9D108E09CCB99147909D /* debug */ = {
+			isa = PBXGroup;
+			children = (
+				D006008A9D6EC77BEEADC500 /* libapp.a */,
+			);
+			path = debug;
+			sourceTree = "<group>";
+		};
+		5072C5490D597E9A2B450FAB /* arm64 */ = {
+			isa = PBXGroup;
+			children = (
+				304A9D108E09CCB99147909D /* debug */,
+				D9F10FB90DCE030E0D0B7D38 /* release */,
+			);
+			path = arm64;
 			sourceTree = "<group>";
 		};
 		5A23A81471310DECA0D61A40 /* Frameworks */ = {
@@ -111,10 +137,21 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		620EB6FCFB6E964A8D4A855E /* edid */ = {
+			isa = PBXGroup;
+			children = (
+				70857E1CEB5E7B849B0D2331 /* linux.rs */,
+				C45E8F138B4AAEE12FCD4A28 /* macos.rs */,
+				DEFD2423051CAD34BA91BF4E /* mod.rs */,
+				9DBBD40EB1167ED1956CD974 /* windows.rs */,
+			);
+			path = edid;
+			sourceTree = "<group>";
+		};
 		8186E9A8A631C3E730C02603 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				874FF77F83729FF49CDE80EC /* Mobile Worship.app */,
+				874FF77F83729FF49CDE80EC /* mobile-worship_iOS.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -178,11 +215,27 @@
 				2A1CA2AB392D637F488C917C /* commands.rs */,
 				A0A7D37A6FD855FA40C503C9 /* lib.rs */,
 				0265BF1BC1E38BE8B573A3EB /* main.rs */,
+				620EB6FCFB6E964A8D4A855E /* edid */,
 				8C838EAE2CAA31E406A82C51 /* mdns */,
 				24AA2A38A23CC6D7317D75C7 /* websocket */,
 			);
 			name = src;
 			path = ../../src;
+			sourceTree = "<group>";
+		};
+		D9F10FB90DCE030E0D0B7D38 /* release */ = {
+			isa = PBXGroup;
+			children = (
+				0BD385F1A60EDA264CAB0AE6 /* libapp.a */,
+			);
+			path = release;
+			sourceTree = "<group>";
+		};
+		"TEMP_C9C1EF84-7CB0-4BA3-9A97-77E0B6816781" /* x86_64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = x86_64;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -205,7 +258,7 @@
 			packageProductDependencies = (
 			);
 			productName = "mobile-worship_iOS";
-			productReference = 874FF77F83729FF49CDE80EC /* Mobile Worship.app */;
+			productReference = 874FF77F83729FF49CDE80EC /* mobile-worship_iOS.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -227,6 +280,7 @@
 			);
 			mainGroup = C657D8A4C1B87EE144EDDC72;
 			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -243,6 +297,8 @@
 				5D429730A2F52A8B8B876293 /* Assets.xcassets in Resources */,
 				0673C8FBC40A5405E1F7886A /* LaunchScreen.storyboard in Resources */,
 				37F27A7D6C3D76A0CCD87E83 /* assets in Resources */,
+				D855176E0246CE8D24241C88 /* libapp.a in Resources */,
+				D65AB1192071AFAE9B8BEAA6 /* libapp.a in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -289,11 +345,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				ARCHS = arm64;
+				ARCHS = (
+					arm64,
+				);
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "mobile-worship_iOS/mobile-worship_iOS.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = HEGN9W2S9J;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -305,20 +362,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				"LIBRARY_SEARCH_PATHS[arch=arm64]" = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION)",
-					"$(SDKROOT)/usr/lib/swift",
-					"$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
-					"$(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)",
-				);
-				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION)",
-					"$(SDKROOT)/usr/lib/swift",
-					"$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
-					"$(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)",
-				);
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.mobileworship.display;
 				PRODUCT_NAME = "Mobile Worship";
 				SDKROOT = iphoneos;
@@ -394,11 +439,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				ARCHS = arm64;
+				ARCHS = (
+					arm64,
+				);
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "mobile-worship_iOS/mobile-worship_iOS.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = HEGN9W2S9J;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -410,20 +456,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				"LIBRARY_SEARCH_PATHS[arch=arm64]" = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION)",
-					"$(SDKROOT)/usr/lib/swift",
-					"$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
-					"$(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)",
-				);
-				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION)",
-					"$(SDKROOT)/usr/lib/swift",
-					"$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
-					"$(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)",
-				);
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.mobileworship.display;
 				PRODUCT_NAME = "Mobile Worship";
 				SDKROOT = iphoneos;

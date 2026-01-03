@@ -978,12 +978,49 @@ pub async fn start_advertising(
 }
 
 /// Get or generate a persistent device ID for this display instance
-/// Uses Tauri's store to persist the device ID across app restarts
+///
+/// Uses a hybrid approach:
+/// 1. First tries to get hardware-based machine UID (persists across reinstalls on desktop)
+/// 2. Falls back to stored UUID if machine UID is unavailable (Android/FireTV may return null)
+///
+/// This provides the best persistence across platforms:
+/// - Windows/macOS: Hardware UUID persists across reinstalls and factory resets
+/// - Linux: D-Bus machine ID (less reliable, falls back to stored UUID)
+/// - iOS: identifierForVendor (persists for same vendor apps)
+/// - Android/FireTV: ANDROID_ID (may be null on some devices, falls back to stored UUID)
 #[tauri::command]
 pub async fn get_device_id(app: tauri::AppHandle) -> Result<String, String> {
     use uuid::Uuid;
+    use tauri_plugin_machine_uid::MachineUidExt;
 
-    // Try to get existing device ID from store
+    // First, try to get hardware-based machine UID
+    if let Some(machine_uid) = app.try_machine_uid() {
+        match machine_uid.get_machine_uid() {
+            Ok(response) => {
+                if let Some(id) = response.id {
+                    if !id.is_empty() {
+                        // Convert to UUID format if it's not already
+                        let device_id = if Uuid::parse_str(&id).is_ok() {
+                            id.clone()
+                        } else {
+                            // Create a deterministic UUID from the machine UID using UUID v5
+                            let namespace = Uuid::NAMESPACE_OID;
+                            Uuid::new_v5(&namespace, id.as_bytes()).to_string()
+                        };
+                        tracing::info!("Using hardware-based device ID: {} (from machine UID: {})", device_id, id);
+                        return Ok(device_id);
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Failed to get machine UID: {:?}", e);
+            }
+        }
+    }
+
+    tracing::info!("Machine UID unavailable, falling back to stored UUID");
+
+    // Fallback: Try to get existing device ID from store
     let store = tauri_plugin_store::StoreBuilder::new(&app, "device_state.json")
         .build()
         .map_err(|e| format!("Failed to create store: {}", e))?;
@@ -992,7 +1029,7 @@ pub async fn get_device_id(app: tauri::AppHandle) -> Result<String, String> {
         if let Some(id_str) = device_id.as_str() {
             // Validate that it's a valid UUID
             if Uuid::parse_str(id_str).is_ok() {
-                tracing::info!("Using existing device ID: {}", id_str);
+                tracing::info!("Using stored device ID: {}", id_str);
                 return Ok(id_str.to_string());
             } else {
                 tracing::warn!("Invalid device ID in store, regenerating");
