@@ -1,3 +1,4 @@
+app/~/.claude-*/*
 .claude/
 .claude-glm/
 debug/
