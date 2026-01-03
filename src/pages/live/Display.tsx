@@ -288,8 +288,15 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
       }
     }
 
+    // Listen on both window and document to catch events from:
+    // - Native Android key forwarding (dispatches to document)
+    // - Regular browser key events (bubble to window)
     window.addEventListener('keydown', handleKeyDown, { capture: true })
-    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true })
+    document.addEventListener('keydown', handleKeyDown, { capture: true })
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, { capture: true })
+      document.removeEventListener('keydown', handleKeyDown, { capture: true })
+    }
   }, []) // Run once on mount - uses refs for current state values
 
   // Send periodic heartbeats to keep display marked as online
