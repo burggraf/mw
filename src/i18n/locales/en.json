@@ -237,6 +237,7 @@
     "folderDescription": "Description",
     "folderDescriptionPlaceholder": "e.g., Pre-service announcement slides",
     "defaultLoopTime": "Default Loop Time",
+    "loopTime": "Loop Time",
     "loopTimeSeconds": "seconds",
     "loopTimeDescription": "Time to display each slide when playing this folder in a loop. Set to 0 for no auto-advance.",
     "folderCreated": "Folder created",
@@ -246,7 +247,11 @@
     "deleteFolderWarning": "Deleting \"{{name}}\" will move all slides in this folder back to the main slides list. This cannot be undone.",
     "viewAllSlides": "View All",
     "emptyFolder": "This folder is empty",
-    "emptyFolderDescription": "Upload slides to add them to this folder"
+    "emptyFolderDescription": "Upload slides to add them to this folder",
+    "customLoopTime": "Custom Loop Time",
+    "loopTimeStopDescription": "Setting to 0 will pause auto-advance on this slide.",
+    "loopTimeOverrideDescription": "This overrides the folder's default loop time.",
+    "loopTimeDefaultDescription": "Uses the folder's default loop time when enabled."
   },
   "styles": {
     "title": "Styles",

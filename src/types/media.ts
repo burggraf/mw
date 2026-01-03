@@ -36,6 +36,7 @@ export interface Media {
   backgroundColor: string | null  // hex for solid colors, null for images/videos
   category: MediaCategory  // 'background' (behind lyrics) or 'slide' (standalone content)
   folderId: string | null  // optional folder for organizing slides
+  loopTime: number | null  // per-slide loop time: null=use folder default, 0=stop, >0=override
   createdAt: string
   updatedAt: string
 }
@@ -58,6 +59,7 @@ export interface MediaInput {
   backgroundColor?: string
   category?: MediaCategory  // defaults to 'background'
   folderId?: string  // optional folder for slides
+  loopTime?: number | null  // per-slide loop time: null=use folder default, 0=stop, >0=override
 }
 
 export interface MediaFilters {

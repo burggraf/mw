@@ -60,12 +60,24 @@ export function Controller() {
   // Auto-loop state for folders
   const [loopActive, setLoopActive] = useState(false)
   const [loopProgress, setLoopProgress] = useState(0)
+  const [currentLoopTime, setCurrentLoopTime] = useState(0) // Effective loop time for current slide
   const loopIntervalRef = useRef<number | null>(null)
   const loopStartTimeRef = useRef<number>(0)
 
   // Refs for loop closure (to avoid stale state in setInterval)
   const folderRef = useRef<(SlideFolder & { slides: Media[] }) | null>(null)
   const folderSlideIndexRef = useRef<number>(0)
+
+  // Helper to get effective loop time for a slide
+  // Returns: null=use folder default, 0=stop loop, >0=use this value
+  const getEffectiveLoopTime = (slide: Media, folder: SlideFolder): number => {
+    if (slide.loopTime === null || slide.loopTime === undefined) {
+      // Use folder default
+      return folder.defaultLoopTime
+    }
+    // Use slide-specific value (0 = stop, >0 = custom time)
+    return slide.loopTime
+  }
 
   // Signed URLs for folder slide thumbnails
   const [folderSlideUrls, setFolderSlideUrls] = useState<Map<string, string>>(new Map())
@@ -439,9 +451,13 @@ export function Controller() {
       // Send first slide to displays
       await sendMediaToDisplays(firstSlide)
 
-      // Start auto-loop if configured
-      if (folder.defaultLoopTime > 0) {
-        startLoop(folder.defaultLoopTime)
+      // Calculate effective loop time for first slide
+      const effectiveTime = getEffectiveLoopTime(firstSlide, folder)
+      setCurrentLoopTime(effectiveTime)
+
+      // Start auto-loop if configured (folder has default > 0 or first slide has custom time > 0)
+      if (effectiveTime > 0) {
+        startLoop(effectiveTime)
       }
     } catch (error) {
       console.error('Failed to select folder:', error)
@@ -466,14 +482,26 @@ export function Controller() {
     }
   }
 
-  // Start auto-loop for folder
+  // Start auto-loop for folder with given interval
   const startLoop = (intervalSeconds: number) => {
+    // Don't start if interval is 0 (means stop)
+    if (intervalSeconds <= 0) {
+      stopLoop()
+      return
+    }
+
     setLoopActive(true)
     setLoopProgress(0)
+    setCurrentLoopTime(intervalSeconds)
     loopStartTimeRef.current = Date.now()
 
     const intervalMs = intervalSeconds * 1000
     const updateInterval = 100 // Update progress every 100ms
+
+    // Clear any existing interval
+    if (loopIntervalRef.current) {
+      clearInterval(loopIntervalRef.current)
+    }
 
     loopIntervalRef.current = window.setInterval(() => {
       const elapsed = Date.now() - loopStartTimeRef.current
@@ -483,8 +511,6 @@ export function Controller() {
       if (elapsed >= intervalMs) {
         // Advance to next slide using refs (to avoid stale closure)
         advanceLoopSlide()
-        loopStartTimeRef.current = Date.now()
-        setLoopProgress(0)
       }
     }, updateInterval)
   }
@@ -507,6 +533,38 @@ export function Controller() {
 
     // Send to displays
     await sendMediaToDisplays(slide)
+
+    // Calculate effective loop time for this slide
+    const effectiveTime = getEffectiveLoopTime(slide, folder)
+    setCurrentLoopTime(effectiveTime)
+
+    // Handle per-slide loop time
+    if (effectiveTime === 0) {
+      // Stop looping on this slide
+      stopLoop()
+    } else {
+      // Restart timer with new interval (might be different for this slide)
+      loopStartTimeRef.current = Date.now()
+      setLoopProgress(0)
+
+      // Clear and restart with new interval if it changed
+      if (loopIntervalRef.current) {
+        clearInterval(loopIntervalRef.current)
+      }
+
+      const intervalMs = effectiveTime * 1000
+      const updateInterval = 100
+
+      loopIntervalRef.current = window.setInterval(() => {
+        const elapsed = Date.now() - loopStartTimeRef.current
+        const progress = Math.min((elapsed / intervalMs) * 100, 100)
+        setLoopProgress(progress)
+
+        if (elapsed >= intervalMs) {
+          advanceLoopSlide()
+        }
+      }, updateInterval)
+    }
   }
 
   // Stop auto-loop
@@ -523,8 +581,13 @@ export function Controller() {
   const toggleLoop = () => {
     if (loopActive) {
       stopLoop()
-    } else if (state.currentFolder && state.currentFolder.defaultLoopTime > 0) {
-      startLoop(state.currentFolder.defaultLoopTime)
+    } else if (state.currentFolder && state.currentFolder.slides.length > 0) {
+      // Calculate effective loop time for current slide
+      const currentSlide = state.currentFolder.slides[state.folderSlideIndex]
+      const effectiveTime = getEffectiveLoopTime(currentSlide, state.currentFolder)
+      if (effectiveTime > 0) {
+        startLoop(effectiveTime)
+      }
     }
   }
 
@@ -563,6 +626,21 @@ export function Controller() {
 
     // Send to displays
     await sendMediaToDisplays(slide)
+
+    // Update effective loop time for this slide
+    const effectiveTime = getEffectiveLoopTime(slide, state.currentFolder)
+    setCurrentLoopTime(effectiveTime)
+
+    // If loop is active, handle per-slide loop time
+    if (loopActive) {
+      if (effectiveTime === 0) {
+        // Stop looping on this slide
+        stopLoop()
+      } else {
+        // Restart timer with new interval
+        startLoop(effectiveTime)
+      }
+    }
   }
 
   // Send slide update to all connected displays
@@ -758,16 +836,18 @@ export function Controller() {
                 <span>{t('live.preview')}</span>
                 {state.displayMode === 'folder' && state.currentFolder && (
                   <div className="flex items-center gap-2">
-                    {state.currentFolder.defaultLoopTime > 0 && (
+                    {(state.currentFolder.defaultLoopTime > 0 || currentLoopTime > 0) && (
                       <Button
                         variant={loopActive ? 'default' : 'outline'}
                         size="sm"
                         onClick={toggleLoop}
                         className="gap-1"
+                        disabled={currentLoopTime === 0}
+                        title={currentLoopTime === 0 ? 'Loop paused on this slide' : undefined}
                       >
                         {loopActive ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
                         <Clock className="h-3 w-3" />
-                        {state.currentFolder.defaultLoopTime}s
+                        {currentLoopTime}s
                       </Button>
                     )}
                   </div>

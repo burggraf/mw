@@ -62,6 +62,8 @@ export function MediaDetailDialog({
   const [name, setName] = useState('')
   const [tags, setTags] = useState<string[]>([])
   const [newTag, setNewTag] = useState('')
+  const [loopTime, setLoopTime] = useState<number | null>(null)
+  const [loopTimeInput, setLoopTimeInput] = useState('') // String for controlled input
   const [saving, setSaving] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(true)
@@ -116,6 +118,8 @@ Was blind, but now I see`
       setName(media.name)
       setTags([...media.tags])
       setNewTag('')
+      setLoopTime(media.loopTime)
+      setLoopTimeInput(media.loopTime !== null ? String(media.loopTime) : '')
       setPreviewUrl(null)
       setShowSampleText(false)
       setIsLightBackground(false)
@@ -165,12 +169,40 @@ Was blind, but now I see`
     }
   }
 
+  // Handle loop time input change - only allow positive integers up to 999
+  const handleLoopTimeChange = (value: string) => {
+    // Allow empty string (null value)
+    if (value === '') {
+      setLoopTimeInput('')
+      setLoopTime(null)
+      return
+    }
+
+    // Only allow digits
+    const cleaned = value.replace(/\D/g, '')
+    if (cleaned === '') {
+      setLoopTimeInput('')
+      setLoopTime(null)
+      return
+    }
+
+    // Parse and clamp to 0-999
+    const num = Math.min(999, Math.max(0, parseInt(cleaned, 10)))
+    setLoopTimeInput(String(num))
+    setLoopTime(num)
+  }
+
   const handleSave = async () => {
     if (!media) return
 
     setSaving(true)
     try {
-      await updateMedia(media.id, { name, tags })
+      // Only send loopTime for slides
+      const updateData: { name: string; tags: string[]; loopTime?: number | null } = { name, tags }
+      if (media.category === 'slide') {
+        updateData.loopTime = loopTime
+      }
+      await updateMedia(media.id, updateData)
       toast.success(t('songs.songUpdated'))
       onUpdate?.()
       onOpenChange(false)
@@ -186,7 +218,7 @@ Was blind, but now I see`
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{t('common.edit')}</DialogTitle>
           <DialogDescription className="sr-only">
@@ -194,7 +226,7 @@ Was blind, but now I see`
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 overflow-y-auto flex-1 pr-2">
           {/* Preview */}
           <div className="aspect-video relative rounded-lg overflow-hidden bg-black border border-gray-400">
             {loadingPreview ? (
@@ -247,26 +279,41 @@ Was blind, but now I see`
           {/* Media Info with toggle button */}
           <div className="flex items-start justify-between gap-4">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm flex-1">
-            <div>
-              <span className="text-muted-foreground">{t('backgrounds.type')}</span>
-              <p className="font-medium capitalize">{media.type}</p>
-            </div>
-            <div>
-              <span className="text-muted-foreground">{t('backgrounds.size')}</span>
-              <p className="font-medium">{formatFileSize(media.fileSize)}</p>
-            </div>
-            {media.width && media.height && (
               <div>
-                <span className="text-muted-foreground">{t('backgrounds.dimensions')}</span>
-                <p className="font-medium">{media.width} x {media.height}</p>
+                <span className="text-muted-foreground">{t('backgrounds.type')}</span>
+                <p className="font-medium capitalize">{media.type}</p>
               </div>
-            )}
-            {media.duration && (
               <div>
-                <span className="text-muted-foreground">{t('backgrounds.duration')}</span>
-                <p className="font-medium">{formatDuration(media.duration)}</p>
+                <span className="text-muted-foreground">{t('backgrounds.size')}</span>
+                <p className="font-medium">{formatFileSize(media.fileSize)}</p>
               </div>
-            )}
+              {media.width && media.height && (
+                <div>
+                  <span className="text-muted-foreground">{t('backgrounds.dimensions')}</span>
+                  <p className="font-medium">{media.width} x {media.height}</p>
+                </div>
+              )}
+              {media.duration && (
+                <div>
+                  <span className="text-muted-foreground">{t('backgrounds.duration')}</span>
+                  <p className="font-medium">{formatDuration(media.duration)}</p>
+                </div>
+              )}
+              {/* Loop Time - only for slides */}
+              {media.category === 'slide' && (
+                <div>
+                  <span className="text-muted-foreground">{t('slides.loopTime')}</span>
+                  <div className="flex items-center gap-1">
+                    <Input
+                      value={loopTimeInput}
+                      onChange={(e) => handleLoopTimeChange(e.target.value)}
+                      placeholder="—"
+                      className="w-16 h-7 text-sm px-2"
+                    />
+                    <span className="text-xs text-muted-foreground">s</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Sample text toggle button - only for backgrounds, not slides */}

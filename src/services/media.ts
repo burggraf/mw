@@ -26,6 +26,7 @@ function rowToMedia(row: any): Media {
     backgroundColor: row.background_color,
     category: row.category || 'background',
     folderId: row.folder_id,
+    loopTime: row.loop_time,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -135,7 +136,7 @@ export async function createMedia(churchId: string, input: MediaInput): Promise<
   return rowToMedia(data)
 }
 
-export async function updateMedia(id: string, input: { name?: string; tags?: string[]; folderId?: string | null }): Promise<Media> {
+export async function updateMedia(id: string, input: { name?: string; tags?: string[]; folderId?: string | null; loopTime?: number | null }): Promise<Media> {
   const supabase = getSupabase()
 
   const updateData: Record<string, any> = {}
@@ -143,6 +144,7 @@ export async function updateMedia(id: string, input: { name?: string; tags?: str
   if (input.name !== undefined) updateData.name = input.name
   if (input.tags !== undefined) updateData.tags = input.tags
   if (input.folderId !== undefined) updateData.folder_id = input.folderId
+  if (input.loopTime !== undefined) updateData.loop_time = input.loopTime
 
   const { data, error } = await supabase
     .from('media')

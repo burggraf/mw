@@ -174,6 +174,7 @@ function rowToMedia(m: any): Media {
     backgroundColor: m.background_color,
     category: m.category || 'background',
     folderId: m.folder_id,
+    loopTime: m.loop_time,
     createdAt: m.created_at,
     updatedAt: m.updated_at,
   }
