@@ -1,6 +1,9 @@
 app/~/.claude-*/*
+app/~/.claude-pro/*
 .claude/
 .claude-glm/
+.claude-pro/
+.claude-max/
 debug/
 *.backup
 
