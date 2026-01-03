@@ -142,10 +142,27 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
   }, [])
 
   // Auto-focus the main container on mount so d-pad works immediately
+  // On Android TV, we need to be more aggressive about focus management
   useEffect(() => {
-    if (containerRef.current) {
-      console.log('[Display] Focusing main container for d-pad support')
-      containerRef.current.focus()
+    const focusContainer = () => {
+      if (containerRef.current) {
+        console.log('[Display] Focusing main container for d-pad support')
+        containerRef.current.focus()
+      }
+    }
+
+    // Focus immediately
+    focusContainer()
+
+    // Also focus after a short delay (Android WebView may steal focus)
+    const timeoutId = setTimeout(focusContainer, 100)
+
+    // And again after a longer delay (for slow devices)
+    const timeoutId2 = setTimeout(focusContainer, 500)
+
+    return () => {
+      clearTimeout(timeoutId)
+      clearTimeout(timeoutId2)
     }
   }, [])
 
@@ -810,12 +827,21 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
     }
   }, [eventId, loadSlide, localMode])
 
+  // Click handler to restore focus (useful on Android TV if focus is lost)
+  const handleContainerClick = useCallback(() => {
+    if (containerRef.current) {
+      containerRef.current.focus()
+    }
+  }, [])
+
   return (
     <div
       ref={containerRef}
       tabIndex={0}
+      autoFocus
       className="fixed inset-0 bg-black flex items-center justify-center overflow-hidden"
       style={{ outline: 'none' }}
+      onClick={handleContainerClick}
     >
       {/* Background */}
       {backgroundUrl ? (
