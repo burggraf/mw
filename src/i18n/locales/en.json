@@ -251,7 +251,36 @@
     "customLoopTime": "Custom Loop Time",
     "loopTimeStopDescription": "Setting to 0 will pause auto-advance on this slide.",
     "loopTimeOverrideDescription": "This overrides the folder's default loop time.",
-    "loopTimeDefaultDescription": "Uses the folder's default loop time when enabled."
+    "loopTimeDefaultDescription": "Uses the folder's default loop time when enabled.",
+    "googleSlides": {
+      "import": "Import from Google Slides",
+      "importDescription": "Paste a Google Slides URL to import all slides as images",
+      "urlLabel": "Presentation URL",
+      "urlPlaceholder": "https://docs.google.com/presentation/d/...",
+      "connectGoogle": "Connect to Google",
+      "reconnectGoogle": "Reconnect to Google",
+      "disconnect": "Disconnect",
+      "connectedAs": "Connected",
+      "loadingPresentation": "Loading presentation...",
+      "presentationTitle": "Presentation",
+      "slideCount": "{{count}} slide",
+      "slideCount_plural": "{{count}} slides",
+      "folderNameLabel": "Folder Name",
+      "importButton": "Import Slides",
+      "importing": "Importing slide {{current}} of {{total}}...",
+      "importComplete": "Import Complete",
+      "importCompleteDescription": "Successfully imported {{count}} slides",
+      "viewFolder": "View Folder",
+      "errors": {
+        "invalidUrl": "Please enter a valid Google Slides URL",
+        "noAccess": "You don't have access to this presentation",
+        "notFound": "Presentation not found. Check the URL.",
+        "authFailed": "Failed to connect to Google. Please try again.",
+        "importFailed": "Failed to import slide {{number}}",
+        "quotaExceeded": "Google API limit reached. Try again in a few minutes.",
+        "networkError": "Connection failed. Check your internet."
+      }
+    }
   },
   "styles": {
     "title": "Styles",
