@@ -480,5 +480,21 @@
     "display": "Pantalla",
     "openDisplay": "Abrir Pantalla",
     "close": "Cerrar"
+  },
+  "profile": {
+    "title": "Perfil",
+    "displayName": "Nombre para mostrar",
+    "displayNamePlaceholder": "Ingresa tu nombre",
+    "avatar": "Avatar",
+    "uploadAvatar": "Subir avatar",
+    "changeAvatar": "Cambiar avatar",
+    "removeAvatar": "Eliminar",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "saving": "Guardando...",
+    "cropTitle": "Recortar avatar",
+    "cropConfirm": "Aplicar",
+    "fileTooLarge": "El archivo debe ser menor a 5MB",
+    "invalidFileType": "Solo se permiten JPEG, PNG, WebP y GIF"
   }
 }

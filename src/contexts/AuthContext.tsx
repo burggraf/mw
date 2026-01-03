@@ -6,6 +6,11 @@ interface SignUpResult {
   needsEmailConfirmation: boolean
 }
 
+export interface UserProfile {
+  display_name: string | null
+  avatar_url: string | null
+}
+
 interface AuthContextType {
   user: User | null
   session: Session | null
@@ -17,6 +22,8 @@ interface AuthContextType {
   signOut: () => Promise<void>
   hasChurch: boolean | null
   createChurch: (churchName: string) => Promise<void>
+  userProfile: UserProfile | null
+  updateProfile: (updates: Partial<UserProfile>) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -26,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [hasChurch, setHasChurch] = useState<boolean | null>(null)
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
 
   // Check if user has a church membership
   const checkChurchMembership = async (userId: string): Promise<boolean> => {
@@ -115,10 +123,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Fetch user profile data
+  const fetchUserProfile = async (userId: string) => {
+    const supabase = getSupabase()
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('display_name, avatar_url')
+        .eq('id', userId)
+        .single()
+
+      if (error) {
+        console.error('Error fetching user profile:', error)
+        setUserProfile(null)
+        return
+      }
+
+      setUserProfile(data)
+    } catch (err) {
+      console.error('Error fetching user profile:', err)
+      setUserProfile(null)
+    }
+  }
+
   // Check user's church status: just check membership for now
   // TODO: Add invitation check back once RLS issue is resolved
   const checkUserChurchStatus = async (_userEmail: string, userId: string) => {
-    await checkChurchMembership(userId)
+    await Promise.all([
+      checkChurchMembership(userId),
+      fetchUserProfile(userId)
+    ])
   }
 
   useEffect(() => {
@@ -151,6 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }, 0)
         } else {
           setHasChurch(null)
+          setUserProfile(null)
           setIsLoading(false)
         }
       }
@@ -217,6 +252,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error
   }
 
+  const updateProfile = async (updates: Partial<UserProfile>) => {
+    if (!user) throw new Error('No user logged in')
+
+    const supabase = getSupabase()
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', user.id)
+
+    if (error) throw error
+
+    // Update local state
+    setUserProfile(prev => prev ? { ...prev, ...updates } : updates as UserProfile)
+  }
+
   const createChurch = async (churchName: string) => {
     const supabase = getSupabase()
     const { error } = await supabase.rpc('create_church_with_admin', {
@@ -238,6 +291,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       hasChurch,
       createChurch,
+      userProfile,
+      updateProfile,
     }}>
       {children}
     </AuthContext.Provider>

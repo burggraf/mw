@@ -480,5 +480,21 @@
     "display": "Display",
     "openDisplay": "Open Display",
     "close": "Close"
+  },
+  "profile": {
+    "title": "Profile",
+    "displayName": "Display Name",
+    "displayNamePlaceholder": "Enter your name",
+    "avatar": "Avatar",
+    "uploadAvatar": "Upload Avatar",
+    "changeAvatar": "Change Avatar",
+    "removeAvatar": "Remove",
+    "save": "Save",
+    "cancel": "Cancel",
+    "saving": "Saving...",
+    "cropTitle": "Crop Avatar",
+    "cropConfirm": "Apply",
+    "fileTooLarge": "File must be under 5MB",
+    "invalidFileType": "Only JPEG, PNG, WebP, and GIF are allowed"
   }
 }

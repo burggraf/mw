@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChurch } from '@/contexts/ChurchContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { isTauri } from '@/lib/tauri'
+import { ProfileModal } from '@/components/ProfileModal'
 import {
   Sidebar,
   SidebarContent,
@@ -33,7 +35,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import {
@@ -51,6 +53,7 @@ import {
   Church as ChurchIcon,
   Monitor,
   Presentation,
+  User,
 } from 'lucide-react'
 
 const navItems = [
@@ -72,10 +75,11 @@ export function AppSidebar() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, signOut } = useAuth()
+  const { user, userProfile, signOut } = useAuth()
   const { churches, currentChurch, setCurrentChurch } = useChurch()
   const { resolvedTheme, setTheme } = useTheme()
   const { setOpenMobile } = useSidebar()
+  const [profileModalOpen, setProfileModalOpen] = useState(false)
 
   const handleNavigation = (href: string) => {
     navigate(href)
@@ -103,9 +107,20 @@ export function AppSidebar() {
     setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
   }
 
-  const userInitials = user?.email
-    ? user.email.slice(0, 2).toUpperCase()
-    : '??'
+  // Get initials from display name or email
+  const getUserInitials = () => {
+    if (userProfile?.display_name) {
+      const parts = userProfile.display_name.trim().split(/\s+/)
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      }
+      return userProfile.display_name.slice(0, 2).toUpperCase()
+    }
+    return user?.email?.slice(0, 2).toUpperCase() || '??'
+  }
+
+  // Display name takes priority, email as fallback
+  const displayText = userProfile?.display_name || user?.email
 
   return (
     <Sidebar collapsible="icon">
@@ -267,12 +282,15 @@ export function AppSidebar() {
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
                   <Avatar className="h-8 w-8">
+                    {userProfile?.avatar_url && (
+                      <AvatarImage src={userProfile.avatar_url} alt="Avatar" />
+                    )}
                     <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs">
-                      {userInitials}
+                      {getUserInitials()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col gap-0.5 leading-none text-left">
-                    <span className="truncate text-sm">{user?.email}</span>
+                    <span className="truncate text-sm">{displayText}</span>
                   </div>
                   <ChevronUp className="ml-auto size-4" />
                 </SidebarMenuButton>
@@ -285,6 +303,10 @@ export function AppSidebar() {
                   <span className="truncate">{user?.email}</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setProfileModalOpen(true)}>
+                  <User className="mr-2 h-4 w-4" />
+                  {t('profile.title')}
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleSignOut}>
                   <LogOut className="mr-2 h-4 w-4" />
                   {t('auth.signOut')}
@@ -296,6 +318,8 @@ export function AppSidebar() {
       </SidebarFooter>
 
       <SidebarRail />
+
+      <ProfileModal open={profileModalOpen} onOpenChange={setProfileModalOpen} />
     </Sidebar>
   )
 }
