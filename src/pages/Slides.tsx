@@ -19,6 +19,7 @@ import { MediaUploadDialog } from '@/components/media/MediaUploadDialog'
 import { StockMediaDialog } from '@/components/media/StockMediaDialog'
 import { MediaDetailDialog } from '@/components/media/MediaDetailDialog'
 import { SlideFolderDialog } from '@/components/media/SlideFolderDialog'
+import { GoogleSlidesImportDialog } from '@/components/media/GoogleSlidesImportDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -31,7 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Upload, Search, Sparkles, Filter, Folder } from 'lucide-react'
+import { Upload, Search, Sparkles, Filter, Folder, FileDown } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { toast } from 'sonner'
 
@@ -55,6 +56,7 @@ export function SlidesPage() {
   // Dialogs
   const [uploadOpen, setUploadOpen] = useState(false)
   const [stockOpen, setStockOpen] = useState(false)
+  const [googleSlidesOpen, setGoogleSlidesOpen] = useState(false)
   const [editMedia, setEditMedia] = useState<Media | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Media | null>(null)
   const [deleteUsageCount, setDeleteUsageCount] = useState(0)
@@ -236,6 +238,15 @@ export function SlidesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold">{t('slides.title')}</h1>
         <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setGoogleSlidesOpen(true)}
+            className="flex-1 sm:flex-none"
+          >
+            <FileDown className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">{t('slides.googleSlides.import')}</span>
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setStockOpen(true)} className="flex-1 sm:flex-none">
             <Sparkles className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">{t('slides.stockMedia')}</span>
@@ -407,6 +418,16 @@ export function SlidesPage() {
         onOpenChange={setFolderDialogOpen}
         folder={editingFolder}
         onSave={handleSaveFolder}
+      />
+
+      <GoogleSlidesImportDialog
+        open={googleSlidesOpen}
+        onOpenChange={setGoogleSlidesOpen}
+        onSuccess={(folderId) => {
+          setSelectedFolderId(folderId)
+          loadMedia()
+          loadFolders()
+        }}
       />
 
       {/* Delete Folder Confirmation */}
