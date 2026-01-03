@@ -142,10 +142,10 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
   }, [])
 
   // Auto-focus the main container on mount so d-pad works immediately
-  // On Android TV, we need to be more aggressive about focus management
+  // On Android TV, we need to be very aggressive about focus management
   useEffect(() => {
     const focusContainer = () => {
-      if (containerRef.current) {
+      if (containerRef.current && document.activeElement !== containerRef.current) {
         console.log('[Display] Focusing main container for d-pad support')
         containerRef.current.focus()
       }
@@ -154,15 +154,29 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
     // Focus immediately
     focusContainer()
 
-    // Also focus after a short delay (Android WebView may steal focus)
-    const timeoutId = setTimeout(focusContainer, 100)
+    // Multiple delayed attempts for Android TV (WebView may steal focus during init)
+    const delays = [100, 300, 500, 1000, 2000]
+    const timeoutIds = delays.map(delay => setTimeout(focusContainer, delay))
 
-    // And again after a longer delay (for slow devices)
-    const timeoutId2 = setTimeout(focusContainer, 500)
+    // Also re-focus whenever the window gains focus
+    const handleWindowFocus = () => {
+      console.log('[Display] Window focused, ensuring container focus')
+      focusContainer()
+    }
+    window.addEventListener('focus', handleWindowFocus)
+
+    // Re-focus on any key event if not already focused (catches first d-pad press)
+    const handleAnyKey = () => {
+      if (document.activeElement !== containerRef.current) {
+        focusContainer()
+      }
+    }
+    window.addEventListener('keydown', handleAnyKey, { capture: true, once: false })
 
     return () => {
-      clearTimeout(timeoutId)
-      clearTimeout(timeoutId2)
+      timeoutIds.forEach(id => clearTimeout(id))
+      window.removeEventListener('focus', handleWindowFocus)
+      window.removeEventListener('keydown', handleAnyKey, { capture: true })
     }
   }, [])
 
@@ -834,6 +848,18 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
     }
   }, [])
 
+  // Re-focus immediately when focus is lost (aggressive focus retention for Android TV)
+  const handleContainerBlur = useCallback(() => {
+    // Use setTimeout to allow the blur to complete, then refocus
+    // unless a dialog is open (menu or about)
+    setTimeout(() => {
+      if (containerRef.current && !showMenuRef.current && !showAboutRef.current) {
+        console.log('[Display] Container lost focus, refocusing')
+        containerRef.current.focus()
+      }
+    }, 0)
+  }, [])
+
   return (
     <div
       ref={containerRef}
@@ -842,6 +868,7 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
       className="fixed inset-0 bg-black flex items-center justify-center overflow-hidden"
       style={{ outline: 'none' }}
       onClick={handleContainerClick}
+      onBlur={handleContainerBlur}
     >
       {/* Background */}
       {backgroundUrl ? (
