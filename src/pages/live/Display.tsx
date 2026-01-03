@@ -107,6 +107,7 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
   const isInitializingRef = useRef<boolean>(false)
   const wsConnectionRef = useRef<WebSocket | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const aboutContentRef = useRef<HTMLDivElement>(null)
   const showMenuRef = useRef(false)
   const showAboutRef = useRef(false)
   const menuIndexRef = useRef(0)
@@ -230,10 +231,31 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
         e.keyCode === 4 // Android KEYCODE_BACK
       )
 
-      // If About dialog is open, Enter or Back closes it
+      // If About dialog is open, handle scrolling and close
       if (showAboutRef.current) {
         if (isEnterKey || isBackKey) {
           setShowAbout(false)
+          e.preventDefault()
+          e.stopPropagation()
+          return
+        }
+
+        // Handle scrolling with arrow keys
+        const scrollAmount = 60 // pixels to scroll per keypress
+        if (
+          e.key === 'ArrowUp' ||
+          e.keyCode === 38 ||
+          e.keyCode === 19 // DPAD_UP
+        ) {
+          aboutContentRef.current?.scrollBy({ top: -scrollAmount, behavior: 'smooth' })
+          e.preventDefault()
+          e.stopPropagation()
+        } else if (
+          e.key === 'ArrowDown' ||
+          e.keyCode === 40 ||
+          e.keyCode === 20 // DPAD_DOWN
+        ) {
+          aboutContentRef.current?.scrollBy({ top: scrollAmount, behavior: 'smooth' })
           e.preventDefault()
           e.stopPropagation()
         }
@@ -1020,7 +1042,7 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
             <p className="text-white/60 text-center mb-4">
               {t('app.tagline', 'Worship presentation for everyone')}
             </p>
-            <div className="overflow-y-auto flex-1 space-y-4 text-white/80 pr-2">
+            <div ref={aboutContentRef} className="overflow-y-auto flex-1 space-y-4 text-white/80 pr-2">
               <div>
                 <h3 className="text-lg font-semibold text-white mb-1">
                   {t('about.whatIs', 'What is Mobile Worship?')}
