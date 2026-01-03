@@ -848,9 +848,9 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
           </div>
         </div>
       ) : mediaUrl ? (
-        /* Media display (slides/folders) */
+        /* Media display (slides/folders) - black background ensures clean transitions */
         <div
-          className="absolute inset-0 flex items-center justify-center transition-opacity duration-300"
+          className="absolute inset-0 bg-black flex items-center justify-center transition-opacity duration-300"
           style={{ opacity }}
         >
           {mediaType === 'video' ? (
