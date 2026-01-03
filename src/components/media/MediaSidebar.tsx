@@ -74,6 +74,22 @@ export function MediaSidebar({
   return (
     <aside className="w-56 shrink-0 md:border-r bg-background">
       <div className="flex flex-col gap-4 p-4">
+        {/* All Slides button at the top (only for slides) */}
+        {showFolders && (
+          <button
+            onClick={() => onFolderSelect(null)}
+            className={cn(
+              'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+              selectedFolderId === null
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+            )}
+          >
+            <Sparkles className="h-4 w-4" />
+            <span>{t(`${ns}.allSlides`)}</span>
+          </button>
+        )}
+
         {/* Folders Section (only for slides) */}
         {showFolders && (
           <>
@@ -94,19 +110,6 @@ export function MediaSidebar({
                   </Button>
                 )}
               </div>
-              {/* All Slides (no folder) option */}
-              <button
-                onClick={() => onFolderSelect(null)}
-                className={cn(
-                  'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                  selectedFolderId === null
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                )}
-              >
-                <Sparkles className="h-4 w-4" />
-                <span>{t(`${ns}.allSlides`)}</span>
-              </button>
               {/* Folder list */}
               {folders.map((folder) => {
                 const isActive = selectedFolderId === folder.id
@@ -165,70 +168,71 @@ export function MediaSidebar({
                 )
               })}
             </div>
-            <Separator />
           </>
         )}
 
-        {/* Smart Collections */}
-        <div className="flex flex-col gap-1">
-          <h3 className="mb-2 text-sm font-medium text-muted-foreground">
-            {t(`${ns}.filters`)}
-          </h3>
-          {collections.map((collection) => {
-            const Icon = collection.icon
-            const isActive = activeCollection === collection.key && (!showFolders || selectedFolderId === null)
-            return (
-              <button
-                key={collection.key}
-                onClick={() => {
-                  onCollectionChange(collection.key)
-                  // Clear folder selection when selecting a smart collection
-                  if (showFolders) onFolderSelect(null)
-                }}
-                className={cn(
-                  'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                <span>{t(`${ns}.${collection.labelKey}`)}</span>
-              </button>
-            )
-          })}
-        </div>
-
-        <Separator />
-
-        {/* Tags Section */}
-        <div className="flex flex-col gap-2">
-          <h3 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <Tag className="h-4 w-4" />
-            {t(`${ns}.tags`)}
-          </h3>
-          {tags.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => {
-                const isSelected = selectedTags.includes(tag)
+        {/* Smart Collections - only show when not in folders mode (slides) */}
+        {!showFolders && (
+          <>
+            <div className="flex flex-col gap-1">
+              <h3 className="mb-2 text-sm font-medium text-muted-foreground">
+                {t(`${ns}.filters`)}
+              </h3>
+              {collections.map((collection) => {
+                const Icon = collection.icon
+                const isActive = activeCollection === collection.key
                 return (
-                  <Badge
-                    key={tag}
-                    variant={isSelected ? 'default' : 'outline'}
-                    className="cursor-pointer"
-                    onClick={() => onTagToggle(tag)}
+                  <button
+                    key={collection.key}
+                    onClick={() => {
+                      onCollectionChange(collection.key)
+                    }}
+                    className={cn(
+                      'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                      isActive
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                    )}
                   >
-                    {tag}
-                  </Badge>
+                    <Icon className="h-4 w-4" />
+                    <span>{t(`${ns}.${collection.labelKey}`)}</span>
+                  </button>
                 )
               })}
             </div>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              {t(`${ns}.noResults`)}
-            </p>
-          )}
-        </div>
+
+            <Separator />
+
+            {/* Tags Section */}
+            <div className="flex flex-col gap-2">
+              <h3 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Tag className="h-4 w-4" />
+                {t(`${ns}.tags`)}
+              </h3>
+              {tags.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {tags.map((tag) => {
+                    const isSelected = selectedTags.includes(tag)
+                    return (
+                      <Badge
+                        key={tag}
+                        variant={isSelected ? 'default' : 'outline'}
+                        className="cursor-pointer"
+                        onClick={() => onTagToggle(tag)}
+                      >
+                        {tag}
+                      </Badge>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  {t(`${ns}.noResults`)}
+                </p>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </aside>
   )

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { X, Plus, Type } from 'lucide-react'
+import { X, Plus, Type, Folder } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Media } from '@/types/media'
+import type { Media, SlideFolder } from '@/types/media'
 import { updateMedia, getSignedMediaUrl } from '@/services/media'
 import {
   Dialog,
@@ -23,6 +23,7 @@ interface MediaDetailDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onUpdate?: () => void
+  folders?: SlideFolder[]
 }
 
 function formatFileSize(bytes: number): string {
@@ -56,6 +57,7 @@ export function MediaDetailDialog({
   open,
   onOpenChange,
   onUpdate,
+  folders,
 }: MediaDetailDialogProps) {
   const { t } = useTranslation()
 
@@ -216,11 +218,22 @@ Was blind, but now I see`
 
   if (!media) return null
 
+  // Find the folder name if the slide is in a folder
+  const folderName = media.folderId && folders
+    ? folders.find(f => f.id === media.folderId)?.name
+    : null
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{t('common.edit')}</DialogTitle>
+          {folderName && (
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Folder className="h-3.5 w-3.5" />
+              <span>{folderName}</span>
+            </div>
+          )}
           <DialogDescription className="sr-only">
             Edit media name and tags
           </DialogDescription>

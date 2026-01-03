@@ -376,6 +376,7 @@ export function SlidesPage() {
           loadMedia()
           loadTags()
         }}
+        folders={folders}
       />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
