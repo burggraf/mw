@@ -520,6 +520,13 @@ export function Controller() {
     const folder = folderRef.current
     if (!folder || folder.slides.length === 0) return
 
+    // IMPORTANT: Clear the old interval IMMEDIATELY to prevent multiple rapid fires
+    // while async operations below are running
+    if (loopIntervalRef.current) {
+      clearInterval(loopIntervalRef.current)
+      loopIntervalRef.current = null
+    }
+
     const nextIndex = (folderSlideIndexRef.current + 1) % folder.slides.length
     folderSlideIndexRef.current = nextIndex
 
@@ -541,16 +548,12 @@ export function Controller() {
     // Handle per-slide loop time
     if (effectiveTime === 0) {
       // Stop looping on this slide
-      stopLoop()
+      setLoopActive(false)
+      setLoopProgress(0)
     } else {
       // Restart timer with new interval (might be different for this slide)
       loopStartTimeRef.current = Date.now()
       setLoopProgress(0)
-
-      // Clear and restart with new interval if it changed
-      if (loopIntervalRef.current) {
-        clearInterval(loopIntervalRef.current)
-      }
 
       const intervalMs = effectiveTime * 1000
       const updateInterval = 100
