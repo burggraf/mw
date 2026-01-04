@@ -17,7 +17,7 @@ interface BulkActionBarProps {
   onMoveToFolder: (folderId: string | null) => Promise<void>
   onCreateNewFolder: () => void
   onRemoveFromFolder: () => Promise<void>
-  onDelete: () => Promise<void>
+  onDelete: () => void
   folders: SlideFolder[]
   currentFolderId: string | null
   isProcessing?: boolean

@@ -179,10 +179,16 @@ export function SlidesPage() {
 
   function handleFolderSelect(folderId: string | null) {
     setSelectedFolderId(folderId)
+    setSelectedIds(new Set()) // Clear selection when changing folders
     // Reset smart collection when selecting a specific folder
     if (folderId !== null) {
       setActiveCollection('all')
     }
+  }
+
+  function handleCollectionChange(collection: SmartCollection) {
+    setActiveCollection(collection)
+    setSelectedIds(new Set()) // Clear selection when changing collections
   }
 
   function handleCreateFolder() {
@@ -394,7 +400,7 @@ export function SlidesPage() {
             <div className="mt-4">
               <MediaSidebar
                 activeCollection={activeCollection}
-                onCollectionChange={setActiveCollection}
+                onCollectionChange={handleCollectionChange}
                 tags={allTags}
                 selectedTags={selectedTags}
                 onTagToggle={handleTagToggle}
@@ -417,7 +423,7 @@ export function SlidesPage() {
         <div className="hidden md:block">
           <MediaSidebar
             activeCollection={activeCollection}
-            onCollectionChange={setActiveCollection}
+            onCollectionChange={handleCollectionChange}
             tags={allTags}
             selectedTags={selectedTags}
             onTagToggle={handleTagToggle}
