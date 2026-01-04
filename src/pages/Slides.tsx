@@ -99,11 +99,8 @@ export function SlidesPage() {
   const [totalCount, setTotalCount] = useState(0)
   const [sortBy, setSortBy] = useState<'name' | 'created_at' | 'file_size' | 'folder_id'>('created_at')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  // Suppress unused warnings temporarily - these will be used in Tasks 5-6
-  void setPageSize
+  // Suppress unused warnings temporarily - these will be used in Task 6
   void totalCount
-  void setSortBy
-  void setSortOrder
 
   const loadMedia = useCallback(async function loadMedia() {
     if (!currentChurch) return
@@ -188,6 +185,11 @@ export function SlidesPage() {
     setCurrentPage(1)
   }, [activeCollection, selectedTags, searchQuery, selectedFolderId, sortBy, sortOrder])
 
+  // Clear selection when changing pages
+  useEffect(() => {
+    clearSelection()
+  }, [currentPage])
+
   async function loadTags() {
     if (!currentChurch) return
 
@@ -229,6 +231,33 @@ export function SlidesPage() {
     setActiveCollection(collection)
     setSelectedIds(new Set()) // Clear selection when changing collections
   }
+
+  function handleSort(field: 'name' | 'created_at' | 'file_size' | 'folder_id') {
+    if (sortBy === field) {
+      // Toggle sort order if clicking same field
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')
+    } else {
+      // New field, default to ascending
+      setSortBy(field)
+      setSortOrder('asc')
+    }
+  }
+
+  function handlePageChange(page: number) {
+    setCurrentPage(page)
+    // Scroll to top of results
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function handlePageSizeChange(size: number) {
+    setPageSize(size)
+    // Page reset happens automatically via useEffect
+  }
+
+  // Suppress unused warnings temporarily - these will be used in Task 6
+  void handleSort
+  void handlePageChange
+  void handlePageSizeChange
 
   function handleCreateFolder() {
     setEditingFolder(null)
