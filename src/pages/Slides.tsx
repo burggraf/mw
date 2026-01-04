@@ -55,6 +55,8 @@ export function SlidesPage() {
   const { t } = useTranslation()
   const { currentChurch } = useChurch()
   void getMediaCount
+  // Suppress unused variable warnings - these will be used in subsequent tasks
+  void 0
 
   const [media, setMedia] = useState<Media[]>([])
   const [loading, setLoading] = useState(true)
@@ -90,6 +92,22 @@ export function SlidesPage() {
   const [bulkProcessing, setBulkProcessing] = useState(false)
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState<number>(() => {
+    return parseInt(localStorage.getItem('slides-page-size') || '20')
+  })
+  const [totalCount, setTotalCount] = useState(0)
+  const [sortBy, setSortBy] = useState<'name' | 'created_at' | 'file_size' | 'folder_id'>('created_at')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  // Suppress unused warnings temporarily - these will be used in Task 4
+  void currentPage
+  void setPageSize
+  void totalCount
+  void setTotalCount
+  void setSortBy
+  void setSortOrder
+
   useEffect(() => {
     localStorage.setItem('slides-view-mode', viewMode)
   }, [viewMode])
@@ -107,6 +125,16 @@ export function SlidesPage() {
       loadMedia()
     }
   }, [activeCollection, selectedTags, searchQuery, selectedFolderId])
+
+  // Persist page size to localStorage
+  useEffect(() => {
+    localStorage.setItem('slides-page-size', pageSize.toString())
+  }, [pageSize])
+
+  // Reset to page 1 when filters or sorting change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [activeCollection, selectedTags, searchQuery, selectedFolderId, sortBy, sortOrder])
 
   async function loadMedia() {
     if (!currentChurch) return
