@@ -10,10 +10,14 @@ import {
   createSlideFolder,
   updateSlideFolder,
   deleteSlideFolder,
+  bulkMoveToFolder,
+  bulkDeleteMedia,
 } from '@/services/media'
 import type { Media, MediaFilters, SlideFolder } from '@/types/media'
 import { isBuiltInMedia } from '@/types/media'
 import { MediaGrid } from '@/components/media/MediaGrid'
+import { MediaListView } from '@/components/media/MediaListView'
+import { BulkActionBar } from '@/components/media/BulkActionBar'
 import { MediaSidebar } from '@/components/media/MediaSidebar'
 import { MediaUploadDialog } from '@/components/media/MediaUploadDialog'
 import { StockMediaDialog } from '@/components/media/StockMediaDialog'
@@ -23,6 +27,7 @@ import { GoogleSlidesImportDialog } from '@/components/media/GoogleSlidesImportD
 import { PowerPointImportDialog } from '@/components/media/PowerPointImportDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Upload, Search, Sparkles, Filter, Folder, FileDown, ChevronDown, Loader2 } from 'lucide-react'
+import { Upload, Search, Sparkles, Filter, Folder, FileDown, ChevronDown, Loader2, LayoutGrid, List } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,6 +79,18 @@ export function SlidesPage() {
   const [editingFolder, setEditingFolder] = useState<SlideFolder | null>(null)
   const [deleteFolderTarget, setDeleteFolderTarget] = useState<SlideFolder | null>(null)
   const [deletingFolder, setDeletingFolder] = useState(false)
+
+  // View mode and selection
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    return (localStorage.getItem('slides-view-mode') as 'grid' | 'list') || 'grid'
+  })
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkProcessing, setBulkProcessing] = useState(false)
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
+
+  useEffect(() => {
+    localStorage.setItem('slides-view-mode', viewMode)
+  }, [viewMode])
 
   useEffect(() => {
     if (currentChurch) {
@@ -221,6 +238,59 @@ export function SlidesPage() {
     }
   }
 
+  function clearSelection() {
+    setSelectedIds(new Set())
+  }
+
+  async function handleBulkMoveToFolder(folderId: string | null) {
+    if (selectedIds.size === 0) return
+
+    setBulkProcessing(true)
+    try {
+      await bulkMoveToFolder(Array.from(selectedIds), folderId)
+      toast.success(t('slides.bulkMoveSuccess', { count: selectedIds.size }))
+      clearSelection()
+      loadMedia()
+    } catch (error) {
+      console.error('Failed to move slides:', error)
+      toast.error(t('common.error'))
+    } finally {
+      setBulkProcessing(false)
+    }
+  }
+
+  async function handleBulkRemoveFromFolder() {
+    await handleBulkMoveToFolder(null)
+  }
+
+  function handleBulkDelete() {
+    if (selectedIds.size === 0) return
+    setShowBulkDeleteConfirm(true)
+  }
+
+  async function confirmBulkDelete() {
+    setShowBulkDeleteConfirm(false)
+    setBulkProcessing(true)
+    const toastId = toast.loading(t('common.deleting'))
+    const count = selectedIds.size
+    try {
+      await bulkDeleteMedia(Array.from(selectedIds))
+      toast.success(t('slides.bulkDeleteSuccess', { count }), { id: toastId })
+      clearSelection()
+      loadMedia()
+    } catch (error) {
+      console.error('Failed to delete slides:', error)
+      toast.error(t('common.error'), { id: toastId })
+    } finally {
+      setBulkProcessing(false)
+    }
+  }
+
+  function handleCreateFolderFromBulk() {
+    setEditingFolder(null)
+    setFolderDialogOpen(true)
+  }
+
   async function handleDeleteClick(media: Media) {
     const usage = await getMediaUsage(media.id)
     setDeleteUsageCount(usage.songIds.length)
@@ -283,7 +353,7 @@ export function SlidesPage() {
         </div>
       </div>
 
-      {/* Search and Mobile Filter */}
+      {/* Search and View Toggle */}
       <div className="flex gap-2 mb-4 md:mb-6">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -294,6 +364,22 @@ export function SlidesPage() {
             className="pl-10"
           />
         </div>
+
+        {/* View toggle */}
+        <ToggleGroup
+          type="single"
+          value={viewMode}
+          onValueChange={(value) => value && setViewMode(value as 'grid' | 'list')}
+          className="hidden sm:flex"
+        >
+          <ToggleGroupItem value="grid" aria-label={t('slides.gridView')}>
+            <LayoutGrid className="h-4 w-4" />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="list" aria-label={t('slides.listView')}>
+            <List className="h-4 w-4" />
+          </ToggleGroupItem>
+        </ToggleGroup>
+
         {/* Mobile filter button */}
         <Sheet>
           <SheetTrigger asChild>
@@ -370,15 +456,30 @@ export function SlidesPage() {
             </div>
           )}
 
-          <MediaGrid
-            media={media}
-            loading={loading}
-            onClick={(m) => !isBuiltInMedia(m) && setEditMedia(m)}
-            onEdit={(m) => !isBuiltInMedia(m) && setEditMedia(m)}
-            onDelete={(m) => !isBuiltInMedia(m) && handleDeleteClick(m)}
-            emptyTitle={selectedFolderId ? t('slides.emptyFolder') : t('slides.noSlides')}
-            emptyDescription={selectedFolderId ? t('slides.emptyFolderDescription') : t('slides.noSlidesDescription')}
-          />
+          {viewMode === 'grid' ? (
+            <MediaGrid
+              media={media}
+              loading={loading}
+              onClick={(m) => !isBuiltInMedia(m) && setEditMedia(m)}
+              onEdit={(m) => !isBuiltInMedia(m) && setEditMedia(m)}
+              onDelete={(m) => !isBuiltInMedia(m) && handleDeleteClick(m)}
+              emptyTitle={selectedFolderId ? t('slides.emptyFolder') : t('slides.noSlides')}
+              emptyDescription={selectedFolderId ? t('slides.emptyFolderDescription') : t('slides.noSlidesDescription')}
+            />
+          ) : (
+            <MediaListView
+              media={media}
+              loading={loading}
+              onClick={(m) => !isBuiltInMedia(m) && setEditMedia(m)}
+              onEdit={(m) => !isBuiltInMedia(m) && setEditMedia(m)}
+              onDelete={(m) => !isBuiltInMedia(m) && handleDeleteClick(m)}
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
+              folders={folders}
+              emptyTitle={selectedFolderId ? t('slides.emptyFolder') : t('slides.noSlides')}
+              emptyDescription={selectedFolderId ? t('slides.emptyFolderDescription') : t('slides.noSlidesDescription')}
+            />
+          )}
         </div>
       </div>
 
@@ -487,6 +588,40 @@ export function SlidesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk Delete Confirmation */}
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('slides.bulkDeleteConfirm', { count: selectedIds.size })}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('slides.bulkDeleteWarning')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmBulkDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Action Bar */}
+      <BulkActionBar
+        selectedCount={selectedIds.size}
+        onClear={clearSelection}
+        onMoveToFolder={handleBulkMoveToFolder}
+        onCreateNewFolder={handleCreateFolderFromBulk}
+        onRemoveFromFolder={handleBulkRemoveFromFolder}
+        onDelete={handleBulkDelete}
+        folders={folders}
+        currentFolderId={selectedFolderId}
+        isProcessing={bulkProcessing}
+      />
     </div>
   )
 }
