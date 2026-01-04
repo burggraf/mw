@@ -4,6 +4,7 @@ import { useGoogleLogin, type TokenResponse } from '@react-oauth/google'
 interface GoogleAuthContextType {
   accessToken: string | null
   isAuthenticated: boolean
+  isConfigured: boolean
   login: () => void
   logout: () => void
   error: string | null
@@ -11,10 +12,20 @@ interface GoogleAuthContextType {
 
 const GoogleAuthContext = createContext<GoogleAuthContextType | null>(null)
 
-export function useGoogleAuth() {
+export function useGoogleAuth(): GoogleAuthContextType {
   const context = useContext(GoogleAuthContext)
+  // Return a safe default if Google OAuth is not configured
   if (!context) {
-    throw new Error('useGoogleAuth must be used within a GoogleAuthProvider')
+    return {
+      accessToken: null,
+      isAuthenticated: false,
+      isConfigured: false,
+      login: () => {
+        console.warn('Google OAuth is not configured. Add googleClientId to config.json')
+      },
+      logout: () => {},
+      error: null,
+    }
   }
   return context
 }
@@ -50,6 +61,7 @@ export function GoogleAuthProvider({ children }: GoogleAuthProviderProps) {
       value={{
         accessToken,
         isAuthenticated: !!accessToken,
+        isConfigured: true,
         login,
         logout,
         error,

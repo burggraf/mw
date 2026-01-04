@@ -47,7 +47,7 @@ export function GoogleSlidesImportDialog({
 }: GoogleSlidesImportDialogProps) {
   const { t } = useTranslation()
   const { currentChurch } = useChurch()
-  const { accessToken, isAuthenticated, login } = useGoogleAuth()
+  const { accessToken, isAuthenticated, isConfigured, login } = useGoogleAuth()
 
   const [step, setStep] = useState<ImportStep>('url')
   const [url, setUrl] = useState('')
@@ -213,43 +213,52 @@ export function GoogleSlidesImportDialog({
         {/* Step 1: URL Input */}
         {step === 'url' && (
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="slides-url">{t('slides.googleSlides.urlLabel')}</Label>
-              <div className="relative">
-                <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="slides-url"
-                  placeholder={t('slides.googleSlides.urlPlaceholder')}
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  className="pl-10"
-                />
+            {!isConfigured ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground p-4 bg-muted rounded-lg">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {t('slides.googleSlides.errors.notConfigured')}
               </div>
-            </div>
-
-            {error && (
-              <div className="flex items-center gap-2 text-sm text-destructive">
-                <AlertCircle className="h-4 w-4" />
-                {error}
-              </div>
-            )}
-
-            {!isAuthenticated ? (
-              <Button onClick={() => login()} className="w-full">
-                <LogIn className="h-4 w-4 mr-2" />
-                {t('slides.googleSlides.connectGoogle')}
-              </Button>
             ) : (
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleLoadPresentation}
-                  disabled={!url || isLoading}
-                  className="flex-1"
-                >
-                  {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  {isLoading ? t('slides.googleSlides.loadingPresentation') : t('common.next')}
-                </Button>
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="slides-url">{t('slides.googleSlides.urlLabel')}</Label>
+                  <div className="relative">
+                    <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="slides-url"
+                      placeholder={t('slides.googleSlides.urlPlaceholder')}
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="flex items-center gap-2 text-sm text-destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    {error}
+                  </div>
+                )}
+
+                {!isAuthenticated ? (
+                  <Button onClick={() => login()} className="w-full">
+                    <LogIn className="h-4 w-4 mr-2" />
+                    {t('slides.googleSlides.connectGoogle')}
+                  </Button>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleLoadPresentation}
+                      disabled={!url || isLoading}
+                      className="flex-1"
+                    >
+                      {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      {isLoading ? t('slides.googleSlides.loadingPresentation') : t('common.next')}
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}

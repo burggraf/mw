@@ -278,7 +278,8 @@
         "authFailed": "Error al conectar con Google. Intenta de nuevo.",
         "importFailed": "Error al importar diapositiva {{number}}",
         "quotaExceeded": "Límite de API de Google alcanzado. Intenta en unos minutos.",
-        "networkError": "Error de conexión. Verifica tu internet."
+        "networkError": "Error de conexión. Verifica tu internet.",
+        "notConfigured": "La importación de Google Slides no está configurada. Contacta a tu administrador."
       }
     }
   },

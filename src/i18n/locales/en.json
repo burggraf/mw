@@ -278,7 +278,8 @@
         "authFailed": "Failed to connect to Google. Please try again.",
         "importFailed": "Failed to import slide {{number}}",
         "quotaExceeded": "Google API limit reached. Try again in a few minutes.",
-        "networkError": "Connection failed. Check your internet."
+        "networkError": "Connection failed. Check your internet.",
+        "notConfigured": "Google Slides import is not configured. Contact your administrator."
       }
     }
   },

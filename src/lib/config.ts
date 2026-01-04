@@ -5,6 +5,7 @@ export interface AppConfig {
   minAppVersion: string
   maintenance: boolean
   maintenanceMessage: string | null
+  googleClientId?: string
 }
 
 // Try local bundled config first, then fallback to remote
