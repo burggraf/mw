@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
 import { MoreHorizontal, Pencil, Trash2, Play, Folder, ArrowUp, ArrowDown } from 'lucide-react'
@@ -27,6 +27,9 @@ interface MediaListViewProps {
   folders?: SlideFolder[]
   emptyTitle?: string
   emptyDescription?: string
+  sortBy?: 'name' | 'created_at' | 'file_size' | 'folder_id' | null
+  sortOrder?: 'asc' | 'desc'
+  onSort?: (field: 'name' | 'created_at' | 'file_size' | 'folder_id') => void
 }
 
 function formatFileSize(bytes: number): string {
@@ -37,8 +40,7 @@ function formatFileSize(bytes: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`
 }
 
-type SortField = 'name' | 'uploaded' | 'size' | 'folder'
-type SortDirection = 'asc' | 'desc'
+type SortField = 'name' | 'created_at' | 'file_size' | 'folder_id'
 
 function SortableHeader({
   field,
@@ -50,7 +52,7 @@ function SortableHeader({
 }: {
   field: SortField
   currentField: SortField | null
-  direction: SortDirection
+  direction: 'asc' | 'desc'
   onSort: (field: SortField) => void
   children: React.ReactNode
   className?: string
@@ -251,49 +253,13 @@ export function MediaListView({
   folders = [],
   emptyTitle,
   emptyDescription,
+  sortBy = null,
+  sortOrder = 'asc',
+  onSort,
 }: MediaListViewProps) {
   const { t } = useTranslation()
-  const [sortField, setSortField] = useState<SortField | null>(null)
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
 
   const folderMap = new Map(folders.map(f => [f.id, f.name]))
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortField(field)
-      setSortDirection('asc')
-    }
-  }
-
-  const sortedMedia = useMemo(() => {
-    if (!sortField) return media
-
-    return [...media].sort((a, b) => {
-      let comparison = 0
-
-      switch (sortField) {
-        case 'name':
-          comparison = a.name.localeCompare(b.name)
-          break
-        case 'uploaded':
-          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-          break
-        case 'size':
-          comparison = a.fileSize - b.fileSize
-          break
-        case 'folder': {
-          const folderA = a.folderId ? folderMap.get(a.folderId) || '' : ''
-          const folderB = b.folderId ? folderMap.get(b.folderId) || '' : ''
-          comparison = folderA.localeCompare(folderB)
-          break
-        }
-      }
-
-      return sortDirection === 'asc' ? comparison : -comparison
-    })
-  }, [media, sortField, sortDirection, folderMap])
 
   const handleSelect = (id: string, checked: boolean) => {
     const newSet = new Set(selectedIds)
@@ -357,36 +323,36 @@ export function MediaListView({
         <div className="w-16 shrink-0">{t('slides.preview')}</div>
         <SortableHeader
           field="name"
-          currentField={sortField}
-          direction={sortDirection}
-          onSort={handleSort}
+          currentField={sortBy}
+          direction={sortOrder}
+          onSort={onSort || (() => {})}
           className="flex-1"
         >
           {t('slides.name')}
         </SortableHeader>
         <SortableHeader
-          field="uploaded"
-          currentField={sortField}
-          direction={sortDirection}
-          onSort={handleSort}
+          field="created_at"
+          currentField={sortBy}
+          direction={sortOrder}
+          onSort={onSort || (() => {})}
           className="hidden sm:flex w-28"
         >
           {t('slides.uploaded')}
         </SortableHeader>
         <SortableHeader
-          field="size"
-          currentField={sortField}
-          direction={sortDirection}
-          onSort={handleSort}
+          field="file_size"
+          currentField={sortBy}
+          direction={sortOrder}
+          onSort={onSort || (() => {})}
           className="hidden sm:flex w-20 justify-end"
         >
           {t('slides.size')}
         </SortableHeader>
         <SortableHeader
-          field="folder"
-          currentField={sortField}
-          direction={sortDirection}
-          onSort={handleSort}
+          field="folder_id"
+          currentField={sortBy}
+          direction={sortOrder}
+          onSort={onSort || (() => {})}
           className="hidden md:flex w-32"
         >
           {t('slides.folder')}
@@ -395,7 +361,7 @@ export function MediaListView({
       </div>
 
       {/* Rows */}
-      {sortedMedia.map((item) => (
+      {media.map((item) => (
         <MediaListRow
           key={item.id}
           media={item}
