@@ -73,6 +73,8 @@ export async function getMedia(churchId: string, filters?: MediaFilters): Promis
   }
 
   // Filter by folder - null means slides not in any folder
+  // When viewing a specific folder, sort ascending (oldest first) so slides appear in order
+  const isViewingFolder = filters?.folderId !== undefined && filters.folderId !== null
   if (filters?.folderId !== undefined) {
     if (filters.folderId === null) {
       query = query.is('folder_id', null)
@@ -81,7 +83,7 @@ export async function getMedia(churchId: string, filters?: MediaFilters): Promis
     }
   }
 
-  const { data, error } = await query.order('created_at', { ascending: false })
+  const { data, error } = await query.order('created_at', { ascending: isViewingFolder })
 
   if (error) throw error
   return (data || []).map(rowToMedia)
@@ -551,7 +553,7 @@ export async function getSlidesInFolder(folderId: string): Promise<Media[]> {
     .select('*')
     .eq('folder_id', folderId)
     .eq('category', 'slide')
-    .order('created_at', { ascending: false })
+    .order('created_at', { ascending: true })
 
   if (error) throw error
   return (data || []).map(rowToMedia)

@@ -117,7 +117,7 @@ export function MediaSidebar({
                   <div
                     key={folder.id}
                     className={cn(
-                      'group flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                      'group flex items-start gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                       isActive
                         ? 'bg-primary text-primary-foreground'
                         : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
@@ -125,10 +125,10 @@ export function MediaSidebar({
                   >
                     <button
                       onClick={() => onFolderSelect(folder.id)}
-                      className="flex flex-1 items-center gap-3 text-left"
+                      className="flex flex-1 items-start gap-3 text-left min-w-0"
                     >
-                      <Folder className="h-4 w-4" />
-                      <span className="truncate">{folder.name}</span>
+                      <Folder className="h-4 w-4 mt-0.5 shrink-0" />
+                      <span className="break-words">{folder.name}</span>
                     </button>
                     {(onEditFolder || onDeleteFolder) && (
                       <DropdownMenu>
@@ -137,7 +137,7 @@ export function MediaSidebar({
                             variant="ghost"
                             size="icon"
                             className={cn(
-                              'h-6 w-6 opacity-0 group-hover:opacity-100',
+                              'h-6 w-6 shrink-0',
                               isActive && 'text-primary-foreground hover:text-primary-foreground'
                             )}
                             onClick={(e) => e.stopPropagation()}

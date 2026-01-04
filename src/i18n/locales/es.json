@@ -251,7 +251,37 @@
     "customLoopTime": "Tiempo de Bucle Personalizado",
     "loopTimeStopDescription": "Establecer en 0 pausará el avance automático en esta diapositiva.",
     "loopTimeOverrideDescription": "Esto anula el tiempo de bucle predeterminado de la carpeta.",
-    "loopTimeDefaultDescription": "Usa el tiempo de bucle predeterminado de la carpeta cuando está habilitado."
+    "loopTimeDefaultDescription": "Usa el tiempo de bucle predeterminado de la carpeta cuando está habilitado.",
+    "googleSlides": {
+      "import": "Importar de Google Slides",
+      "importDescription": "Pega una URL de Google Slides para importar todas las diapositivas como imágenes",
+      "urlLabel": "URL de la presentación",
+      "urlPlaceholder": "https://docs.google.com/presentation/d/...",
+      "connectGoogle": "Conectar con Google",
+      "reconnectGoogle": "Reconectar con Google",
+      "disconnect": "Desconectar",
+      "connectedAs": "Conectado",
+      "loadingPresentation": "Cargando presentación...",
+      "presentationTitle": "Presentación",
+      "slideCount": "{{count}} diapositiva",
+      "slideCount_plural": "{{count}} diapositivas",
+      "folderNameLabel": "Nombre de la carpeta",
+      "importButton": "Importar diapositivas",
+      "importing": "Importando diapositiva {{current}} de {{total}}...",
+      "importComplete": "Importación completa",
+      "importCompleteDescription": "Se importaron {{count}} diapositivas exitosamente",
+      "viewFolder": "Ver carpeta",
+      "errors": {
+        "invalidUrl": "Por favor ingresa una URL válida de Google Slides",
+        "noAccess": "No tienes acceso a esta presentación",
+        "notFound": "Presentación no encontrada. Verifica la URL.",
+        "authFailed": "Error al conectar con Google. Intenta de nuevo.",
+        "importFailed": "Error al importar diapositiva {{number}}",
+        "quotaExceeded": "Límite de API de Google alcanzado. Intenta en unos minutos.",
+        "networkError": "Error de conexión. Verifica tu internet.",
+        "notConfigured": "La importación de Google Slides no está configurada. Contacta a tu administrador."
+      }
+    }
   },
   "styles": {
     "title": "Estilos",

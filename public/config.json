@@ -4,5 +4,6 @@
   "apiVersion": "1",
   "minAppVersion": "0.1.0",
   "maintenance": false,
-  "maintenanceMessage": null
+  "maintenanceMessage": null,
+  "googleClientId": "588690502352-ktcvp9he85f1d1psj54q3fjckoq8hmav.apps.googleusercontent.com"
 }
