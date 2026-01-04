@@ -45,7 +45,16 @@ function rowToSlideFolder(row: any): SlideFolder {
   }
 }
 
-export async function getMedia(churchId: string, filters?: MediaFilters): Promise<Media[]> {
+export async function getMedia(
+  churchId: string,
+  filters?: MediaFilters,
+  pagination?: {
+    page: number
+    perPage: number
+    sortBy?: 'name' | 'created_at' | 'file_size' | 'folder_id'
+    sortOrder?: 'asc' | 'desc'
+  }
+): Promise<Media[]> {
   const supabase = getSupabase()
 
   // Get church media and built-in media (church_id IS NULL)
@@ -73,8 +82,6 @@ export async function getMedia(churchId: string, filters?: MediaFilters): Promis
   }
 
   // Filter by folder - null means slides not in any folder
-  // When viewing a specific folder, sort ascending (oldest first) so slides appear in order
-  const isViewingFolder = filters?.folderId !== undefined && filters.folderId !== null
   if (filters?.folderId !== undefined) {
     if (filters.folderId === null) {
       query = query.is('folder_id', null)
@@ -83,7 +90,30 @@ export async function getMedia(churchId: string, filters?: MediaFilters): Promis
     }
   }
 
-  const { data, error } = await query.order('created_at', { ascending: isViewingFolder })
+  // Apply sorting
+  if (pagination?.sortBy) {
+    const sortField = pagination.sortBy === 'created_at' ? 'created_at'
+      : pagination.sortBy === 'name' ? 'name'
+      : pagination.sortBy === 'file_size' ? 'file_size'
+      : 'folder_id'
+
+    const ascending = pagination.sortOrder === 'asc'
+    query = query.order(sortField, { ascending })
+  } else {
+    // Default sort: when viewing a specific folder, sort ascending (oldest first)
+    // Otherwise sort descending (newest first)
+    const isViewingFolder = filters?.folderId !== undefined && filters.folderId !== null
+    query = query.order('created_at', { ascending: isViewingFolder })
+  }
+
+  // Apply pagination
+  if (pagination) {
+    const from = (pagination.page - 1) * pagination.perPage
+    const to = from + pagination.perPage - 1
+    query = query.range(from, to)
+  }
+
+  const { data, error } = await query
 
   if (error) throw error
   return (data || []).map(rowToMedia)
