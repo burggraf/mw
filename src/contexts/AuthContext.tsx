@@ -127,22 +127,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUserProfile = async (userId: string) => {
     const supabase = getSupabase()
     try {
+      // Don't use single() or maybeSingle() - they error on 0 rows
+      // Instead, fetch as array and take first element
       const { data, error } = await supabase
         .from('user_profiles')
         .select('display_name, avatar_url')
         .eq('id', userId)
-        .single()
+        .limit(1)
 
       if (error) {
         console.error('Error fetching user profile:', error)
-        setUserProfile(null)
+        setUserProfile({ display_name: null, avatar_url: null })
         return
       }
 
-      setUserProfile(data)
+      // If no profile exists yet, set to empty profile
+      // This allows the UI to work while user creates their profile
+      const profile = data?.[0] ?? { display_name: null, avatar_url: null }
+      setUserProfile(profile)
     } catch (err) {
       console.error('Error fetching user profile:', err)
-      setUserProfile(null)
+      setUserProfile({ display_name: null, avatar_url: null })
     }
   }
 
@@ -256,13 +261,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) throw new Error('No user logged in')
 
     const supabase = getSupabase()
+
+    const now = new Date().toISOString()
+    const payload = {
+      id: user.id,
+      display_name: updates.display_name ?? userProfile?.display_name ?? null,
+      avatar_url: updates.avatar_url ?? userProfile?.avatar_url ?? null,
+      created_at: now,
+      updated_at: now
+    }
+
+    // Use upsert to handle case where profile row doesn't exist
+    // (e.g., user signed up before the auto-create trigger was added)
+    // onConflict: 'id' ensures we update if row exists, insert if not
     const { error } = await supabase
       .from('user_profiles')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', user.id)
+      .upsert(payload, { onConflict: 'id', ignoreDuplicates: false })
 
     if (error) throw error
 
