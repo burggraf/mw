@@ -551,7 +551,7 @@ export async function getSlidesInFolder(folderId: string): Promise<Media[]> {
     .select('*')
     .eq('folder_id', folderId)
     .eq('category', 'slide')
-    .order('created_at', { ascending: false })
+    .order('created_at', { ascending: true })
 
   if (error) throw error
   return (data || []).map(rowToMedia)
