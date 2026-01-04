@@ -321,6 +321,11 @@
         "networkError": "Error de conexión. Verifica tu internet.",
         "notConfigured": "La importación de Google Slides no está configurada. Contacta a tu administrador."
       }
+    },
+    "pagination": {
+      "showing": "Mostrando {{start}}-{{end}} de {{total}} diapositivas",
+      "pageOf": "Página {{current}} de {{total}}",
+      "perPage": "por página"
     }
   },
   "styles": {

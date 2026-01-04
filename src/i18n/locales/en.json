@@ -321,6 +321,11 @@
         "networkError": "Connection failed. Check your internet.",
         "notConfigured": "Google Slides import is not configured. Contact your administrator."
       }
+    },
+    "pagination": {
+      "showing": "Showing {{start}}-{{end}} of {{total}} slides",
+      "pageOf": "Page {{current}} of {{total}}",
+      "perPage": "per page"
     }
   },
   "styles": {
