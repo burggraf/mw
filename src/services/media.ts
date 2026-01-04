@@ -536,7 +536,13 @@ export async function updateSlideFolder(id: string, input: Partial<SlideFolderIn
 export async function deleteSlideFolder(id: string): Promise<void> {
   const supabase = getSupabase()
 
-  // Note: Due to ON DELETE SET NULL, slides in this folder will have their folder_id set to null
+  // First, get all slides in this folder and delete them (including storage files)
+  const slides = await getSlidesInFolder(id)
+  for (const slide of slides) {
+    await deleteMedia(slide.id)
+  }
+
+  // Then delete the folder
   const { error } = await supabase
     .from('slide_folders')
     .delete()

@@ -17,6 +17,7 @@
     "search": "Search",
     "import": "Import",
     "saving": "Saving...",
+    "deleting": "Deleting...",
     "noChurchSelected": "No church selected",
     "notFound": "Not found",
     "optional": "optional"
@@ -243,8 +244,9 @@
     "folderCreated": "Folder created",
     "folderUpdated": "Folder updated",
     "folderDeleted": "Folder deleted",
+    "deletingFolder": "Deleting folder and slides...",
     "deleteFolderConfirm": "Delete this folder?",
-    "deleteFolderWarning": "Deleting \"{{name}}\" will move all slides in this folder back to the main slides list. This cannot be undone.",
+    "deleteFolderWarning": "This will permanently delete \"{{name}}\" and all slides inside it. This cannot be undone.",
     "viewAllSlides": "View All",
     "emptyFolder": "This folder is empty",
     "emptyFolderDescription": "Upload slides to add them to this folder",

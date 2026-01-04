@@ -33,7 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Upload, Search, Sparkles, Filter, Folder, FileDown, ChevronDown } from 'lucide-react'
+import { Upload, Search, Sparkles, Filter, Folder, FileDown, ChevronDown, Loader2 } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -73,6 +73,7 @@ export function SlidesPage() {
   const [folderDialogOpen, setFolderDialogOpen] = useState(false)
   const [editingFolder, setEditingFolder] = useState<SlideFolder | null>(null)
   const [deleteFolderTarget, setDeleteFolderTarget] = useState<SlideFolder | null>(null)
+  const [deletingFolder, setDeletingFolder] = useState(false)
 
   useEffect(() => {
     if (currentChurch) {
@@ -199,19 +200,23 @@ export function SlidesPage() {
   async function handleDeleteFolder() {
     if (!deleteFolderTarget) return
 
+    setDeletingFolder(true)
+    const toastId = toast.loading(t('slides.deletingFolder'))
+
     try {
       await deleteSlideFolder(deleteFolderTarget.id)
       // If we were viewing the deleted folder, go back to all slides
       if (selectedFolderId === deleteFolderTarget.id) {
         setSelectedFolderId(null)
       }
-      toast.success(t('slides.folderDeleted'))
+      toast.success(t('slides.folderDeleted'), { id: toastId })
       loadFolders()
-      loadMedia() // Reload to show slides that were in the folder
+      loadMedia()
     } catch (error) {
       console.error('Failed to delete folder:', error)
-      toast.error(t('common.error'))
+      toast.error(t('common.error'), { id: toastId })
     } finally {
+      setDeletingFolder(false)
       setDeleteFolderTarget(null)
     }
   }
@@ -461,7 +466,7 @@ export function SlidesPage() {
       />
 
       {/* Delete Folder Confirmation */}
-      <AlertDialog open={!!deleteFolderTarget} onOpenChange={() => setDeleteFolderTarget(null)}>
+      <AlertDialog open={!!deleteFolderTarget} onOpenChange={(open) => !deletingFolder && !open && setDeleteFolderTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('slides.deleteFolderConfirm')}</AlertDialogTitle>
@@ -470,12 +475,14 @@ export function SlidesPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogCancel disabled={deletingFolder}>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteFolder}
+              disabled={deletingFolder}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {t('common.delete')}
+              {deletingFolder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {deletingFolder ? t('common.deleting') : t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
