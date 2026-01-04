@@ -18,6 +18,7 @@ import type { Media, MediaFilters, SlideFolder } from '@/types/media'
 import { isBuiltInMedia } from '@/types/media'
 import { MediaGrid } from '@/components/media/MediaGrid'
 import { MediaListView } from '@/components/media/MediaListView'
+import { MediaPagination } from '@/components/media/MediaPagination'
 import { BulkActionBar } from '@/components/media/BulkActionBar'
 import { MediaSidebar } from '@/components/media/MediaSidebar'
 import { MediaUploadDialog } from '@/components/media/MediaUploadDialog'
@@ -99,8 +100,6 @@ export function SlidesPage() {
   const [totalCount, setTotalCount] = useState(0)
   const [sortBy, setSortBy] = useState<'name' | 'created_at' | 'file_size' | 'folder_id'>('created_at')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  // Suppress unused warnings temporarily - these will be used in Task 6
-  void totalCount
 
   const loadMedia = useCallback(async function loadMedia() {
     if (!currentChurch) return
@@ -253,11 +252,6 @@ export function SlidesPage() {
     setPageSize(size)
     // Page reset happens automatically via useEffect
   }
-
-  // Suppress unused warnings temporarily - these will be used in Task 6
-  void handleSort
-  void handlePageChange
-  void handlePageSizeChange
 
   function handleCreateFolder() {
     setEditingFolder(null)
@@ -552,8 +546,21 @@ export function SlidesPage() {
               folders={folders}
               emptyTitle={selectedFolderId ? t('slides.emptyFolder') : t('slides.noSlides')}
               emptyDescription={selectedFolderId ? t('slides.emptyFolderDescription') : t('slides.noSlidesDescription')}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={handleSort}
             />
           )}
+
+          {/* Pagination */}
+          <MediaPagination
+            currentPage={currentPage}
+            totalCount={totalCount}
+            pageSize={pageSize}
+            onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
+            loading={loading}
+          />
         </div>
       </div>
 
