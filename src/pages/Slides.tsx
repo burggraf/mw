@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useChurch } from '@/contexts/ChurchContext'
 import {
@@ -105,35 +105,7 @@ export function SlidesPage() {
   void setSortBy
   void setSortOrder
 
-  useEffect(() => {
-    localStorage.setItem('slides-view-mode', viewMode)
-  }, [viewMode])
-
-  useEffect(() => {
-    if (currentChurch) {
-      loadMedia()
-      loadTags()
-      loadFolders()
-    }
-  }, [currentChurch])
-
-  useEffect(() => {
-    if (currentChurch) {
-      loadMedia()
-    }
-  }, [activeCollection, selectedTags, searchQuery, selectedFolderId, currentPage, pageSize, sortBy, sortOrder])
-
-  // Persist page size to localStorage
-  useEffect(() => {
-    localStorage.setItem('slides-page-size', pageSize.toString())
-  }, [pageSize])
-
-  // Reset to page 1 when filters or sorting change
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [activeCollection, selectedTags, searchQuery, selectedFolderId, sortBy, sortOrder])
-
-  async function loadMedia() {
+  const loadMedia = useCallback(async function loadMedia() {
     if (!currentChurch) return
 
     setLoading(true)
@@ -185,7 +157,36 @@ export function SlidesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentChurch, activeCollection, selectedTags, searchQuery, selectedFolderId, currentPage, pageSize, sortBy, sortOrder, t])
+
+  useEffect(() => {
+    localStorage.setItem('slides-view-mode', viewMode)
+  }, [viewMode])
+
+  useEffect(() => {
+    if (currentChurch) {
+      loadMedia()
+      loadTags()
+      loadFolders()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentChurch])
+
+  useEffect(() => {
+    if (currentChurch) {
+      loadMedia()
+    }
+  }, [currentChurch, loadMedia])
+
+  // Persist page size to localStorage
+  useEffect(() => {
+    localStorage.setItem('slides-page-size', pageSize.toString())
+  }, [pageSize])
+
+  // Reset to page 1 when filters or sorting change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [activeCollection, selectedTags, searchQuery, selectedFolderId, sortBy, sortOrder])
 
   async function loadTags() {
     if (!currentChurch) return
