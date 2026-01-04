@@ -5,6 +5,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import { ChurchProvider } from './contexts/ChurchContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { GoogleOAuthWrapper } from './components/GoogleOAuthWrapper'
+import { Toaster } from './components/ui/sonner'
 import { AppRoutes } from './routes'
 import './i18n'
 import './index.css'
@@ -17,6 +18,7 @@ createRoot(document.getElementById('root')!).render(
           <ChurchProvider>
             <GoogleOAuthWrapper>
               <AppRoutes />
+              <Toaster />
             </GoogleOAuthWrapper>
           </ChurchProvider>
         </AuthProvider>

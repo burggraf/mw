@@ -252,6 +252,30 @@
     "loopTimeStopDescription": "Setting to 0 will pause auto-advance on this slide.",
     "loopTimeOverrideDescription": "This overrides the folder's default loop time.",
     "loopTimeDefaultDescription": "Uses the folder's default loop time when enabled.",
+    "importFrom": {
+      "googleSlides": "Google Slides",
+      "powerpoint": "PowerPoint"
+    },
+    "powerpoint": {
+      "import": "Import PowerPoint",
+      "importDescription": "Select a .pptx file to import slides as images",
+      "dropzone": "Drop .pptx file here or click to browse",
+      "reading": "Reading file...",
+      "slideCount": "{{count}} slide",
+      "slideCount_plural": "{{count}} slides",
+      "folderNameLabel": "Folder Name",
+      "importButton": "Import Slides",
+      "importing": "Processing slide {{current}} of {{total}}...",
+      "importComplete": "Import Complete",
+      "importCompleteDescription": "Successfully imported {{count}} slides",
+      "viewFolder": "View Folder",
+      "errors": {
+        "invalidFile": "Please select a valid .pptx file",
+        "corrupted": "Unable to read this file. It may be corrupted or not a valid PowerPoint file.",
+        "renderFailed": "Failed to render slide {{number}}",
+        "importFailed": "Failed to import presentation"
+      }
+    },
     "googleSlides": {
       "import": "Import from Google Slides",
       "importDescription": "Paste a Google Slides URL to import all slides as images",

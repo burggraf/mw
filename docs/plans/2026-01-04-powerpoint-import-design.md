@@ -4,6 +4,8 @@
 
 Add the ability to import PowerPoint (.pptx) presentations as slide images, similar to the existing Google Slides import feature.
 
+## Status: Implemented
+
 ## User Flow
 
 1. **File Selection** - User clicks Import → PowerPoint, dialog opens with file drop zone
@@ -20,7 +22,7 @@ Add the ability to import PowerPoint (.pptx) presentations as slide images, simi
 
 ### Dependencies
 
-- `pptxjs` - Renders PPTX slides to HTML in browser
+- `pptx-preview` - Pure frontend PPTX preview library (renders to HTML)
 - `html2canvas` - Captures HTML elements as PNG images
 
 ### Processing Flow
@@ -28,12 +30,12 @@ Add the ability to import PowerPoint (.pptx) presentations as slide images, simi
 ```
 User drops .pptx file
        ↓
-Parse PPTX metadata (title, slide count)
+Parse PPTX metadata (title, slide count) using pptx-preview
        ↓
 Show preview, user confirms
        ↓
 For each slide:
-  1. PPTXjs renders slide to hidden div
+  1. pptx-preview renders slide to hidden div
   2. html2canvas captures div as PNG blob
   3. Generate thumbnail
   4. Upload both to Supabase storage

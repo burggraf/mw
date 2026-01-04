@@ -20,6 +20,7 @@ import { StockMediaDialog } from '@/components/media/StockMediaDialog'
 import { MediaDetailDialog } from '@/components/media/MediaDetailDialog'
 import { SlideFolderDialog } from '@/components/media/SlideFolderDialog'
 import { GoogleSlidesImportDialog } from '@/components/media/GoogleSlidesImportDialog'
+import { PowerPointImportDialog } from '@/components/media/PowerPointImportDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -32,7 +33,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Upload, Search, Sparkles, Filter, Folder, FileDown } from 'lucide-react'
+import { Upload, Search, Sparkles, Filter, Folder, FileDown, ChevronDown } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { toast } from 'sonner'
 
@@ -57,6 +64,7 @@ export function SlidesPage() {
   const [uploadOpen, setUploadOpen] = useState(false)
   const [stockOpen, setStockOpen] = useState(false)
   const [googleSlidesOpen, setGoogleSlidesOpen] = useState(false)
+  const [powerPointOpen, setPowerPointOpen] = useState(false)
   const [editMedia, setEditMedia] = useState<Media | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Media | null>(null)
   const [deleteUsageCount, setDeleteUsageCount] = useState(0)
@@ -238,15 +246,27 @@ export function SlidesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold">{t('slides.title')}</h1>
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setGoogleSlidesOpen(true)}
-            className="flex-1 sm:flex-none"
-          >
-            <FileDown className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">{t('slides.googleSlides.import')}</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 sm:flex-none"
+              >
+                <FileDown className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">{t('common.import')}</span>
+                <ChevronDown className="h-4 w-4 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setGoogleSlidesOpen(true)}>
+                {t('slides.importFrom.googleSlides')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setPowerPointOpen(true)}>
+                {t('slides.importFrom.powerpoint')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="outline" size="sm" onClick={() => setStockOpen(true)} className="flex-1 sm:flex-none">
             <Sparkles className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">{t('slides.stockMedia')}</span>
@@ -423,6 +443,16 @@ export function SlidesPage() {
       <GoogleSlidesImportDialog
         open={googleSlidesOpen}
         onOpenChange={setGoogleSlidesOpen}
+        onSuccess={(folderId) => {
+          setSelectedFolderId(folderId)
+          loadMedia()
+          loadFolders()
+        }}
+      />
+
+      <PowerPointImportDialog
+        open={powerPointOpen}
+        onOpenChange={setPowerPointOpen}
         onSuccess={(folderId) => {
           setSelectedFolderId(folderId)
           loadMedia()

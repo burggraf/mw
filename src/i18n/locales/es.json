@@ -252,6 +252,30 @@
     "loopTimeStopDescription": "Establecer en 0 pausará el avance automático en esta diapositiva.",
     "loopTimeOverrideDescription": "Esto anula el tiempo de bucle predeterminado de la carpeta.",
     "loopTimeDefaultDescription": "Usa el tiempo de bucle predeterminado de la carpeta cuando está habilitado.",
+    "importFrom": {
+      "googleSlides": "Google Slides",
+      "powerpoint": "PowerPoint"
+    },
+    "powerpoint": {
+      "import": "Importar PowerPoint",
+      "importDescription": "Selecciona un archivo .pptx para importar diapositivas como imágenes",
+      "dropzone": "Arrastra un archivo .pptx aquí o haz clic para buscar",
+      "reading": "Leyendo archivo...",
+      "slideCount": "{{count}} diapositiva",
+      "slideCount_plural": "{{count}} diapositivas",
+      "folderNameLabel": "Nombre de la carpeta",
+      "importButton": "Importar diapositivas",
+      "importing": "Procesando diapositiva {{current}} de {{total}}...",
+      "importComplete": "Importación completa",
+      "importCompleteDescription": "Se importaron {{count}} diapositivas exitosamente",
+      "viewFolder": "Ver carpeta",
+      "errors": {
+        "invalidFile": "Por favor selecciona un archivo .pptx válido",
+        "corrupted": "No se puede leer este archivo. Puede estar corrupto o no ser un archivo PowerPoint válido.",
+        "renderFailed": "Error al renderizar diapositiva {{number}}",
+        "importFailed": "Error al importar la presentación"
+      }
+    },
     "googleSlides": {
       "import": "Importar de Google Slides",
       "importDescription": "Pega una URL de Google Slides para importar todas las diapositivas como imágenes",
