@@ -89,6 +89,47 @@ export async function getMedia(churchId: string, filters?: MediaFilters): Promis
   return (data || []).map(rowToMedia)
 }
 
+export async function getMediaCount(churchId: string, filters?: MediaFilters): Promise<number> {
+  const supabase = getSupabase()
+
+  // Get church media and built-in media (church_id IS NULL)
+  let query = supabase
+    .from('media')
+    .select('*', { count: 'exact', head: true })
+    .or(`church_id.eq.${churchId},church_id.is.null`)
+
+  // Filter by category (defaults to 'background' if not specified)
+  if (filters?.category) {
+    query = query.eq('category', filters.category)
+  }
+
+  if (filters?.type) {
+    query = query.eq('type', filters.type)
+  }
+
+  if (filters?.source) {
+    query = query.eq('source', filters.source)
+  }
+
+  if (filters?.tags && filters.tags.length > 0) {
+    query = query.filter('tags', 'cs', JSON.stringify(filters.tags))
+  }
+
+  // Filter by folder
+  if (filters?.folderId !== undefined) {
+    if (filters.folderId === null) {
+      query = query.is('folder_id', null)
+    } else {
+      query = query.eq('folder_id', filters.folderId)
+    }
+  }
+
+  const { count, error } = await query
+
+  if (error) throw error
+  return count || 0
+}
+
 export async function getMediaById(id: string): Promise<Media | null> {
   const supabase = getSupabase()
 
