@@ -568,3 +568,25 @@ export async function getSlidesInFolder(folderId: string): Promise<Media[]> {
 export async function moveSlideToFolder(slideId: string, folderId: string | null): Promise<Media> {
   return updateMedia(slideId, { folderId })
 }
+
+export async function bulkMoveToFolder(slideIds: string[], folderId: string | null): Promise<void> {
+  if (slideIds.length === 0) return
+
+  const supabase = getSupabase()
+
+  const { error } = await supabase
+    .from('media')
+    .update({ folder_id: folderId })
+    .in('id', slideIds)
+
+  if (error) throw error
+}
+
+export async function bulkDeleteMedia(ids: string[]): Promise<void> {
+  if (ids.length === 0) return
+
+  // Delete one at a time to properly clean up storage files
+  for (const id of ids) {
+    await deleteMedia(id)
+  }
+}
