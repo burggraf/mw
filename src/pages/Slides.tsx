@@ -54,9 +54,6 @@ type SmartCollection = 'all' | 'recent' | 'images' | 'videos' | 'pexels' | 'unsp
 export function SlidesPage() {
   const { t } = useTranslation()
   const { currentChurch } = useChurch()
-  void getMediaCount
-  // Suppress unused variable warnings - these will be used in subsequent tasks
-  void 0
 
   const [media, setMedia] = useState<Media[]>([])
   const [loading, setLoading] = useState(true)
@@ -102,11 +99,9 @@ export function SlidesPage() {
   const [totalCount, setTotalCount] = useState(0)
   const [sortBy, setSortBy] = useState<'name' | 'created_at' | 'file_size' | 'folder_id'>('created_at')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  // Suppress unused warnings temporarily - these will be used in Task 4
-  void currentPage
+  // Suppress unused warnings temporarily - these will be used in Tasks 5-6
   void setPageSize
   void totalCount
-  void setTotalCount
   void setSortBy
   void setSortOrder
 
@@ -126,7 +121,7 @@ export function SlidesPage() {
     if (currentChurch) {
       loadMedia()
     }
-  }, [activeCollection, selectedTags, searchQuery, selectedFolderId])
+  }, [activeCollection, selectedTags, searchQuery, selectedFolderId, currentPage, pageSize, sortBy, sortOrder])
 
   // Persist page size to localStorage
   useEffect(() => {
@@ -159,20 +154,31 @@ export function SlidesPage() {
         filters.folderId = selectedFolderId
       }
 
-      let data = await getMedia(currentChurch.id, filters)
+      // Fetch data and count in parallel
+      const [data, count] = await Promise.all([
+        getMedia(currentChurch.id, filters, {
+          page: currentPage,
+          perPage: pageSize,
+          sortBy,
+          sortOrder,
+        }),
+        getMediaCount(currentChurch.id, filters)
+      ])
 
-      // Apply search filter
+      // Apply client-side search filter (keep for now)
+      let filteredData = data
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase()
-        data = data.filter((m) => m.name.toLowerCase().includes(query))
+        filteredData = data.filter((m) => m.name.toLowerCase().includes(query))
       }
 
       // Apply recent filter (just limit to 20)
       if (activeCollection === 'recent') {
-        data = data.slice(0, 20)
+        filteredData = filteredData.slice(0, 20)
       }
 
-      setMedia(data)
+      setMedia(filteredData)
+      setTotalCount(count)
     } catch (error) {
       console.error('Failed to load slides:', error)
       toast.error(t('common.error'))
