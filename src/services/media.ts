@@ -98,7 +98,6 @@ export async function getMediaCount(churchId: string, filters?: MediaFilters): P
     .select('*', { count: 'exact', head: true })
     .or(`church_id.eq.${churchId},church_id.is.null`)
 
-  // Filter by category (defaults to 'background' if not specified)
   if (filters?.category) {
     query = query.eq('category', filters.category)
   }
@@ -115,7 +114,6 @@ export async function getMediaCount(churchId: string, filters?: MediaFilters): P
     query = query.filter('tags', 'cs', JSON.stringify(filters.tags))
   }
 
-  // Filter by folder
   if (filters?.folderId !== undefined) {
     if (filters.folderId === null) {
       query = query.is('folder_id', null)
