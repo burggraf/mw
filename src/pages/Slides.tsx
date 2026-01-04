@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { useChurch } from '@/contexts/ChurchContext'
 import {
   getMedia,
-  // @ts-expect-error - getMediaCount will be used for pagination in upcoming tasks
   getMediaCount,
   deleteMedia,
   getAllTags,
@@ -55,6 +54,7 @@ type SmartCollection = 'all' | 'recent' | 'images' | 'videos' | 'pexels' | 'unsp
 export function SlidesPage() {
   const { t } = useTranslation()
   const { currentChurch } = useChurch()
+  void getMediaCount
 
   const [media, setMedia] = useState<Media[]>([])
   const [loading, setLoading] = useState(true)
