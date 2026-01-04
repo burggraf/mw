@@ -95,7 +95,9 @@ export function SlidesPage() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState<number>(() => {
-    return parseInt(localStorage.getItem('slides-page-size') || '20')
+    const stored = localStorage.getItem('slides-page-size')
+    const parsed = stored ? parseInt(stored, 10) : 20
+    return isNaN(parsed) || parsed < 1 ? 20 : parsed
   })
   const [totalCount, setTotalCount] = useState(0)
   const [sortBy, setSortBy] = useState<'name' | 'created_at' | 'file_size' | 'folder_id'>('created_at')
