@@ -44,7 +44,9 @@ export function SlideAnnotationEditor({
   useEffect(() => {
     if (!canvasRef.current) return
 
-    let cleanupFunc: (() => void) | undefined
+    let cancelled = false
+    let canvas: Canvas | null = null
+    let handleResize: (() => void) | null = null
 
     const initCanvas = async () => {
       try {
@@ -52,35 +54,45 @@ export function SlideAnnotationEditor({
         setError(null)
 
         // Create Fabric canvas
-        const canvas = new Canvas(canvasRef.current!, {
+        canvas = new Canvas(canvasRef.current!, {
           width: window.innerWidth,
           height: window.innerHeight - 64,
           backgroundColor: '#1a1a1a',
         })
 
+        // Attach to DOM element for debugging
+        ;(canvasRef.current as any).__fabric = canvas
+
+        if (cancelled) {
+          canvas.dispose()
+          return
+        }
+
         fabricCanvasRef.current = canvas
 
         // Handle window resize
-        const handleResize = () => {
-          canvas.setDimensions({
-            width: window.innerWidth,
-            height: window.innerHeight - 64,
-          })
-          canvas.renderAll()
+        handleResize = () => {
+          if (canvas) {
+            canvas.setDimensions({
+              width: window.innerWidth,
+              height: window.innerHeight - 64,
+            })
+            canvas.renderAll()
+          }
         }
 
         window.addEventListener('resize', handleResize)
-
-        // Set up cleanup function BEFORE loading image
-        cleanupFunc = () => {
-          window.removeEventListener('resize', handleResize)
-          canvas.dispose()
-        }
 
         // Load image (Fabric v7 uses Promise-based API)
         const img = await FabricImage.fromURL(imageUrl, {
           crossOrigin: 'anonymous'
         })
+
+        // Check if component was unmounted during image load
+        if (cancelled || !canvas) {
+          setLoading(false)
+          return
+        }
 
         if (!img.width || !img.height) {
           setError(t('slides.annotation.errors.loadFailed'))
@@ -97,15 +109,29 @@ export function SlideAnnotationEditor({
           1
         )
 
-        img.scale(scale)
+        // Calculate scaled dimensions and center position
+        const scaledWidth = img.width * scale
+        const scaledHeight = img.height * scale
+        const left = (canvasWidth - scaledWidth) / 2
+        const top = (canvasHeight - scaledHeight) / 2
+
+        // Set scale and position
         img.set({
-          left: (canvasWidth - img.width! * scale) / 2,
-          top: (canvasHeight - img.height! * scale) / 2,
+          scaleX: scale,
+          scaleY: scale,
+          left: left,
+          top: top,
           selectable: false,
           evented: false,
+          hasControls: false,
+          hasBorders: false,
+          lockMovementX: true,
+          lockMovementY: true,
         })
 
-        canvas.backgroundImage = img
+        // Add as regular object at bottom of z-index instead of backgroundImage
+        canvas.add(img)
+        canvas.sendObjectToBack(img)
         canvas.renderAll()
         setLoading(false)
       } catch (err) {
@@ -118,8 +144,13 @@ export function SlideAnnotationEditor({
     initCanvas()
 
     return () => {
-      if (cleanupFunc) {
-        cleanupFunc()
+      cancelled = true
+      if (handleResize) {
+        window.removeEventListener('resize', handleResize)
+      }
+      if (canvas) {
+        canvas.dispose()
+        fabricCanvasRef.current = null
       }
     }
   }, [imageUrl, t])
