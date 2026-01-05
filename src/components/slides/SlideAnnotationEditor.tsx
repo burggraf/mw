@@ -6,6 +6,7 @@ import { Slider } from '@/components/ui/slider'
 import { Canvas, FabricImage, PencilBrush, Rect, Circle, Line, Triangle, Group, IText } from 'fabric'
 import type { TPointerEventInfo } from 'fabric'
 import { AnnotationColorPicker } from './AnnotationColorPicker'
+import { TextFormattingPanel } from './TextFormattingPanel'
 
 interface SlideAnnotationEditorProps {
   imageUrl: string
@@ -33,13 +34,13 @@ export function SlideAnnotationEditor({
   const [selectedShape, setSelectedShape] = useState<'rectangle' | 'circle' | 'line' | 'arrow'>('rectangle')
 
   // Text tool state
-  const [textColor, _setTextColor] = useState('#FFFFFF')
-  const [fontSize, _setFontSize] = useState(24)
-  const [fontFamily, _setFontFamily] = useState('Arial')
-  const [textBold, _setTextBold] = useState(false)
-  const [textItalic, _setTextItalic] = useState(false)
-  const [textUnderline, _setTextUnderline] = useState(false)
-  const [textAlign, _setTextAlign] = useState<'left' | 'center' | 'right'>('left')
+  const [textColor, setTextColor] = useState('#FFFFFF')
+  const [fontSize, setFontSize] = useState(24)
+  const [fontFamily, setFontFamily] = useState('Arial')
+  const [textBold, setTextBold] = useState(false)
+  const [textItalic, setTextItalic] = useState(false)
+  const [textUnderline, setTextUnderline] = useState(false)
+  const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>('left')
 
   useEffect(() => {
     if (!canvasRef.current) return
@@ -422,27 +423,51 @@ export function SlideAnnotationEditor({
             </div>
           )}
 
-          {/* Color picker */}
-          <AnnotationColorPicker
-            color={strokeColor}
-            onChange={setStrokeColor}
-          />
-
-          {/* Stroke width slider */}
-          <div className="flex items-center gap-2 px-2">
-            <span className="text-sm text-muted-foreground">
-              {t('slides.annotation.width')}
-            </span>
-            <Slider
-              value={[strokeWidth]}
-              onValueChange={([value]) => setStrokeWidth(value)}
-              min={1}
-              max={20}
-              step={1}
-              className="w-24"
+          {/* Text formatting panel - only show when text tool is active */}
+          {activeTool === 'text' && (
+            <TextFormattingPanel
+              fontSize={fontSize}
+              fontFamily={fontFamily}
+              textBold={textBold}
+              textItalic={textItalic}
+              textUnderline={textUnderline}
+              textAlign={textAlign}
+              textColor={textColor}
+              onFontSizeChange={setFontSize}
+              onFontFamilyChange={setFontFamily}
+              onToggleBold={() => setTextBold(!textBold)}
+              onToggleItalic={() => setTextItalic(!textItalic)}
+              onToggleUnderline={() => setTextUnderline(!textUnderline)}
+              onTextAlignChange={setTextAlign}
+              onTextColorChange={setTextColor}
             />
-            <span className="text-xs text-muted-foreground w-6">{strokeWidth}px</span>
-          </div>
+          )}
+
+          {/* Color picker - only show when not on text tool (text has its own color picker) */}
+          {activeTool !== 'text' && (
+            <AnnotationColorPicker
+              color={strokeColor}
+              onChange={setStrokeColor}
+            />
+          )}
+
+          {/* Stroke width slider - hide when text tool is active */}
+          {activeTool !== 'text' && (
+            <div className="flex items-center gap-2 px-2">
+              <span className="text-sm text-muted-foreground">
+                {t('slides.annotation.width')}
+              </span>
+              <Slider
+                value={[strokeWidth]}
+                onValueChange={([value]) => setStrokeWidth(value)}
+                min={1}
+                max={20}
+                step={1}
+                className="w-24"
+              />
+              <span className="text-xs text-muted-foreground w-6">{strokeWidth}px</span>
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={onClose}>
