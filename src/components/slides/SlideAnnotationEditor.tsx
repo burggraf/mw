@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { X, Pen, Shapes } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
-import { Canvas, FabricImage, PencilBrush, Rect, Circle, Line, Triangle } from 'fabric'
+import { Canvas, FabricImage, PencilBrush, Rect, Circle, Line, Triangle, Group } from 'fabric'
+import type { TPointerEventInfo } from 'fabric'
 import { AnnotationColorPicker } from './AnnotationColorPicker'
 
 interface SlideAnnotationEditorProps {
@@ -136,17 +137,19 @@ export function SlideAnnotationEditor({
     if (!canvas) return
 
     if (activeTool !== 'shapes') {
+      canvas.defaultCursor = 'default'
       return
     }
 
     canvas.isDrawingMode = false
+    canvas.defaultCursor = 'crosshair'
 
     let isDrawing = false
     let startX = 0
     let startY = 0
     let shape: Rect | Circle | Line | null = null
 
-    const handleMouseDown = (e: any) => {
+    const handleMouseDown = (e: TPointerEventInfo) => {
       isDrawing = true
       const pointer = e.scenePoint
       startX = pointer.x
@@ -171,6 +174,8 @@ export function SlideAnnotationEditor({
           fill: 'transparent',
           stroke: strokeColor,
           strokeWidth: strokeWidth,
+          originX: 'center',
+          originY: 'center',
         })
       } else if (selectedShape === 'line' || selectedShape === 'arrow') {
         shape = new Line([startX, startY, startX, startY], {
@@ -184,7 +189,7 @@ export function SlideAnnotationEditor({
       }
     }
 
-    const handleMouseMove = (e: any) => {
+    const handleMouseMove = (e: TPointerEventInfo) => {
       if (!isDrawing || !shape) return
 
       const pointer = e.scenePoint
@@ -208,7 +213,32 @@ export function SlideAnnotationEditor({
     const handleMouseUp = () => {
       isDrawing = false
 
-      // Add arrow head if arrow type
+      // Remove zero-size shapes
+      if (shape) {
+        let shouldRemove = false
+
+        if (shape instanceof Rect && (shape.width === 0 || shape.height === 0)) {
+          shouldRemove = true
+        } else if (shape instanceof Circle && shape.radius === 0) {
+          shouldRemove = true
+        } else if (shape instanceof Line) {
+          const x1 = shape.x1 || 0
+          const y1 = shape.y1 || 0
+          const x2 = shape.x2 || 0
+          const y2 = shape.y2 || 0
+          if (x1 === x2 && y1 === y2) {
+            shouldRemove = true
+          }
+        }
+
+        if (shouldRemove) {
+          canvas.remove(shape)
+          shape = null
+          return
+        }
+      }
+
+      // Add arrow head if arrow type and group with line
       if (selectedShape === 'arrow' && shape instanceof Line) {
         const x1 = shape.x1 || 0
         const y1 = shape.y1 || 0
@@ -216,7 +246,8 @@ export function SlideAnnotationEditor({
         const y2 = shape.y2 || 0
 
         const angle = Math.atan2(y2 - y1, x2 - x1)
-        const headLength = 20
+        // Scale arrow head with stroke width
+        const headLength = Math.max(15, strokeWidth * 4)
 
         const arrowHead = new Triangle({
           left: x2,
@@ -229,7 +260,13 @@ export function SlideAnnotationEditor({
           originY: 'center',
         })
 
-        canvas.add(arrowHead)
+        // Group the line and arrowhead together
+        const group = new Group([shape, arrowHead], {
+          selectable: true,
+        })
+
+        canvas.remove(shape)
+        canvas.add(group)
       }
 
       shape = null
@@ -240,6 +277,7 @@ export function SlideAnnotationEditor({
     canvas.on('mouse:up', handleMouseUp)
 
     return () => {
+      canvas.defaultCursor = 'default'
       canvas.off('mouse:down', handleMouseDown)
       canvas.off('mouse:move', handleMouseMove)
       canvas.off('mouse:up', handleMouseUp)
