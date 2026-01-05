@@ -475,6 +475,38 @@ export function SlideAnnotationEditor({
     }
   }, [activeTool, textColor, fontSize, fontFamily, textBold, textItalic, textUnderline, textAlign])
 
+  // Delete key handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const canvas = fabricCanvasRef.current
+      if (!canvas) return
+
+      // Check if Delete or Backspace key was pressed
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const activeObject = canvas.getActiveObject()
+
+        // Don't delete if user is editing text
+        if (activeObject && activeObject.type === 'i-text' && (activeObject as any).isEditing) {
+          return
+        }
+
+        // Delete selected object(s)
+        if (activeObject) {
+          e.preventDefault()
+          canvas.remove(activeObject)
+          canvas.discardActiveObject()
+          canvas.renderAll()
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [])
+
   // Undo/Redo functionality
   useEffect(() => {
     const canvas = fabricCanvasRef.current
