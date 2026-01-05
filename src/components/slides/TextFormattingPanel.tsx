@@ -82,11 +82,11 @@ export function TextFormattingPanel({
           value={[fontSize]}
           onValueChange={([value]) => onFontSizeChange(value)}
           min={12}
-          max={72}
+          max={200}
           step={2}
           className="w-24"
         />
-        <span className="text-xs text-muted-foreground w-8">{fontSize}px</span>
+        <span className="text-xs text-muted-foreground w-9">{fontSize}px</span>
       </div>
 
       {/* Text style toggles */}
