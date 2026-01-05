@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { X, Pen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Slider } from '@/components/ui/slider'
 import { Canvas, FabricImage, PencilBrush } from 'fabric'
 import { AnnotationColorPicker } from './AnnotationColorPicker'
 
@@ -154,12 +155,15 @@ export function SlideAnnotationEditor({
 
           {/* Stroke width slider */}
           <div className="flex items-center gap-2 px-2">
-            <input
-              type="range"
-              min="1"
-              max="20"
-              value={strokeWidth}
-              onChange={(e) => setStrokeWidth(Number(e.target.value))}
+            <span className="text-sm text-muted-foreground">
+              {t('slides.annotation.width')}
+            </span>
+            <Slider
+              value={[strokeWidth]}
+              onValueChange={([value]) => setStrokeWidth(value)}
+              min={1}
+              max={20}
+              step={1}
               className="w-24"
             />
             <span className="text-xs text-muted-foreground w-6">{strokeWidth}px</span>
