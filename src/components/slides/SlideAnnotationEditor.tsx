@@ -7,6 +7,7 @@ import { Canvas, FabricImage, PencilBrush, Rect, Circle, Line, Triangle, Group, 
 import type { TPointerEventInfo } from 'fabric'
 import { AnnotationColorPicker } from './AnnotationColorPicker'
 import { TextFormattingPanel } from './TextFormattingPanel'
+import { SaveAnnotationDialog } from './SaveAnnotationDialog'
 
 interface SlideAnnotationEditorProps {
   imageUrl: string
@@ -48,6 +49,10 @@ export function SlideAnnotationEditor({
   const historyRef = useRef<string[]>([])
   const historyIndexRef = useRef(-1)
   const isUndoRedoRef = useRef(false)
+
+  // Save dialog state
+  const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!canvasRef.current) return
@@ -552,6 +557,41 @@ export function SlideAnnotationEditor({
     })
   }
 
+  const handleSaveClick = () => {
+    setShowSaveDialog(true)
+  }
+
+  const handleSave = async (replaceOriginal: boolean) => {
+    const canvas = fabricCanvasRef.current
+    if (!canvas) return
+
+    try {
+      setSaving(true)
+
+      // Export canvas to blob
+      const dataUrl = canvas.toDataURL({
+        format: 'png',
+        quality: 1,
+        multiplier: 1,
+      })
+
+      // Convert data URL to blob
+      const response = await fetch(dataUrl)
+      const blob = await response.blob()
+
+      // Call the onSave prop
+      await _onSave(blob, replaceOriginal)
+
+      setShowSaveDialog(false)
+      onClose()
+    } catch (error) {
+      console.error('Failed to save annotation:', error)
+      // Error handling will be done by parent component
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-background">
       {/* Header toolbar */}
@@ -695,7 +735,7 @@ export function SlideAnnotationEditor({
           <Button variant="outline" onClick={onClose}>
             {t('slides.annotation.cancel')}
           </Button>
-          <Button onClick={() => {}}>
+          <Button onClick={handleSaveClick}>
             {t('slides.annotation.save')}
           </Button>
         </div>
@@ -715,6 +755,14 @@ export function SlideAnnotationEditor({
         )}
         <canvas ref={canvasRef} />
       </div>
+
+      {/* Save Annotation Dialog */}
+      <SaveAnnotationDialog
+        open={showSaveDialog}
+        onOpenChange={setShowSaveDialog}
+        onSave={handleSave}
+        saving={saving}
+      />
     </div>
   )
 }
