@@ -47,7 +47,7 @@ export function SlideAnnotationEditor({
       {/* Canvas area */}
       <div className="flex items-center justify-center h-[calc(100vh-64px)] bg-muted/20">
         {loading ? (
-          <div className="text-muted-foreground">Loading...</div>
+          <div className="text-muted-foreground">{t('slides.loading')}</div>
         ) : (
           <canvas ref={canvasRef} />
         )}

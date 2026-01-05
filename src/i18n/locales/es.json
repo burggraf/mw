@@ -327,6 +327,63 @@
       "showing": "Mostrando {{start}}-{{end}} de {{total}} diapositivas",
       "pageOf": "Página {{current}} de {{total}}",
       "perPage": "por página"
+    },
+    "annotate": "Anotar",
+    "loading": "Cargando...",
+    "annotation": {
+      "title": "Anotar Diapositiva",
+      "exit": "Salir",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "undo": "Deshacer",
+      "redo": "Rehacer",
+      "tools": {
+        "pen": "Lápiz",
+        "text": "Texto",
+        "shapes": "Formas",
+        "highlighter": "Resaltador"
+      },
+      "shapeTypes": {
+        "rectangle": "Rectángulo",
+        "circle": "Círculo",
+        "line": "Línea",
+        "arrow": "Flecha"
+      },
+      "color": "Color",
+      "customColor": "Color Personalizado",
+      "recentColors": "Colores Recientes",
+      "width": "Ancho",
+      "size": "Tamaño",
+      "textFormatting": "Formato de Texto",
+      "fontFamily": "Fuente",
+      "fontSize": "Tamaño",
+      "bold": "Negrita",
+      "italic": "Cursiva",
+      "underline": "Subrayado",
+      "alignLeft": "Alinear Izquierda",
+      "alignCenter": "Alinear Centro",
+      "alignRight": "Alinear Derecha",
+      "textColor": "Color de Texto",
+      "backgroundColor": "Color de Fondo",
+      "noChanges": "No hay cambios para guardar",
+      "unsavedChanges": "Tiene cambios sin guardar. ¿Salir de todos modos?",
+      "saveDialog": {
+        "title": "Guardar Diapositiva Anotada",
+        "description": "Elija cómo guardar sus cambios",
+        "replaceOriginal": "Reemplazar diapositiva original",
+        "replaceWarning": "Esto sobrescribirá permanentemente la imagen original.",
+        "saveAsNew": "Guardar como nueva diapositiva",
+        "saveAsNewDescription": "Crea una nueva diapositiva y mantiene el original."
+      },
+      "success": {
+        "updated": "Diapositiva actualizada exitosamente",
+        "created": "Nueva diapositiva anotada creada"
+      },
+      "errors": {
+        "loadFailed": "Error al cargar la imagen",
+        "saveFailed": "Error al guardar la diapositiva anotada",
+        "uploadFailed": "Error en la carga. Por favor, inténtelo de nuevo."
+      }
     }
   },
   "styles": {

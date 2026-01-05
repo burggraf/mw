@@ -327,6 +327,63 @@
       "showing": "Showing {{start}}-{{end}} of {{total}} slides",
       "pageOf": "Page {{current}} of {{total}}",
       "perPage": "per page"
+    },
+    "annotate": "Annotate",
+    "loading": "Loading...",
+    "annotation": {
+      "title": "Annotate Slide",
+      "exit": "Exit",
+      "cancel": "Cancel",
+      "save": "Save",
+      "undo": "Undo",
+      "redo": "Redo",
+      "tools": {
+        "pen": "Pen",
+        "text": "Text",
+        "shapes": "Shapes",
+        "highlighter": "Highlighter"
+      },
+      "shapeTypes": {
+        "rectangle": "Rectangle",
+        "circle": "Circle",
+        "line": "Line",
+        "arrow": "Arrow"
+      },
+      "color": "Color",
+      "customColor": "Custom Color",
+      "recentColors": "Recent Colors",
+      "width": "Width",
+      "size": "Size",
+      "textFormatting": "Text Formatting",
+      "fontFamily": "Font",
+      "fontSize": "Size",
+      "bold": "Bold",
+      "italic": "Italic",
+      "underline": "Underline",
+      "alignLeft": "Align Left",
+      "alignCenter": "Align Center",
+      "alignRight": "Align Right",
+      "textColor": "Text Color",
+      "backgroundColor": "Background Color",
+      "noChanges": "No changes to save",
+      "unsavedChanges": "You have unsaved changes. Leave anyway?",
+      "saveDialog": {
+        "title": "Save Annotated Slide",
+        "description": "Choose how to save your changes",
+        "replaceOriginal": "Replace original slide",
+        "replaceWarning": "This will permanently overwrite the original image.",
+        "saveAsNew": "Save as new slide",
+        "saveAsNewDescription": "Creates a new slide and keeps the original."
+      },
+      "success": {
+        "updated": "Slide updated successfully",
+        "created": "New annotated slide created"
+      },
+      "errors": {
+        "loadFailed": "Failed to load image",
+        "saveFailed": "Failed to save annotated slide",
+        "uploadFailed": "Upload failed. Please try again."
+      }
     }
   },
   "styles": {
