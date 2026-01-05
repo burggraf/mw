@@ -42,6 +42,7 @@ export function SlideAnnotationEditor({
   const [textItalic, setTextItalic] = useState(false)
   const [textUnderline, setTextUnderline] = useState(false)
   const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>('left')
+  const [selectedTextObject, setSelectedTextObject] = useState<IText | null>(null)
 
   // Undo/Redo state
   const [canUndo, setCanUndo] = useState(false)
@@ -557,6 +558,125 @@ export function SlideAnnotationEditor({
     }
   }, [])
 
+  // Handle text object selection - update text formatting panel
+  useEffect(() => {
+    if (!fabricCanvasRef.current) return
+
+    const canvas = fabricCanvasRef.current
+
+    const handleSelectionCreated = (e: any) => {
+      const selected = e.selected?.[0]
+      if (selected && selected.type === 'i-text') {
+        const textObj = selected as IText
+        setSelectedTextObject(textObj)
+
+        // Update text formatting state to match selected text
+        setTextColor(textObj.fill as string || '#FFFFFF')
+        setFontSize(textObj.fontSize || 24)
+        setFontFamily(textObj.fontFamily || 'Arial')
+        setTextBold(textObj.fontWeight === 'bold')
+        setTextItalic(textObj.fontStyle === 'italic')
+        setTextUnderline(textObj.underline || false)
+        setTextAlign((textObj.textAlign as 'left' | 'center' | 'right') || 'left')
+      } else {
+        setSelectedTextObject(null)
+      }
+    }
+
+    const handleSelectionUpdated = (e: any) => {
+      const selected = e.selected?.[0]
+      if (selected && selected.type === 'i-text') {
+        const textObj = selected as IText
+        setSelectedTextObject(textObj)
+
+        // Update text formatting state to match selected text
+        setTextColor(textObj.fill as string || '#FFFFFF')
+        setFontSize(textObj.fontSize || 24)
+        setFontFamily(textObj.fontFamily || 'Arial')
+        setTextBold(textObj.fontWeight === 'bold')
+        setTextItalic(textObj.fontStyle === 'italic')
+        setTextUnderline(textObj.underline || false)
+        setTextAlign((textObj.textAlign as 'left' | 'center' | 'right') || 'left')
+      } else {
+        setSelectedTextObject(null)
+      }
+    }
+
+    const handleSelectionCleared = () => {
+      setSelectedTextObject(null)
+    }
+
+    canvas.on('selection:created', handleSelectionCreated)
+    canvas.on('selection:updated', handleSelectionUpdated)
+    canvas.on('selection:cleared', handleSelectionCleared)
+
+    return () => {
+      canvas.off('selection:created', handleSelectionCreated)
+      canvas.off('selection:updated', handleSelectionUpdated)
+      canvas.off('selection:cleared', handleSelectionCleared)
+    }
+  }, [])
+
+  // Text formatting handlers that apply to both new text and selected text
+  const handleFontSizeChange = (size: number) => {
+    setFontSize(size)
+    if (selectedTextObject) {
+      selectedTextObject.set({ fontSize: size })
+      fabricCanvasRef.current?.renderAll()
+    }
+  }
+
+  const handleFontFamilyChange = (family: string) => {
+    setFontFamily(family)
+    if (selectedTextObject) {
+      selectedTextObject.set({ fontFamily: family })
+      fabricCanvasRef.current?.renderAll()
+    }
+  }
+
+  const handleToggleBold = () => {
+    const newBold = !textBold
+    setTextBold(newBold)
+    if (selectedTextObject) {
+      selectedTextObject.set({ fontWeight: newBold ? 'bold' : 'normal' })
+      fabricCanvasRef.current?.renderAll()
+    }
+  }
+
+  const handleToggleItalic = () => {
+    const newItalic = !textItalic
+    setTextItalic(newItalic)
+    if (selectedTextObject) {
+      selectedTextObject.set({ fontStyle: newItalic ? 'italic' : 'normal' })
+      fabricCanvasRef.current?.renderAll()
+    }
+  }
+
+  const handleToggleUnderline = () => {
+    const newUnderline = !textUnderline
+    setTextUnderline(newUnderline)
+    if (selectedTextObject) {
+      selectedTextObject.set({ underline: newUnderline })
+      fabricCanvasRef.current?.renderAll()
+    }
+  }
+
+  const handleTextAlignChange = (align: 'left' | 'center' | 'right') => {
+    setTextAlign(align)
+    if (selectedTextObject) {
+      selectedTextObject.set({ textAlign: align })
+      fabricCanvasRef.current?.renderAll()
+    }
+  }
+
+  const handleTextColorChange = (color: string) => {
+    setTextColor(color)
+    if (selectedTextObject) {
+      selectedTextObject.set({ fill: color })
+      fabricCanvasRef.current?.renderAll()
+    }
+  }
+
   const handleUndo = () => {
     const canvas = fabricCanvasRef.current
     if (!canvas || historyIndexRef.current <= 0) return
@@ -717,8 +837,8 @@ export function SlideAnnotationEditor({
             </div>
           )}
 
-          {/* Text formatting panel - only show when text tool is active */}
-          {activeTool === 'text' && (
+          {/* Text formatting panel - show when text tool is active or text object is selected */}
+          {(activeTool === 'text' || selectedTextObject) && (
             <TextFormattingPanel
               fontSize={fontSize}
               fontFamily={fontFamily}
@@ -727,26 +847,26 @@ export function SlideAnnotationEditor({
               textUnderline={textUnderline}
               textAlign={textAlign}
               textColor={textColor}
-              onFontSizeChange={setFontSize}
-              onFontFamilyChange={setFontFamily}
-              onToggleBold={() => setTextBold(!textBold)}
-              onToggleItalic={() => setTextItalic(!textItalic)}
-              onToggleUnderline={() => setTextUnderline(!textUnderline)}
-              onTextAlignChange={setTextAlign}
-              onTextColorChange={setTextColor}
+              onFontSizeChange={handleFontSizeChange}
+              onFontFamilyChange={handleFontFamilyChange}
+              onToggleBold={handleToggleBold}
+              onToggleItalic={handleToggleItalic}
+              onToggleUnderline={handleToggleUnderline}
+              onTextAlignChange={handleTextAlignChange}
+              onTextColorChange={handleTextColorChange}
             />
           )}
 
-          {/* Color picker - only show when not on text tool (text has its own color picker) */}
-          {activeTool !== 'text' && (
+          {/* Color picker - only show when not on text tool and no text selected (text has its own color picker) */}
+          {activeTool !== 'text' && !selectedTextObject && (
             <AnnotationColorPicker
               color={strokeColor}
               onChange={setStrokeColor}
             />
           )}
 
-          {/* Stroke width slider - hide when text tool is active */}
-          {activeTool !== 'text' && (
+          {/* Stroke width slider - hide when text tool is active or text selected */}
+          {activeTool !== 'text' && !selectedTextObject && (
             <div className="flex items-center gap-2 px-2">
               <span className="text-sm text-muted-foreground">
                 {t('slides.annotation.width')}
