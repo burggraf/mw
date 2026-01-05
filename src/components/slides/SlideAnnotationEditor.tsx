@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { X, Pen, Shapes, Type, MousePointer2 } from 'lucide-react'
+import { X, Pen, Shapes, Type, MousePointer2, Highlighter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { Canvas, FabricImage, PencilBrush, Rect, Circle, Line, Triangle, Group, IText } from 'fabric'
@@ -179,13 +179,23 @@ export function SlideAnnotationEditor({
         obj.evented = true
       })
       canvas.defaultCursor = 'default'
-    } else if (activeTool === 'pen') {
+    } else if (activeTool === 'pen' || activeTool === 'highlighter') {
       // Enable drawing mode
       canvas.selection = false
       canvas.isDrawingMode = true
       const brush = new PencilBrush(canvas)
-      brush.color = strokeColor
-      brush.width = strokeWidth
+
+      if (activeTool === 'highlighter') {
+        // Highlighter: semi-transparent, thicker strokes
+        brush.color = strokeColor
+        brush.width = Math.max(strokeWidth * 3, 15) // Make highlighter 3x thicker, minimum 15px
+        // Will set opacity on the path after creation
+      } else {
+        // Regular pen
+        brush.color = strokeColor
+        brush.width = strokeWidth
+      }
+
       canvas.freeDrawingBrush = brush
       // Deselect any active objects
       canvas.discardActiveObject()
@@ -198,6 +208,14 @@ export function SlideAnnotationEditor({
             selectable: true,
             evented: true,
           })
+
+          // Make highlighter semi-transparent
+          if (activeTool === 'highlighter') {
+            e.path.set({
+              opacity: 0.4,
+            })
+          }
+
           // Switch to select mode and select the new path
           setActiveTool('select')
           setTimeout(() => {
@@ -489,6 +507,15 @@ export function SlideAnnotationEditor({
             title={t('slides.annotation.tools.shapes')}
           >
             <Shapes className="h-4 w-4" />
+          </Button>
+
+          <Button
+            variant={activeTool === 'highlighter' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveTool('highlighter')}
+            title={t('slides.annotation.tools.highlighter')}
+          >
+            <Highlighter className="h-4 w-4" />
           </Button>
 
           {/* Shape selector - only show when shapes tool is active */}
