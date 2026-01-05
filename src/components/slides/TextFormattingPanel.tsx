@@ -60,16 +60,16 @@ export function TextFormattingPanel({
   // Map slider value (0-100) to font size with exponential scaling
   // This gives smaller increments at low values and larger at high values
   const sliderToFontSize = (sliderValue: number): number => {
-    // Use exponential curve: fontSize = 12 * 2^(sliderValue/20)
-    // This gives us a range from 12px to ~512px with smooth exponential growth
-    const result = Math.round(12 * Math.pow(2, sliderValue / 20))
+    // Use exponential curve: fontSize = 12 * 2^(sliderValue/18.5)
+    // This gives us a range from 12px to 512px with smooth exponential growth
+    const result = Math.round(12 * Math.pow(2, sliderValue / 18.5))
     return Math.min(512, Math.max(12, result))
   }
 
   // Reverse mapping: font size to slider value
   const fontSizeToSlider = (size: number): number => {
-    // Inverse: sliderValue = 20 * log2(fontSize/12)
-    const result = Math.round(20 * Math.log2(size / 12))
+    // Inverse: sliderValue = 18.5 * log2(fontSize/12)
+    const result = Math.round(18.5 * Math.log2(size / 12))
     return Math.min(100, Math.max(0, result))
   }
 
