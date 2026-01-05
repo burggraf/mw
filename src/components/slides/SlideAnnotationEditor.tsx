@@ -33,12 +33,13 @@ export function SlideAnnotationEditor({
   const [selectedShape, setSelectedShape] = useState<'rectangle' | 'circle' | 'line' | 'arrow'>('rectangle')
 
   // Text tool state
-  const [textColor, _setTextColor] = useState('#000000')
+  const [textColor, _setTextColor] = useState('#FFFFFF')
   const [fontSize, _setFontSize] = useState(24)
   const [fontFamily, _setFontFamily] = useState('Arial')
   const [textBold, _setTextBold] = useState(false)
   const [textItalic, _setTextItalic] = useState(false)
   const [textUnderline, _setTextUnderline] = useState(false)
+  const [textAlign, _setTextAlign] = useState<'left' | 'center' | 'right'>('left')
 
   useEffect(() => {
     if (!canvasRef.current) return
@@ -317,6 +318,7 @@ export function SlideAnnotationEditor({
         fontWeight: textBold ? 'bold' : 'normal',
         fontStyle: textItalic ? 'italic' : 'normal',
         underline: textUnderline,
+        textAlign: textAlign,
       })
 
       canvas.add(text)
@@ -331,7 +333,7 @@ export function SlideAnnotationEditor({
       canvas.defaultCursor = 'default'
       canvas.off('mouse:down', handleCanvasClick)
     }
-  }, [activeTool, textColor, fontSize, fontFamily, textBold, textItalic, textUnderline])
+  }, [activeTool, textColor, fontSize, fontFamily, textBold, textItalic, textUnderline, textAlign])
 
   return (
     <div className="fixed inset-0 z-50 bg-background">
