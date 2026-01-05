@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { fabric } from 'fabric'
+import { Canvas, FabricImage } from 'fabric'
 
 interface SlideAnnotationEditorProps {
   imageUrl: string
@@ -15,16 +15,18 @@ export function SlideAnnotationEditor({
   imageUrl,
   imageName,
   onClose,
-  onSave,
+  onSave: _onSave,
 }: SlideAnnotationEditorProps) {
   const { t } = useTranslation()
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const fabricCanvasRef = useRef<fabric.Canvas | null>(null)
+  const fabricCanvasRef = useRef<Canvas | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!canvasRef.current) return
+
+    let cleanupFunc: (() => void) | undefined
 
     const initCanvas = async () => {
       try {
@@ -32,44 +34,13 @@ export function SlideAnnotationEditor({
         setError(null)
 
         // Create Fabric canvas
-        const canvas = new fabric.Canvas(canvasRef.current!, {
+        const canvas = new Canvas(canvasRef.current!, {
           width: window.innerWidth,
-          height: window.innerHeight - 64, // Subtract header height
+          height: window.innerHeight - 64,
           backgroundColor: '#1a1a1a',
         })
 
         fabricCanvasRef.current = canvas
-
-        // Load image
-        fabric.Image.fromURL(imageUrl, (img) => {
-          if (!img.width || !img.height) {
-            setError(t('slides.annotation.errors.loadFailed'))
-            setLoading(false)
-            return
-          }
-
-          // Scale image to fit canvas while maintaining aspect ratio
-          const canvasWidth = canvas.width!
-          const canvasHeight = canvas.height!
-          const scale = Math.min(
-            canvasWidth / img.width,
-            canvasHeight / img.height,
-            1 // Don't scale up
-          )
-
-          img.scale(scale)
-          img.set({
-            left: (canvasWidth - img.width! * scale) / 2,
-            top: (canvasHeight - img.height! * scale) / 2,
-            selectable: false, // Background image shouldn't be selectable
-            evented: false,
-          })
-
-          canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas))
-          setLoading(false)
-        }, {
-          crossOrigin: 'anonymous'
-        })
 
         // Handle window resize
         const handleResize = () => {
@@ -82,10 +53,43 @@ export function SlideAnnotationEditor({
 
         window.addEventListener('resize', handleResize)
 
-        return () => {
+        // Set up cleanup function BEFORE loading image
+        cleanupFunc = () => {
           window.removeEventListener('resize', handleResize)
           canvas.dispose()
         }
+
+        // Load image (Fabric v7 uses Promise-based API)
+        const img = await FabricImage.fromURL(imageUrl, {
+          crossOrigin: 'anonymous'
+        })
+
+        if (!img.width || !img.height) {
+          setError(t('slides.annotation.errors.loadFailed'))
+          setLoading(false)
+          return
+        }
+
+        // Scale image to fit canvas while maintaining aspect ratio
+        const canvasWidth = canvas.width!
+        const canvasHeight = canvas.height!
+        const scale = Math.min(
+          canvasWidth / img.width,
+          canvasHeight / img.height,
+          1
+        )
+
+        img.scale(scale)
+        img.set({
+          left: (canvasWidth - img.width! * scale) / 2,
+          top: (canvasHeight - img.height! * scale) / 2,
+          selectable: false,
+          evented: false,
+        })
+
+        canvas.backgroundImage = img
+        canvas.renderAll()
+        setLoading(false)
       } catch (err) {
         console.error('Failed to initialize canvas:', err)
         setError(t('slides.annotation.errors.loadFailed'))
@@ -94,6 +98,12 @@ export function SlideAnnotationEditor({
     }
 
     initCanvas()
+
+    return () => {
+      if (cleanupFunc) {
+        cleanupFunc()
+      }
+    }
   }, [imageUrl, t])
 
   return (
