@@ -44,6 +44,9 @@ export function SlideAnnotationEditor({
   const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>('left')
   const [selectedTextObject, setSelectedTextObject] = useState<IText | null>(null)
 
+  // Track any selected object for property editing
+  const [selectedObject, setSelectedObject] = useState<any>(null)
+
   // Undo/Redo state
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
@@ -566,7 +569,12 @@ export function SlideAnnotationEditor({
 
     const handleSelectionCreated = (e: any) => {
       const selected = e.selected?.[0]
-      if (selected && selected.type === 'i-text') {
+      if (!selected) return
+
+      // Track any selected object
+      setSelectedObject(selected)
+
+      if (selected.type === 'i-text') {
         const textObj = selected as IText
         setSelectedTextObject(textObj)
 
@@ -580,12 +588,25 @@ export function SlideAnnotationEditor({
         setTextAlign((textObj.textAlign as 'left' | 'center' | 'right') || 'left')
       } else {
         setSelectedTextObject(null)
+
+        // Update stroke properties for non-text objects
+        if (selected.stroke) {
+          setStrokeColor(selected.stroke as string)
+        }
+        if (selected.strokeWidth !== undefined) {
+          setStrokeWidth(selected.strokeWidth)
+        }
       }
     }
 
     const handleSelectionUpdated = (e: any) => {
       const selected = e.selected?.[0]
-      if (selected && selected.type === 'i-text') {
+      if (!selected) return
+
+      // Track any selected object
+      setSelectedObject(selected)
+
+      if (selected.type === 'i-text') {
         const textObj = selected as IText
         setSelectedTextObject(textObj)
 
@@ -599,11 +620,20 @@ export function SlideAnnotationEditor({
         setTextAlign((textObj.textAlign as 'left' | 'center' | 'right') || 'left')
       } else {
         setSelectedTextObject(null)
+
+        // Update stroke properties for non-text objects
+        if (selected.stroke) {
+          setStrokeColor(selected.stroke as string)
+        }
+        if (selected.strokeWidth !== undefined) {
+          setStrokeWidth(selected.strokeWidth)
+        }
       }
     }
 
     const handleSelectionCleared = () => {
       setSelectedTextObject(null)
+      setSelectedObject(null)
     }
 
     canvas.on('selection:created', handleSelectionCreated)
@@ -616,6 +646,24 @@ export function SlideAnnotationEditor({
       canvas.off('selection:cleared', handleSelectionCleared)
     }
   }, [])
+
+  // Stroke property handlers that apply to both new objects and selected objects
+  const handleStrokeColorChange = (color: string) => {
+    setStrokeColor(color)
+    if (selectedObject && selectedObject.type !== 'i-text') {
+      selectedObject.set({ stroke: color })
+      fabricCanvasRef.current?.renderAll()
+    }
+  }
+
+  const handleStrokeWidthChange = (width: number[]) => {
+    const newWidth = width[0]
+    setStrokeWidth(newWidth)
+    if (selectedObject && selectedObject.type !== 'i-text') {
+      selectedObject.set({ strokeWidth: newWidth })
+      fabricCanvasRef.current?.renderAll()
+    }
+  }
 
   // Text formatting handlers that apply to both new text and selected text
   const handleFontSizeChange = (size: number) => {
@@ -857,23 +905,23 @@ export function SlideAnnotationEditor({
             />
           )}
 
-          {/* Color picker - only show when not on text tool and no text selected (text has its own color picker) */}
-          {activeTool !== 'text' && !selectedTextObject && (
+          {/* Color picker - show when drawing tool active OR non-text object selected */}
+          {(activeTool !== 'text' && activeTool !== 'select' && !selectedTextObject) || (selectedObject && !selectedTextObject) ? (
             <AnnotationColorPicker
               color={strokeColor}
-              onChange={setStrokeColor}
+              onChange={handleStrokeColorChange}
             />
-          )}
+          ) : null}
 
-          {/* Stroke width slider - hide when text tool is active or text selected */}
-          {activeTool !== 'text' && !selectedTextObject && (
+          {/* Stroke width slider - show when drawing tool active OR non-text object selected */}
+          {(activeTool !== 'text' && activeTool !== 'select' && !selectedTextObject) || (selectedObject && !selectedTextObject) ? (
             <div className="flex items-center gap-2 px-2">
               <span className="text-sm text-muted-foreground">
                 {t('slides.annotation.width')}
               </span>
               <Slider
                 value={[strokeWidth]}
-                onValueChange={([value]) => setStrokeWidth(value)}
+                onValueChange={handleStrokeWidthChange}
                 min={1}
                 max={20}
                 step={1}
