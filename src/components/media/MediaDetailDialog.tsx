@@ -233,8 +233,9 @@ Was blind, but now I see`
     : null
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{t('common.edit')}</DialogTitle>
           {folderName && (
@@ -426,8 +427,9 @@ Was blind, but now I see`
           </Button>
         </DialogFooter>
       </DialogContent>
+      </Dialog>
 
-      {/* Annotation Editor - fullscreen overlay */}
+      {/* Annotation Editor - fullscreen overlay outside Dialog */}
       {showAnnotationEditor && previewUrl && (
         <SlideAnnotationEditor
           imageUrl={previewUrl}
@@ -436,6 +438,6 @@ Was blind, but now I see`
           onSave={handleSaveAnnotation}
         />
       )}
-    </Dialog>
+    </>
   )
 }
