@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { X, Pen } from 'lucide-react'
+import { X, Pen, Shapes } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
-import { Canvas, FabricImage, PencilBrush } from 'fabric'
+import { Canvas, FabricImage, PencilBrush, Rect, Circle, Line, Triangle } from 'fabric'
 import { AnnotationColorPicker } from './AnnotationColorPicker'
 
 interface SlideAnnotationEditorProps {
@@ -29,6 +29,7 @@ export function SlideAnnotationEditor({
   const [activeTool, setActiveTool] = useState<ToolType>('select')
   const [strokeColor, setStrokeColor] = useState('#EF4444') // Red
   const [strokeWidth, setStrokeWidth] = useState(3)
+  const [selectedShape, setSelectedShape] = useState<'rectangle' | 'circle' | 'line' | 'arrow'>('rectangle')
 
   useEffect(() => {
     if (!canvasRef.current) return
@@ -129,6 +130,122 @@ export function SlideAnnotationEditor({
     }
   }, [activeTool, strokeColor, strokeWidth])
 
+  // Handle shapes tool
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current
+    if (!canvas) return
+
+    if (activeTool !== 'shapes') {
+      return
+    }
+
+    canvas.isDrawingMode = false
+
+    let isDrawing = false
+    let startX = 0
+    let startY = 0
+    let shape: Rect | Circle | Line | null = null
+
+    const handleMouseDown = (e: any) => {
+      isDrawing = true
+      const pointer = e.scenePoint
+      startX = pointer.x
+      startY = pointer.y
+
+      // Create shape based on selectedShape
+      if (selectedShape === 'rectangle') {
+        shape = new Rect({
+          left: startX,
+          top: startY,
+          width: 0,
+          height: 0,
+          fill: 'transparent',
+          stroke: strokeColor,
+          strokeWidth: strokeWidth,
+        })
+      } else if (selectedShape === 'circle') {
+        shape = new Circle({
+          left: startX,
+          top: startY,
+          radius: 0,
+          fill: 'transparent',
+          stroke: strokeColor,
+          strokeWidth: strokeWidth,
+        })
+      } else if (selectedShape === 'line' || selectedShape === 'arrow') {
+        shape = new Line([startX, startY, startX, startY], {
+          stroke: strokeColor,
+          strokeWidth: strokeWidth,
+        })
+      }
+
+      if (shape) {
+        canvas.add(shape)
+      }
+    }
+
+    const handleMouseMove = (e: any) => {
+      if (!isDrawing || !shape) return
+
+      const pointer = e.scenePoint
+
+      if (selectedShape === 'rectangle' && shape instanceof Rect) {
+        const width = pointer.x - startX
+        const height = pointer.y - startY
+        shape.set({ width: Math.abs(width), height: Math.abs(height) })
+        if (width < 0) shape.set({ left: pointer.x })
+        if (height < 0) shape.set({ top: pointer.y })
+      } else if (selectedShape === 'circle' && shape instanceof Circle) {
+        const radius = Math.sqrt(Math.pow(pointer.x - startX, 2) + Math.pow(pointer.y - startY, 2))
+        shape.set({ radius })
+      } else if ((selectedShape === 'line' || selectedShape === 'arrow') && shape instanceof Line) {
+        shape.set({ x2: pointer.x, y2: pointer.y })
+      }
+
+      canvas.renderAll()
+    }
+
+    const handleMouseUp = () => {
+      isDrawing = false
+
+      // Add arrow head if arrow type
+      if (selectedShape === 'arrow' && shape instanceof Line) {
+        const x1 = shape.x1 || 0
+        const y1 = shape.y1 || 0
+        const x2 = shape.x2 || 0
+        const y2 = shape.y2 || 0
+
+        const angle = Math.atan2(y2 - y1, x2 - x1)
+        const headLength = 20
+
+        const arrowHead = new Triangle({
+          left: x2,
+          top: y2,
+          width: headLength,
+          height: headLength,
+          fill: strokeColor,
+          angle: (angle * 180 / Math.PI) + 90,
+          originX: 'center',
+          originY: 'center',
+        })
+
+        canvas.add(arrowHead)
+      }
+
+      shape = null
+    }
+
+    canvas.on('mouse:down', handleMouseDown)
+    canvas.on('mouse:move', handleMouseMove)
+    canvas.on('mouse:up', handleMouseUp)
+
+    return () => {
+      canvas.off('mouse:down', handleMouseDown)
+      canvas.off('mouse:move', handleMouseMove)
+      canvas.off('mouse:up', handleMouseUp)
+    }
+  }, [activeTool, selectedShape, strokeColor, strokeWidth])
+
   return (
     <div className="fixed inset-0 z-50 bg-background">
       {/* Header toolbar */}
@@ -146,6 +263,30 @@ export function SlideAnnotationEditor({
           >
             <Pen className="h-4 w-4" />
           </Button>
+
+          <Button
+            variant={activeTool === 'shapes' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveTool('shapes')}
+          >
+            <Shapes className="h-4 w-4" />
+          </Button>
+
+          {/* Shape selector - only show when shapes tool is active */}
+          {activeTool === 'shapes' && (
+            <div className="flex gap-1 ml-2 border-l pl-2">
+              {(['rectangle', 'circle', 'line', 'arrow'] as const).map((shapeType) => (
+                <Button
+                  key={shapeType}
+                  variant={selectedShape === shapeType ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setSelectedShape(shapeType)}
+                >
+                  {t(`slides.annotation.shapeTypes.${shapeType}`)}
+                </Button>
+              ))}
+            </div>
+          )}
 
           {/* Color picker */}
           <AnnotationColorPicker
