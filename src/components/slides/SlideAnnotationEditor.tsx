@@ -906,15 +906,15 @@ export function SlideAnnotationEditor({
           )}
 
           {/* Color picker - show when drawing tool active OR non-text object selected */}
-          {(activeTool !== 'text' && activeTool !== 'select' && !selectedTextObject) || (selectedObject && !selectedTextObject) ? (
+          {((activeTool !== 'text' && activeTool !== 'select' && !selectedTextObject) || (selectedObject && !selectedTextObject)) && (
             <AnnotationColorPicker
               color={strokeColor}
               onChange={handleStrokeColorChange}
             />
-          ) : null}
+          )}
 
           {/* Stroke width slider - show when drawing tool active OR non-text object selected */}
-          {(activeTool !== 'text' && activeTool !== 'select' && !selectedTextObject) || (selectedObject && !selectedTextObject) ? (
+          {((activeTool !== 'text' && activeTool !== 'select' && !selectedTextObject) || (selectedObject && !selectedTextObject)) && (
             <div className="flex items-center gap-2 px-2">
               <span className="text-sm text-muted-foreground">
                 {t('slides.annotation.width')}
