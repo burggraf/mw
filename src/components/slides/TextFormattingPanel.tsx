@@ -57,6 +57,22 @@ export function TextFormattingPanel({
 }: TextFormattingPanelProps) {
   const { t } = useTranslation()
 
+  // Map slider value (0-100) to font size with exponential scaling
+  // This gives smaller increments at low values and larger at high values
+  const sliderToFontSize = (sliderValue: number): number => {
+    // Use exponential curve: fontSize = 12 * 2^(sliderValue/20)
+    // This gives us a range from 12px to ~512px with smooth exponential growth
+    const result = Math.round(12 * Math.pow(2, sliderValue / 20))
+    return Math.min(512, Math.max(12, result))
+  }
+
+  // Reverse mapping: font size to slider value
+  const fontSizeToSlider = (size: number): number => {
+    // Inverse: sliderValue = 20 * log2(fontSize/12)
+    const result = Math.round(20 * Math.log2(size / 12))
+    return Math.min(100, Math.max(0, result))
+  }
+
   return (
     <div className="flex items-center gap-2 border-l pl-2">
       {/* Font family selector */}
@@ -79,14 +95,14 @@ export function TextFormattingPanel({
           {t('slides.annotation.fontSize')}
         </span>
         <Slider
-          value={[fontSize]}
-          onValueChange={([value]) => onFontSizeChange(value)}
-          min={12}
-          max={200}
-          step={2}
+          value={[fontSizeToSlider(fontSize)]}
+          onValueChange={([value]) => onFontSizeChange(sliderToFontSize(value))}
+          min={0}
+          max={100}
+          step={1}
           className="w-24"
         />
-        <span className="text-xs text-muted-foreground w-9">{fontSize}px</span>
+        <span className="text-xs text-muted-foreground w-10 text-right">{fontSize}px</span>
       </div>
 
       {/* Text style toggles */}
