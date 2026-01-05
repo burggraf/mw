@@ -53,11 +53,21 @@ export function SlideAnnotationEditor({
         setLoading(true)
         setError(null)
 
-        // Create Fabric canvas
+        // Get viewport dimensions
+        const viewportWidth = window.innerWidth
+        const viewportHeight = window.innerHeight - 64
+
+        // Clear any existing dimensions on canvas element before Fabric initializes
+        canvasRef.current!.width = 0
+        canvasRef.current!.height = 0
+
+        // Create Fabric canvas with viewport dimensions
+        // enableRetinaScaling handles high-DPI displays automatically
         canvas = new Canvas(canvasRef.current!, {
-          width: window.innerWidth,
-          height: window.innerHeight - 64,
+          width: viewportWidth,
+          height: viewportHeight,
           backgroundColor: '#1a1a1a',
+          enableRetinaScaling: true,
         })
 
         // Attach to DOM element for debugging
@@ -109,18 +119,14 @@ export function SlideAnnotationEditor({
           1
         )
 
-        // Calculate scaled dimensions and center position
-        const scaledWidth = img.width * scale
-        const scaledHeight = img.height * scale
-        const left = (canvasWidth - scaledWidth) / 2
-        const top = (canvasHeight - scaledHeight) / 2
-
-        // Set scale and position
+        // Set scale and position - use center origin for proper centering
         img.set({
           scaleX: scale,
           scaleY: scale,
-          left: left,
-          top: top,
+          originX: 'center',
+          originY: 'center',
+          left: canvasWidth / 2,
+          top: canvasHeight / 2,
           selectable: false,
           evented: false,
           hasControls: false,
