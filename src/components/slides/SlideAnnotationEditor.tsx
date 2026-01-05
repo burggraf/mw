@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { X, Pen, Shapes } from 'lucide-react'
+import { X, Pen, Shapes, Type } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
-import { Canvas, FabricImage, PencilBrush, Rect, Circle, Line, Triangle, Group } from 'fabric'
+import { Canvas, FabricImage, PencilBrush, Rect, Circle, Line, Triangle, Group, IText } from 'fabric'
 import type { TPointerEventInfo } from 'fabric'
 import { AnnotationColorPicker } from './AnnotationColorPicker'
 
@@ -31,6 +31,14 @@ export function SlideAnnotationEditor({
   const [strokeColor, setStrokeColor] = useState('#EF4444') // Red
   const [strokeWidth, setStrokeWidth] = useState(3)
   const [selectedShape, setSelectedShape] = useState<'rectangle' | 'circle' | 'line' | 'arrow'>('rectangle')
+
+  // Text tool state
+  const [textColor, _setTextColor] = useState('#000000')
+  const [fontSize, _setFontSize] = useState(24)
+  const [fontFamily, _setFontFamily] = useState('Arial')
+  const [textBold, _setTextBold] = useState(false)
+  const [textItalic, _setTextItalic] = useState(false)
+  const [textUnderline, _setTextUnderline] = useState(false)
 
   useEffect(() => {
     if (!canvasRef.current) return
@@ -284,6 +292,47 @@ export function SlideAnnotationEditor({
     }
   }, [activeTool, selectedShape, strokeColor, strokeWidth])
 
+  // Handle text tool
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current
+    if (!canvas) return
+
+    if (activeTool !== 'text') {
+      canvas.defaultCursor = 'default'
+      return
+    }
+
+    canvas.isDrawingMode = false
+    canvas.defaultCursor = 'text'
+
+    const handleCanvasClick = (e: TPointerEventInfo) => {
+      const pointer = e.scenePoint
+
+      const text = new IText('Text', {
+        left: pointer.x,
+        top: pointer.y,
+        fill: textColor,
+        fontSize: fontSize,
+        fontFamily: fontFamily,
+        fontWeight: textBold ? 'bold' : 'normal',
+        fontStyle: textItalic ? 'italic' : 'normal',
+        underline: textUnderline,
+      })
+
+      canvas.add(text)
+      canvas.setActiveObject(text)
+      text.enterEditing()
+      text.selectAll()
+    }
+
+    canvas.on('mouse:down', handleCanvasClick)
+
+    return () => {
+      canvas.defaultCursor = 'default'
+      canvas.off('mouse:down', handleCanvasClick)
+    }
+  }, [activeTool, textColor, fontSize, fontFamily, textBold, textItalic, textUnderline])
+
   return (
     <div className="fixed inset-0 z-50 bg-background">
       {/* Header toolbar */}
@@ -300,6 +349,14 @@ export function SlideAnnotationEditor({
             onClick={() => setActiveTool('pen')}
           >
             <Pen className="h-4 w-4" />
+          </Button>
+
+          <Button
+            variant={activeTool === 'text' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveTool('text')}
+          >
+            <Type className="h-4 w-4" />
           </Button>
 
           <Button
