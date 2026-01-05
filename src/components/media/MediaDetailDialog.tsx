@@ -3,8 +3,10 @@ import { useTranslation } from 'react-i18next'
 import { X, Plus, Type, Folder, Pen } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Media, SlideFolder } from '@/types/media'
-import { updateMedia, getSignedMediaUrl } from '@/services/media'
+import { updateMedia, getSignedMediaUrl, getMediaById, createMedia } from '@/services/media'
 import { SlideAnnotationEditor } from '@/components/slides/SlideAnnotationEditor'
+import { getSupabase } from '@/lib/supabase'
+import { generateStoragePath, generateImageThumbnail, getImageDimensions } from '@/lib/media-utils'
 import {
   Dialog,
   DialogContent,
@@ -197,10 +199,160 @@ Was blind, but now I see`
   }
 
   const handleSaveAnnotation = async (imageBlob: Blob, replaceOriginal: boolean) => {
-    // TODO: Implement in Task 15 - upload annotated image to storage
-    console.log('Save annotation:', { replaceOriginal, blobSize: imageBlob.size })
-    toast.info('Annotation save functionality coming in Task 15')
-    setShowAnnotationEditor(false)
+    if (!media) return
+
+    try {
+      const supabase = getSupabase()
+
+      // Create a File object from the blob with a descriptive name
+      const timestamp = Date.now()
+      const baseName = media.name.replace(/\.[^/.]+$/, '') // Remove extension
+      const fileName = `${baseName}_annotated_${timestamp}.png`
+      const annotatedFile = new File([imageBlob], fileName, { type: 'image/png' })
+
+      // Get dimensions from the annotated image
+      let dimensions: { width: number; height: number }
+      try {
+        dimensions = await getImageDimensions(annotatedFile)
+      } catch (err) {
+        // Fallback to original media dimensions if available
+        console.warn('Failed to get annotated image dimensions, using original:', err)
+        dimensions = {
+          width: media.width || 1920,
+          height: media.height || 1080,
+        }
+      }
+
+      // Generate storage paths
+      const storagePath = generateStoragePath(media.churchId!, fileName, false, 'image/png')
+      const thumbnailPath = generateStoragePath(media.churchId!, fileName, true)
+
+      // Generate thumbnail
+      let thumbnailBlob: Blob | null = null
+      try {
+        thumbnailBlob = await generateImageThumbnail(annotatedFile)
+      } catch (err) {
+        console.error('Failed to generate thumbnail:', err)
+        toast.error(t('common.error'))
+        return
+      }
+
+      // Upload the annotated image
+      const { error: uploadError } = await supabase.storage
+        .from('media')
+        .upload(storagePath, imageBlob, {
+          contentType: 'image/png',
+          cacheControl: '3600',
+          upsert: false,
+        })
+
+      if (uploadError) {
+        console.error('Failed to upload annotated image:', uploadError)
+        toast.error(t('common.error'))
+        return
+      }
+
+      // Upload the thumbnail
+      const { error: thumbUploadError } = await supabase.storage
+        .from('media')
+        .upload(thumbnailPath, thumbnailBlob, {
+          contentType: 'image/webp',
+          cacheControl: '3600',
+          upsert: false,
+        })
+
+      if (thumbUploadError) {
+        console.error('Failed to upload thumbnail:', thumbUploadError)
+        // Continue even if thumbnail upload fails
+      }
+
+      if (replaceOriginal) {
+        // Replace the original: update the media record with new storage paths
+        // and delete the old files from storage
+        const oldStoragePath = media.storagePath
+        const oldThumbnailPath = media.thumbnailPath
+
+        // Update the database record to point to new files
+        const { data, error } = await supabase
+          .from('media')
+          .update({
+            storage_path: storagePath,
+            thumbnail_path: thumbnailPath,
+            file_size: imageBlob.size,
+            width: dimensions.width,
+            height: dimensions.height,
+            mime_type: 'image/png',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', media.id)
+          .select()
+          .single()
+
+        if (error) {
+          console.error('Failed to update media record:', error)
+          toast.error(t('common.error'))
+          return
+        }
+
+        // Delete old storage files (best effort, don't fail if this errors)
+        const filesToDelete = [oldStoragePath]
+        if (oldThumbnailPath) {
+          filesToDelete.push(oldThumbnailPath)
+        }
+
+        await supabase.storage
+          .from('media')
+          .remove(filesToDelete)
+          .catch((err) => console.warn('Failed to delete old files:', err))
+
+        toast.success(t('slides.annotation.success.updated'))
+      } else {
+        // Save as new: create a new media record
+        const newName = `${baseName} (annotated)`
+
+        await createMedia(media.churchId!, {
+          name: newName,
+          type: 'image',
+          mimeType: 'image/png',
+          storagePath,
+          thumbnailPath,
+          fileSize: imageBlob.size,
+          width: dimensions.width,
+          height: dimensions.height,
+          source: 'upload',
+          tags: [...media.tags, 'annotated'],
+          category: 'slide',
+          folderId: media.folderId,
+          loopTime: media.loopTime,
+        })
+
+        toast.success(t('slides.annotation.success.created'))
+      }
+
+      // Close the annotation editor and refresh the UI
+      setShowAnnotationEditor(false)
+      onUpdate?.()
+
+      // Refresh the media data if we replaced
+      if (replaceOriginal) {
+        const refreshedMedia = await getMediaById(media.id)
+        if (refreshedMedia) {
+          setName(refreshedMedia.name)
+          setTags([...refreshedMedia.tags])
+          setLoopTime(refreshedMedia.loopTime)
+          setLoopTimeInput(refreshedMedia.loopTime !== null ? String(refreshedMedia.loopTime) : '')
+
+          // Reload the preview with the new annotated image
+          setLoadingPreview(true)
+          const newUrl = await getSignedMediaUrl(refreshedMedia.storagePath)
+          setPreviewUrl(newUrl)
+          setLoadingPreview(false)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to save annotation:', err)
+      toast.error(t('common.error'))
+    }
   }
 
   const handleSave = async () => {
