@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { X, Plus, Type, Folder } from 'lucide-react'
+import { X, Plus, Type, Folder, Pen } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Media, SlideFolder } from '@/types/media'
 import { updateMedia, getSignedMediaUrl } from '@/services/media'
+import { SlideAnnotationEditor } from '@/components/slides/SlideAnnotationEditor'
 import {
   Dialog,
   DialogContent,
@@ -71,6 +72,7 @@ export function MediaDetailDialog({
   const [loadingPreview, setLoadingPreview] = useState(true)
   const [showSampleText, setShowSampleText] = useState(false)
   const [isLightBackground, setIsLightBackground] = useState(false)
+  const [showAnnotationEditor, setShowAnnotationEditor] = useState(false)
 
   // Check if this is a solid color background
   const isSolidColor = media?.backgroundColor && !media?.storagePath
@@ -192,6 +194,13 @@ Was blind, but now I see`
     const num = Math.min(999, Math.max(0, parseInt(cleaned, 10)))
     setLoopTimeInput(String(num))
     setLoopTime(num)
+  }
+
+  const handleSaveAnnotation = async (imageBlob: Blob, replaceOriginal: boolean) => {
+    // TODO: Implement in Task 15 - upload annotated image to storage
+    console.log('Save annotation:', { replaceOriginal, blobSize: imageBlob.size })
+    toast.info('Annotation save functionality coming in Task 15')
+    setShowAnnotationEditor(false)
   }
 
   const handleSave = async () => {
@@ -340,6 +349,18 @@ Was blind, but now I see`
                 {showSampleText ? 'Hide Text' : 'Show Text'}
               </Button>
             )}
+
+            {/* Annotate button - only for image slides */}
+            {!loadingPreview && previewUrl && media.category === 'slide' && media.type === 'image' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAnnotationEditor(true)}
+              >
+                <Pen className="h-4 w-4 mr-1" />
+                {t('slides.annotation.title')}
+              </Button>
+            )}
           </div>
 
           {/* Name field */}
@@ -405,6 +426,16 @@ Was blind, but now I see`
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Annotation Editor - fullscreen overlay */}
+      {showAnnotationEditor && previewUrl && (
+        <SlideAnnotationEditor
+          imageUrl={previewUrl}
+          imageName={media.name}
+          onClose={() => setShowAnnotationEditor(false)}
+          onSave={handleSaveAnnotation}
+        />
+      )}
     </Dialog>
   )
 }
