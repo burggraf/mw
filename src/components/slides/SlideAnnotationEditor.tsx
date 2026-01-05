@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { X, Pen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Canvas, FabricImage, PencilBrush } from 'fabric'
+import { AnnotationColorPicker } from './AnnotationColorPicker'
 
 interface SlideAnnotationEditorProps {
   imageUrl: string
@@ -25,8 +26,8 @@ export function SlideAnnotationEditor({
 
   type ToolType = 'select' | 'pen' | 'text' | 'shapes' | 'highlighter'
   const [activeTool, setActiveTool] = useState<ToolType>('select')
-  const [strokeColor, _setStrokeColor] = useState('#EF4444') // Red
-  const [strokeWidth, _setStrokeWidth] = useState(3)
+  const [strokeColor, setStrokeColor] = useState('#EF4444') // Red
+  const [strokeWidth, setStrokeWidth] = useState(3)
 
   useEffect(() => {
     if (!canvasRef.current) return
@@ -144,6 +145,25 @@ export function SlideAnnotationEditor({
           >
             <Pen className="h-4 w-4" />
           </Button>
+
+          {/* Color picker */}
+          <AnnotationColorPicker
+            color={strokeColor}
+            onChange={setStrokeColor}
+          />
+
+          {/* Stroke width slider */}
+          <div className="flex items-center gap-2 px-2">
+            <input
+              type="range"
+              min="1"
+              max="20"
+              value={strokeWidth}
+              onChange={(e) => setStrokeWidth(Number(e.target.value))}
+              className="w-24"
+            />
+            <span className="text-xs text-muted-foreground w-6">{strokeWidth}px</span>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={onClose}>
