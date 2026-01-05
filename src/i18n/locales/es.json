@@ -338,6 +338,7 @@
       "undo": "Deshacer",
       "redo": "Rehacer",
       "tools": {
+        "select": "Seleccionar",
         "pen": "Lápiz",
         "text": "Texto",
         "shapes": "Formas",

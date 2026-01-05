@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { X, Pen, Shapes, Type } from 'lucide-react'
+import { X, Pen, Shapes, Type, MousePointer2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { Canvas, FabricImage, PencilBrush, Rect, Circle, Line, Triangle, Group, IText } from 'fabric'
@@ -162,19 +162,64 @@ export function SlideAnnotationEditor({
     }
   }, [imageUrl, t])
 
+  // Handle select mode and drawing mode
   useEffect(() => {
     if (!fabricCanvasRef.current) return
 
     const canvas = fabricCanvasRef.current
 
-    if (activeTool === 'pen') {
+    if (activeTool === 'select') {
+      // Enable object selection
+      canvas.isDrawingMode = false
+      canvas.selection = true
+      canvas.forEachObject((obj) => {
+        // Don't make background image selectable
+        if (obj.evented === false) return
+        obj.selectable = true
+        obj.evented = true
+      })
+      canvas.defaultCursor = 'default'
+    } else if (activeTool === 'pen') {
+      // Enable drawing mode
+      canvas.selection = false
       canvas.isDrawingMode = true
       const brush = new PencilBrush(canvas)
       brush.color = strokeColor
       brush.width = strokeWidth
       canvas.freeDrawingBrush = brush
+      // Deselect any active objects
+      canvas.discardActiveObject()
+      canvas.renderAll()
+
+      // Listen for path creation to auto-switch to select mode
+      const handlePathCreated = (e: any) => {
+        if (e.path) {
+          e.path.set({
+            selectable: true,
+            evented: true,
+          })
+          // Switch to select mode and select the new path
+          setActiveTool('select')
+          setTimeout(() => {
+            canvas.setActiveObject(e.path)
+            canvas.renderAll()
+          }, 0)
+        }
+      }
+
+      canvas.on('path:created', handlePathCreated)
+
+      // Cleanup listener
+      return () => {
+        canvas.off('path:created', handlePathCreated)
+      }
     } else {
+      // For other tools, disable selection but not drawing mode
       canvas.isDrawingMode = false
+      canvas.selection = false
+      // Deselect any active objects
+      canvas.discardActiveObject()
+      canvas.renderAll()
     }
   }, [activeTool, strokeColor, strokeWidth])
 
@@ -310,10 +355,27 @@ export function SlideAnnotationEditor({
         // Group the line and arrowhead together
         const group = new Group([shape, arrowHead], {
           selectable: true,
+          evented: true,
         })
 
         canvas.remove(shape)
         canvas.add(group)
+
+        // Switch to select mode and select the new object
+        setActiveTool('select')
+        canvas.setActiveObject(group)
+        canvas.renderAll()
+      } else if (shape) {
+        // For non-arrow shapes, make them selectable
+        shape.set({
+          selectable: true,
+          evented: true,
+        })
+
+        // Switch to select mode and select the new object
+        setActiveTool('select')
+        canvas.setActiveObject(shape)
+        canvas.renderAll()
       }
 
       shape = null
@@ -357,12 +419,22 @@ export function SlideAnnotationEditor({
         fontStyle: textItalic ? 'italic' : 'normal',
         underline: textUnderline,
         textAlign: textAlign,
+        selectable: true,
+        evented: true,
       })
 
       canvas.add(text)
-      canvas.setActiveObject(text)
-      text.enterEditing()
-      text.selectAll()
+
+      // Switch to select mode first
+      setActiveTool('select')
+
+      // Then set active and enter editing
+      // Use setTimeout to ensure mode switch completes first
+      setTimeout(() => {
+        canvas.setActiveObject(text)
+        text.enterEditing()
+        text.selectAll()
+      }, 0)
     }
 
     canvas.on('mouse:down', handleCanvasClick)
@@ -384,9 +456,19 @@ export function SlideAnnotationEditor({
         <h2 className="text-lg font-semibold">{imageName}</h2>
         <div className="flex items-center gap-1">
           <Button
+            variant={activeTool === 'select' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveTool('select')}
+            title={t('slides.annotation.tools.select')}
+          >
+            <MousePointer2 className="h-4 w-4" />
+          </Button>
+
+          <Button
             variant={activeTool === 'pen' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setActiveTool('pen')}
+            title={t('slides.annotation.tools.pen')}
           >
             <Pen className="h-4 w-4" />
           </Button>
@@ -395,6 +477,7 @@ export function SlideAnnotationEditor({
             variant={activeTool === 'text' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setActiveTool('text')}
+            title={t('slides.annotation.tools.text')}
           >
             <Type className="h-4 w-4" />
           </Button>
@@ -403,6 +486,7 @@ export function SlideAnnotationEditor({
             variant={activeTool === 'shapes' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setActiveTool('shapes')}
+            title={t('slides.annotation.tools.shapes')}
           >
             <Shapes className="h-4 w-4" />
           </Button>

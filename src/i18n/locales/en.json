@@ -338,6 +338,7 @@
       "undo": "Undo",
       "redo": "Redo",
       "tools": {
+        "select": "Select",
         "pen": "Pen",
         "text": "Text",
         "shapes": "Shapes",
