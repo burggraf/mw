@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { X, Pen, Shapes, Type, MousePointer2, Highlighter } from 'lucide-react'
+import { X, Pen, Shapes, Type, MousePointer2, Highlighter, Undo, Redo } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { Canvas, FabricImage, PencilBrush, Rect, Circle, Line, Triangle, Group, IText } from 'fabric'
@@ -41,6 +41,13 @@ export function SlideAnnotationEditor({
   const [textItalic, setTextItalic] = useState(false)
   const [textUnderline, setTextUnderline] = useState(false)
   const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>('left')
+
+  // Undo/Redo state
+  const [canUndo, setCanUndo] = useState(false)
+  const [canRedo, setCanRedo] = useState(false)
+  const historyRef = useRef<string[]>([])
+  const historyIndexRef = useRef(-1)
+  const isUndoRedoRef = useRef(false)
 
   useEffect(() => {
     if (!canvasRef.current) return
@@ -463,6 +470,88 @@ export function SlideAnnotationEditor({
     }
   }, [activeTool, textColor, fontSize, fontFamily, textBold, textItalic, textUnderline, textAlign])
 
+  // Undo/Redo functionality
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current
+    if (!canvas) return
+
+    const saveState = () => {
+      if (isUndoRedoRef.current) return
+
+      const json = JSON.stringify(canvas.toJSON())
+
+      // Remove any redo states after current index
+      historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1)
+
+      // Add new state
+      historyRef.current.push(json)
+      historyIndexRef.current++
+
+      // Limit history to 50 states
+      if (historyRef.current.length > 50) {
+        historyRef.current.shift()
+        historyIndexRef.current--
+      }
+
+      setCanUndo(historyIndexRef.current > 0)
+      setCanRedo(false)
+    }
+
+    // Save initial state
+    if (historyRef.current.length === 0) {
+      saveState()
+    }
+
+    // Listen for canvas modifications
+    const handleObjectModified = () => saveState()
+    const handleObjectAdded = () => saveState()
+    const handleObjectRemoved = () => saveState()
+
+    canvas.on('object:modified', handleObjectModified)
+    canvas.on('object:added', handleObjectAdded)
+    canvas.on('object:removed', handleObjectRemoved)
+    canvas.on('path:created', saveState)
+
+    return () => {
+      canvas.off('object:modified', handleObjectModified)
+      canvas.off('object:added', handleObjectAdded)
+      canvas.off('object:removed', handleObjectRemoved)
+      canvas.off('path:created', saveState)
+    }
+  }, [])
+
+  const handleUndo = () => {
+    const canvas = fabricCanvasRef.current
+    if (!canvas || historyIndexRef.current <= 0) return
+
+    isUndoRedoRef.current = true
+    historyIndexRef.current--
+    const json = historyRef.current[historyIndexRef.current]
+
+    canvas.loadFromJSON(json).then(() => {
+      canvas.renderAll()
+      isUndoRedoRef.current = false
+      setCanUndo(historyIndexRef.current > 0)
+      setCanRedo(true)
+    })
+  }
+
+  const handleRedo = () => {
+    const canvas = fabricCanvasRef.current
+    if (!canvas || historyIndexRef.current >= historyRef.current.length - 1) return
+
+    isUndoRedoRef.current = true
+    historyIndexRef.current++
+    const json = historyRef.current[historyIndexRef.current]
+
+    canvas.loadFromJSON(json).then(() => {
+      canvas.renderAll()
+      isUndoRedoRef.current = false
+      setCanUndo(true)
+      setCanRedo(historyIndexRef.current < historyRef.current.length - 1)
+    })
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-background">
       {/* Header toolbar */}
@@ -517,6 +606,28 @@ export function SlideAnnotationEditor({
           >
             <Highlighter className="h-4 w-4" />
           </Button>
+
+          {/* Undo/Redo buttons */}
+          <div className="flex gap-1 ml-2 border-l pl-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleUndo}
+              disabled={!canUndo}
+              title={t('slides.annotation.undo')}
+            >
+              <Undo className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRedo}
+              disabled={!canRedo}
+              title={t('slides.annotation.redo')}
+            >
+              <Redo className="h-4 w-4" />
+            </Button>
+          </div>
 
           {/* Shape selector - only show when shapes tool is active */}
           {activeTool === 'shapes' && (
