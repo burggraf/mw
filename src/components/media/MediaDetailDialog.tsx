@@ -329,26 +329,10 @@ Was blind, but now I see`
         toast.success(t('slides.annotation.success.created'))
       }
 
-      // Close the annotation editor and refresh the UI
+      // Close the annotation editor, refresh the UI, and close the dialog
       setShowAnnotationEditor(false)
       onUpdate?.()
-
-      // Refresh the media data if we replaced
-      if (replaceOriginal) {
-        const refreshedMedia = await getMediaById(media.id)
-        if (refreshedMedia) {
-          setName(refreshedMedia.name)
-          setTags([...refreshedMedia.tags])
-          setLoopTime(refreshedMedia.loopTime)
-          setLoopTimeInput(refreshedMedia.loopTime !== null ? String(refreshedMedia.loopTime) : '')
-
-          // Reload the preview with the new annotated image
-          setLoadingPreview(true)
-          const newUrl = await getSignedMediaUrl(refreshedMedia.storagePath)
-          setPreviewUrl(newUrl)
-          setLoadingPreview(false)
-        }
-      }
+      onOpenChange(false)
     } catch (err) {
       console.error('Failed to save annotation:', err)
       toast.error(t('common.error'))
