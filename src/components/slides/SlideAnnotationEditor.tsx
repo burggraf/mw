@@ -25,8 +25,8 @@ export function SlideAnnotationEditor({
 
   type ToolType = 'select' | 'pen' | 'text' | 'shapes' | 'highlighter'
   const [activeTool, setActiveTool] = useState<ToolType>('select')
-  const [strokeColor, setStrokeColor] = useState('#EF4444') // Red
-  const [strokeWidth, setStrokeWidth] = useState(3)
+  const [strokeColor, _setStrokeColor] = useState('#EF4444') // Red
+  const [strokeWidth, _setStrokeWidth] = useState(3)
 
   useEffect(() => {
     if (!canvasRef.current) return

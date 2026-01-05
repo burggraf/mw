@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Palette } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Popover,
@@ -32,8 +31,13 @@ export function AnnotationColorPicker({ color, onChange }: AnnotationColorPicker
   const { t } = useTranslation()
   const [customColor, setCustomColor] = useState(color)
   const [recentColors, setRecentColors] = useState<string[]>(() => {
-    const saved = localStorage.getItem('annotation-recent-colors')
-    return saved ? JSON.parse(saved) : []
+    try {
+      const saved = localStorage.getItem('annotation-recent-colors')
+      return saved ? JSON.parse(saved) : []
+    } catch (error) {
+      console.warn('Failed to load recent colors:', error)
+      return []
+    }
   })
 
   const handlePresetClick = (value: string) => {
@@ -47,7 +51,11 @@ export function AnnotationColorPicker({ color, onChange }: AnnotationColorPicker
     // Add to recent colors
     const updated = [value, ...recentColors.filter(c => c !== value)].slice(0, 5)
     setRecentColors(updated)
-    localStorage.setItem('annotation-recent-colors', JSON.stringify(updated))
+    try {
+      localStorage.setItem('annotation-recent-colors', JSON.stringify(updated))
+    } catch (error) {
+      console.warn('Failed to save recent colors:', error)
+    }
   }
 
   return (
