@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { X } from 'lucide-react'
+import { X, Pen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Canvas, FabricImage } from 'fabric'
+import { Canvas, FabricImage, PencilBrush } from 'fabric'
 
 interface SlideAnnotationEditorProps {
   imageUrl: string
@@ -22,6 +22,11 @@ export function SlideAnnotationEditor({
   const fabricCanvasRef = useRef<Canvas | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  type ToolType = 'select' | 'pen' | 'text' | 'shapes' | 'highlighter'
+  const [activeTool, setActiveTool] = useState<ToolType>('select')
+  const [strokeColor, setStrokeColor] = useState('#EF4444') // Red
+  const [strokeWidth, setStrokeWidth] = useState(3)
 
   useEffect(() => {
     if (!canvasRef.current) return
@@ -106,6 +111,22 @@ export function SlideAnnotationEditor({
     }
   }, [imageUrl, t])
 
+  useEffect(() => {
+    if (!fabricCanvasRef.current) return
+
+    const canvas = fabricCanvasRef.current
+
+    if (activeTool === 'pen') {
+      canvas.isDrawingMode = true
+      const brush = new PencilBrush(canvas)
+      brush.color = strokeColor
+      brush.width = strokeWidth
+      canvas.freeDrawingBrush = brush
+    } else {
+      canvas.isDrawingMode = false
+    }
+  }, [activeTool, strokeColor, strokeWidth])
+
   return (
     <div className="fixed inset-0 z-50 bg-background">
       {/* Header toolbar */}
@@ -115,6 +136,15 @@ export function SlideAnnotationEditor({
           {t('slides.annotation.exit')}
         </Button>
         <h2 className="text-lg font-semibold">{imageName}</h2>
+        <div className="flex items-center gap-1">
+          <Button
+            variant={activeTool === 'pen' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveTool('pen')}
+          >
+            <Pen className="h-4 w-4" />
+          </Button>
+        </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={onClose}>
             {t('slides.annotation.cancel')}
