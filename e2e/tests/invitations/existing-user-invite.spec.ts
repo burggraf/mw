@@ -4,7 +4,7 @@
 
 import { test, expect } from '@playwright/test'
 import { createTempEmailAccount } from '../../helpers/temp-email'
-import { signUpAndConfirm, signIn } from '../../helpers/auth-helpers'
+import { signUpAndConfirm, signIn, signOut } from '../../helpers/auth-helpers'
 import { goToTeamPage, inviteMember, goToInvitationsTab } from '../../helpers/team-helpers'
 
 test.describe('Existing User Invitation Flow', () => {
@@ -58,10 +58,10 @@ test.describe('Existing User Invitation Flow', () => {
     await goToInvitationsTab(page)
     await expect(page.getByText(existingUserMail.address)).toBeVisible()
 
-    // Sign out admin1
-    await page.goto('/')
+    // Sign out admin1 before visiting invite link
+    await signOut(page)
 
-    // Step 3: Visit link as existing user (not logged in)
+    // Step 2: Visit link as existing user (not logged in)
     console.log(`Visiting invitation link: ${inviteLink}`)
     await page.goto(inviteLink)
 

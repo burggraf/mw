@@ -51,6 +51,6 @@ test.describe('Team UI', () => {
     await page.goto('/accept-invite?token=invalid-token-12345')
 
     // Should show error about invalid invitation
-    await expect(page.getByText(/not found|invalid|expired|error/i)).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText('Invalid Invitation')).toBeVisible({ timeout: 10000 })
   })
 })

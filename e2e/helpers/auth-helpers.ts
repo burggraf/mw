@@ -20,14 +20,21 @@ export async function signUp(
   password: string
 ): Promise<void> {
   await page.goto('/signup')
-  await page.waitForSelector('input[type="email"]', { timeout: 10000 })
+  await page.waitForLoadState('networkidle')
 
-  await page.fill('input[type="email"]', email)
-  await page.fill('input#password', password)
-  await page.fill('input#confirmPassword', password)
+  // Use locators for better retry behavior when React re-renders
+  const emailInput = page.locator('input[type="email"]')
+  const passwordInput = page.locator('input#password')
+  const confirmPasswordInput = page.locator('input#confirmPassword')
+  const submitButton = page.locator('button[type="submit"]')
+
+  await emailInput.waitFor({ state: 'visible', timeout: 10000 })
+  await emailInput.fill(email)
+  await passwordInput.fill(password)
+  await confirmPasswordInput.fill(password)
 
   console.log('Submitting signup form...')
-  await page.click('button[type="submit"]')
+  await submitButton.click()
 
   // Wait for "check your email" message
   await expect(page.getByText(/check your email|confirm/i)).toBeVisible({
@@ -66,13 +73,34 @@ export async function signIn(
   password: string
 ): Promise<void> {
   await page.goto('/login')
-  await page.waitForSelector('input[type="email"]', { timeout: 10000 })
+  await page.waitForLoadState('networkidle')
 
-  await page.fill('input[type="email"]', email)
-  await page.fill('input#password', password)
+  // Check if we were redirected away from login (user already logged in)
+  const currentUrl = page.url()
+  if (!currentUrl.includes('/login')) {
+    console.log(`Already authenticated, redirected to: ${currentUrl}`)
+    // Sign out first, then sign in as the requested user
+    await signOut(page)
+    await page.goto('/login')
+    await page.waitForLoadState('networkidle')
+  }
+
+  // Use locators for better retry behavior when React re-renders
+  const emailInput = page.locator('input[type="email"]')
+  const passwordInput = page.locator('input#password')
+  const submitButton = page.locator('button[type="submit"]')
+
+  await emailInput.waitFor({ state: 'visible', timeout: 10000 })
+  await emailInput.fill(email)
+  await passwordInput.fill(password)
 
   console.log('Submitting login form...')
-  await page.click('button[type="submit"]')
+
+  // Click and wait for navigation to start
+  await Promise.all([
+    page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 30000 }),
+    submitButton.click(),
+  ])
 
   // Wait for redirect away from login
   await waitForAuthRedirect(page)
@@ -88,13 +116,19 @@ export async function signInWithRedirect(
   redirectTo: string
 ): Promise<void> {
   await page.goto(`/login?redirect=${encodeURIComponent(redirectTo)}`)
-  await page.waitForSelector('input[type="email"]', { timeout: 10000 })
+  await page.waitForLoadState('networkidle')
 
-  await page.fill('input[type="email"]', email)
-  await page.fill('input#password', password)
+  // Use locators for better retry behavior when React re-renders
+  const emailInput = page.locator('input[type="email"]')
+  const passwordInput = page.locator('input#password')
+  const submitButton = page.locator('button[type="submit"]')
+
+  await emailInput.waitFor({ state: 'visible', timeout: 10000 })
+  await emailInput.fill(email)
+  await passwordInput.fill(password)
 
   console.log('Submitting login form with redirect...')
-  await page.click('button[type="submit"]')
+  await submitButton.click()
 }
 
 /**
@@ -106,38 +140,52 @@ export async function waitForAuthRedirect(
 ): Promise<string> {
   console.log('Waiting for auth redirect...')
 
-  let attempts = 0
-  const maxAttempts = timeoutMs / 1000
+  try {
+    // Use Playwright's built-in URL matching with polling
+    await page.waitForURL(
+      (url) => {
+        const path = url.pathname
+        return path.includes('/dashboard') || path.includes('/setup-church') || path.includes('/team')
+      },
+      { timeout: timeoutMs }
+    )
 
-  while (attempts < maxAttempts) {
-    const url = page.url()
-    console.log(`Current URL (attempt ${attempts + 1}): ${url}`)
+    const finalUrl = page.url()
+    console.log(`Redirected to: ${finalUrl}`)
+    return finalUrl
+  } catch (error) {
+    const currentUrl = page.url()
+    console.log(`Auth redirect failed. Current URL: ${currentUrl}`)
 
-    if (url.includes('/dashboard') || url.includes('/setup-church') || url.includes('/team')) {
-      console.log(`Redirected to: ${url}`)
-      return url
-    }
-
-    if (url.includes('/login') && attempts > 5) {
+    if (currentUrl.includes('/login')) {
       await page.screenshot({ path: 'e2e/screenshots/login-redirect-error.png' })
       throw new Error('Incorrectly redirected back to login page')
     }
 
-    await page.waitForTimeout(1000)
-    attempts++
+    await page.screenshot({ path: 'e2e/screenshots/auth-redirect-timeout.png' })
+    throw new Error(`Timeout waiting for auth redirect. Final URL: ${currentUrl}`)
   }
-
-  await page.screenshot({ path: 'e2e/screenshots/auth-redirect-timeout.png' })
-  throw new Error(`Timeout waiting for auth redirect. Final URL: ${page.url()}`)
 }
 
 /**
  * Sign out the current user
  */
 export async function signOut(page: Page): Promise<void> {
+  // Navigate to a page with the sidebar first
+  const currentUrl = page.url()
+  if (!currentUrl.includes('/dashboard') && !currentUrl.includes('/team') && !currentUrl.includes('/setup-church')) {
+    await page.goto('/dashboard')
+    await page.waitForLoadState('networkidle')
+  }
+
   // Open user dropdown in sidebar
-  await page.click('[data-testid="user-menu"]')
-  await page.click('text=Sign Out')
+  const userMenu = page.locator('[data-testid="user-menu"]')
+  await userMenu.waitFor({ state: 'visible', timeout: 10000 })
+  await userMenu.click()
+
+  const signOutButton = page.locator('text=Sign Out')
+  await signOutButton.waitFor({ state: 'visible', timeout: 5000 })
+  await signOutButton.click()
 
   // Wait for redirect to landing or login
   await page.waitForURL(/\/(login)?$/, { timeout: 10000 })
