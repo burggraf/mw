@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
+import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from 'react-image-crop'
+import 'react-image-crop/dist/ReactCrop.css'
 import { useChurch } from '@/contexts/ChurchContext'
 import { getSupabase } from '@/lib/supabase'
 import { getSongs } from '@/services/songs'
@@ -10,8 +12,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
-import { AlertCircle, Database, CreditCard, Image, Presentation, FileImage, FolderOpen, Music, Calendar, Monitor, BarChart3 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { AlertCircle, Database, CreditCard, Image, Presentation, FileImage, FolderOpen, Music, Calendar, Monitor, BarChart3, Camera } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { ChurchAvatar } from '@/components/ChurchAvatar'
+
+const ACCEPTED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+
+function centerAspectCrop(mediaWidth: number, mediaHeight: number, aspect: number): Crop {
+  return centerCrop(
+    makeAspectCrop(
+      {
+        unit: '%',
+        width: 90,
+      },
+      aspect,
+      mediaWidth,
+      mediaHeight
+    ),
+    mediaWidth,
+    mediaHeight
+  )
+}
 
 interface StorageCategory {
   name: string
@@ -45,12 +68,21 @@ function formatBytes(bytes: number): string {
 export function ChurchProfilePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { currentChurch, isAdmin } = useChurch()
+  const { currentChurch, isAdmin, updateChurchAvatar } = useChurch()
 
   const [storageStats, setStorageStats] = useState<StorageStats | null>(null)
   const [churchStats, setChurchStats] = useState<ChurchStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Avatar state
+  const [imageSrc, setImageSrc] = useState<string | null>(null)
+  const [crop, setCrop] = useState<Crop>()
+  const [isCropping, setIsCropping] = useState(false)
+  const [isSavingAvatar, setIsSavingAvatar] = useState(false)
+  const [avatarError, setAvatarError] = useState<string | null>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Redirect non-admins
   useEffect(() => {
@@ -132,6 +164,153 @@ export function ChurchProfilePage() {
     loadStats()
   }, [currentChurch, isAdmin, t])
 
+  // Avatar handlers
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setAvatarError(null)
+
+    if (!ACCEPTED_FILE_TYPES.includes(file.type)) {
+      setAvatarError(t('profile.invalidFileType'))
+      return
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      setAvatarError(t('profile.fileTooLarge'))
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      setImageSrc(reader.result as string)
+      setIsCropping(true)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { width, height } = e.currentTarget
+    setCrop(centerAspectCrop(width, height, 1))
+  }, [])
+
+  const getCroppedImage = async (): Promise<Blob | null> => {
+    const image = imgRef.current
+    if (!image || !crop) return null
+
+    const canvas = document.createElement('canvas')
+    const scaleX = image.naturalWidth / image.width
+    const scaleY = image.naturalHeight / image.height
+
+    const pixelCrop = {
+      x: (crop.x / 100) * image.width * scaleX,
+      y: (crop.y / 100) * image.height * scaleY,
+      width: (crop.width / 100) * image.width * scaleX,
+      height: (crop.height / 100) * image.height * scaleY,
+    }
+
+    const outputSize = 256
+    canvas.width = outputSize
+    canvas.height = outputSize
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+
+    ctx.drawImage(
+      image,
+      pixelCrop.x,
+      pixelCrop.y,
+      pixelCrop.width,
+      pixelCrop.height,
+      0,
+      0,
+      outputSize,
+      outputSize
+    )
+
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => resolve(blob), 'image/png', 1)
+    })
+  }
+
+  const handleCropConfirm = async () => {
+    if (!currentChurch) return
+
+    setIsSavingAvatar(true)
+    setAvatarError(null)
+
+    try {
+      const croppedBlob = await getCroppedImage()
+      if (!croppedBlob) {
+        throw new Error('Failed to crop image')
+      }
+
+      const supabase = getSupabase()
+      const filePath = `church/${currentChurch.id}/avatar.png`
+
+      // Delete existing avatar if any
+      await supabase.storage.from('avatars').remove([filePath])
+
+      // Upload new avatar
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, croppedBlob, {
+          contentType: 'image/png',
+          upsert: true,
+        })
+
+      if (uploadError) throw uploadError
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      // Add cache buster
+      const avatarUrl = `${publicUrl}?t=${Date.now()}`
+
+      // Update church with new avatar URL
+      await updateChurchAvatar(avatarUrl)
+
+      setIsCropping(false)
+      setImageSrc(null)
+    } catch (err) {
+      console.error('Error uploading avatar:', err)
+      setAvatarError(err instanceof Error ? err.message : 'Failed to upload avatar')
+    } finally {
+      setIsSavingAvatar(false)
+    }
+  }
+
+  const handleCropCancel = () => {
+    setIsCropping(false)
+    setImageSrc(null)
+    setCrop(undefined)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const handleRemoveAvatar = async () => {
+    if (!currentChurch?.avatar_url) return
+
+    setIsSavingAvatar(true)
+    setAvatarError(null)
+
+    try {
+      const supabase = getSupabase()
+      const filePath = `church/${currentChurch.id}/avatar.png`
+
+      await supabase.storage.from('avatars').remove([filePath])
+      await updateChurchAvatar(null)
+    } catch (err) {
+      console.error('Error removing avatar:', err)
+      setAvatarError(err instanceof Error ? err.message : 'Failed to remove avatar')
+    } finally {
+      setIsSavingAvatar(false)
+    }
+  }
+
   if (!isAdmin) {
     return (
       <div className="p-4 md:p-8 max-w-4xl">
@@ -145,13 +324,98 @@ export function ChurchProfilePage() {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-4xl">
+    <div className="p-4 md:p-8 max-w-4xl ml-4">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">{t('churchProfile.title')}</h1>
-        <p className="text-muted-foreground">{currentChurch?.name}</p>
       </div>
 
       <div className="space-y-6">
+        {/* Church Avatar Card */}
+        <Card>
+          <CardContent className="pt-6">
+            {isCropping && imageSrc ? (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">{t('profile.cropTitle')}</p>
+                <div className="flex justify-center">
+                  <ReactCrop
+                    crop={crop}
+                    onChange={(_, percentCrop) => setCrop(percentCrop)}
+                    aspect={1}
+                    circularCrop
+                  >
+                    <img
+                      ref={imgRef}
+                      src={imageSrc}
+                      alt="Crop preview"
+                      onLoad={onImageLoad}
+                      className="max-h-64"
+                    />
+                  </ReactCrop>
+                </div>
+                {avatarError && <p className="text-sm text-destructive">{avatarError}</p>}
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={handleCropCancel} disabled={isSavingAvatar}>
+                    {t('profile.cancel')}
+                  </Button>
+                  <Button onClick={handleCropConfirm} disabled={isSavingAvatar}>
+                    {isSavingAvatar ? t('profile.saving') : t('profile.cropConfirm')}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-6">
+                <div className="relative group">
+                  <ChurchAvatar
+                    name={currentChurch?.name || ''}
+                    avatarUrl={currentChurch?.avatar_url}
+                    className="h-20 w-20"
+                    fallbackClassName="text-2xl"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    disabled={isSavingAvatar}
+                  >
+                    <Camera className="h-6 w-6 text-white" />
+                  </button>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={ACCEPTED_FILE_TYPES.join(',')}
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <div className="flex-1">
+                  <h2 className="text-xl font-semibold">{currentChurch?.name}</h2>
+                  <div className="flex gap-2 mt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isSavingAvatar}
+                    >
+                      {currentChurch?.avatar_url ? t('profile.changeAvatar') : t('profile.uploadAvatar')}
+                    </Button>
+                    {currentChurch?.avatar_url && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleRemoveAvatar}
+                        disabled={isSavingAvatar}
+                      >
+                        {t('profile.removeAvatar')}
+                      </Button>
+                    )}
+                  </div>
+                  {avatarError && <p className="text-sm text-destructive mt-2">{avatarError}</p>}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Analytics Card */}
         <Card>
           <CardHeader className="pb-3">

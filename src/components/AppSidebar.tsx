@@ -6,6 +6,7 @@ import { useChurch } from '@/contexts/ChurchContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { isTauri } from '@/lib/tauri'
 import { ProfileModal } from '@/components/ProfileModal'
+import { ChurchAvatar } from '@/components/ChurchAvatar'
 import {
   Sidebar,
   SidebarContent,
@@ -136,7 +137,14 @@ export function AppSidebar() {
               >
                 <SelectTrigger className="w-full" data-testid="church-selector">
                   <div className="flex items-center gap-2 truncate">
-                    <ChurchIcon className="h-4 w-4 shrink-0" />
+                    {currentChurch && (
+                      <ChurchAvatar
+                        name={currentChurch.name}
+                        avatarUrl={currentChurch.avatar_url}
+                        className="h-5 w-5 shrink-0"
+                        fallbackClassName="text-[10px]"
+                      />
+                    )}
                     <SelectValue placeholder="Select church" />
                   </div>
                 </SelectTrigger>
@@ -144,6 +152,12 @@ export function AppSidebar() {
                   {churches.map((church) => (
                     <SelectItem key={church.id} value={church.id}>
                       <div className="flex items-center gap-2">
+                        <ChurchAvatar
+                          name={church.name}
+                          avatarUrl={church.avatar_url}
+                          className="h-5 w-5 shrink-0"
+                          fallbackClassName="text-[10px]"
+                        />
                         <span>{church.name}</span>
                         <span className="text-xs text-muted-foreground">
                           ({church.role})
@@ -155,9 +169,12 @@ export function AppSidebar() {
               </Select>
             ) : currentChurch ? (
               <SidebarMenuButton size="lg" className="cursor-default">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <ChurchIcon className="size-4" />
-                </div>
+                <ChurchAvatar
+                  name={currentChurch.name}
+                  avatarUrl={currentChurch.avatar_url}
+                  className="size-8"
+                  fallbackClassName="text-xs"
+                />
                 <div className="flex flex-col gap-0.5 leading-none">
                   <span className="font-semibold truncate">{currentChurch.name}</span>
                   <span className="text-xs text-muted-foreground capitalize">

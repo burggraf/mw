@@ -8,6 +8,7 @@ export interface Church {
   id: string
   name: string
   role: UserRole
+  avatar_url: string | null
 }
 
 interface ChurchContextType {
@@ -17,6 +18,7 @@ interface ChurchContextType {
   setCurrentChurch: (church: Church) => void
   isLoading: boolean
   refreshChurches: () => Promise<void>
+  updateChurchAvatar: (avatarUrl: string | null) => Promise<void>
   can: (permission: Permission) => boolean
   isAdmin: boolean
   isEditor: boolean
@@ -50,7 +52,8 @@ export function ChurchProvider({ children }: { children: ReactNode }) {
           role,
           church:churches (
             id,
-            name
+            name,
+            avatar_url
           )
         `)
         .eq('user_id', user.id)
@@ -65,6 +68,7 @@ export function ChurchProvider({ children }: { children: ReactNode }) {
         id: row.church.id,
         name: row.church.name,
         role: row.role,
+        avatar_url: row.church.avatar_url,
       }))
 
       setChurches(churchList)
@@ -108,6 +112,25 @@ export function ChurchProvider({ children }: { children: ReactNode }) {
     await loadChurches()
   }
 
+  const updateChurchAvatar = async (avatarUrl: string | null) => {
+    if (!currentChurch) return
+
+    const supabase = getSupabase()
+    const { error } = await supabase
+      .from('churches')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', currentChurch.id)
+
+    if (error) throw error
+
+    // Update local state
+    const updatedChurch = { ...currentChurch, avatar_url: avatarUrl }
+    setCurrentChurchState(updatedChurch)
+    setChurches(prev => prev.map(c =>
+      c.id === currentChurch.id ? updatedChurch : c
+    ))
+  }
+
   // Permission checking
   const currentRole = currentChurch?.role ?? null
 
@@ -127,6 +150,7 @@ export function ChurchProvider({ children }: { children: ReactNode }) {
       setCurrentChurch,
       isLoading,
       refreshChurches,
+      updateChurchAvatar,
       can,
       isAdmin,
       isEditor,
