@@ -131,7 +131,7 @@ export function ChurchProfilePage() {
 
   if (!isAdmin) {
     return (
-      <div className="container py-6 max-w-4xl">
+      <div className="p-4 md:p-8 max-w-4xl">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>{t('churchProfile.accessDenied')}</AlertTitle>
@@ -142,7 +142,7 @@ export function ChurchProfilePage() {
   }
 
   return (
-    <div className="container py-6 max-w-4xl">
+    <div className="p-4 md:p-8 max-w-4xl">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">{t('churchProfile.title')}</h1>
         <p className="text-muted-foreground">{currentChurch?.name}</p>
