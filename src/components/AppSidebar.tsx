@@ -63,7 +63,7 @@ const navItems = [
   { key: 'slides', icon: Presentation, href: '/slides' },
   { key: 'events', icon: Calendar, href: '/events' },
   { key: 'displays', icon: Monitor, href: '/displays' },
-  { key: 'team', icon: Users, href: '/team', disabled: true },
+  { key: 'team', icon: Users, href: '/team' },
   { key: 'settings', icon: Settings, href: '/settings', disabled: true },
 ]
 
@@ -133,7 +133,7 @@ export function AppSidebar() {
                 value={currentChurch?.id}
                 onValueChange={handleChurchChange}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full" data-testid="church-selector">
                   <div className="flex items-center gap-2 truncate">
                     <ChurchIcon className="h-4 w-4 shrink-0" />
                     <SelectValue placeholder="Select church" />
@@ -165,7 +165,7 @@ export function AppSidebar() {
                 </div>
               </SidebarMenuButton>
             ) : (
-              <SidebarMenuButton size="lg" onClick={() => navigate('/create-church')}>
+              <SidebarMenuButton size="lg" onClick={() => navigate('/setup-church')}>
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg border-2 border-dashed">
                   <ChurchIcon className="size-4" />
                 </div>
@@ -280,6 +280,7 @@ export function AppSidebar() {
                 <SidebarMenuButton
                   size="lg"
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                  data-testid="user-menu"
                 >
                   <Avatar className="h-8 w-8">
                     {userProfile?.avatar_url && (

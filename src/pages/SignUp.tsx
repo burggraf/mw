@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -11,8 +11,12 @@ export function SignUpPage() {
   const { t } = useTranslation()
   const { signUp, signInWithGoogle } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
-  const [email, setEmail] = useState('')
+  const redirectTo = searchParams.get('redirect') || '/dashboard'
+  const prefillEmail = searchParams.get('email') || ''
+
+  const [email, setEmail] = useState(prefillEmail)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -36,13 +40,18 @@ export function SignUpPage() {
     setIsLoading(true)
 
     try {
+      // Store the redirect URL for after email confirmation
+      if (redirectTo && redirectTo !== '/dashboard') {
+        sessionStorage.setItem('postAuthRedirect', redirectTo)
+      }
+
       const result = await signUp(email, password)
       if (result.needsEmailConfirmation) {
         setEmailSent(true)
       } else {
-        // No email confirmation needed - redirect based on church status
-        // AuthCallback will handle the redirect
-        navigate('/auth/callback')
+        // No email confirmation needed - redirect to target
+        sessionStorage.removeItem('postAuthRedirect')
+        navigate(redirectTo)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed')
@@ -197,7 +206,10 @@ export function SignUpPage() {
         <CardFooter>
           <p className="text-sm text-muted-foreground w-full text-center">
             {t('auth.hasAccount')}{' '}
-            <Link to="/login" className="text-primary hover:underline">
+            <Link
+              to={redirectTo !== '/dashboard' ? `/login?redirect=${encodeURIComponent(redirectTo)}` : '/login'}
+              className="text-primary hover:underline"
+            >
               {t('auth.signIn')}
             </Link>
           </p>

@@ -20,7 +20,10 @@
     "deleting": "Eliminando...",
     "noChurchSelected": "No hay iglesia seleccionada",
     "notFound": "No encontrado",
-    "optional": "opcional"
+    "optional": "opcional",
+    "actions": "Acciones",
+    "backToHome": "Volver al inicio",
+    "backToDashboard": "Volver al panel"
   },
   "nav": {
     "dashboard": "Panel",
@@ -630,5 +633,77 @@
     "cropConfirm": "Aplicar",
     "fileTooLarge": "El archivo debe ser menor a 5MB",
     "invalidFileType": "Solo se permiten JPEG, PNG, WebP y GIF"
+  },
+  "team": {
+    "title": "Equipo",
+    "subtitle": "Administra los miembros de tu equipo e invitaciones",
+    "members": "Miembros",
+    "membersDescription": "Personas que tienen acceso a tu iglesia",
+    "invitations": "Invitaciones Pendientes",
+    "invitationsDescription": "Invitaciones esperando ser aceptadas",
+    "member": "Miembro",
+    "role": "Rol",
+    "status": "Estado",
+    "expires": "Expira",
+    "inviteMember": "Invitar Miembro",
+    "inviteDescription": "Envía una invitación para unirse a tu equipo",
+    "sendInvitation": "Enviar Invitación",
+    "invitationSent": "Invitación enviada",
+    "invitationResent": "Invitación reenviada",
+    "invitationCanceled": "Invitación cancelada",
+    "roleUpdated": "Rol actualizado",
+    "memberRemoved": "Miembro eliminado",
+    "noMembers": "No hay miembros del equipo",
+    "noInvitations": "No hay invitaciones pendientes",
+    "unknownUser": "Usuario Desconocido",
+    "you": "Tú",
+    "thisMember": "este miembro",
+    "roles": {
+      "admin": "Administrador",
+      "editor": "Editor",
+      "operator": "Operador"
+    },
+    "roleDescriptions": {
+      "admin": "Acceso completo a todas las funciones y configuraciones",
+      "editor": "Puede crear y editar canciones, eventos y medios",
+      "operator": "Puede controlar pantallas durante eventos en vivo"
+    },
+    "status": {
+      "pending": "Pendiente",
+      "accepted": "Aceptada",
+      "expired": "Expirada"
+    },
+    "copyLink": "Copiar Enlace de Invitación",
+    "linkCopied": "Enlace copiado al portapapeles",
+    "resendInvitation": "Reenviar Invitación",
+    "cancelInvitation": "Cancelar Invitación",
+    "cancelInvitationTitle": "¿Cancelar Invitación?",
+    "cancelInvitationDescription": "Esto revocará la invitación enviada a {{email}}. No podrán usar el enlace de invitación.",
+    "removeMember": "Eliminar Miembro",
+    "removeMemberTitle": "¿Eliminar Miembro del Equipo?",
+    "removeMemberDescription": "{{name}} perderá acceso a esta iglesia. Pueden ser invitados nuevamente después.",
+    "remove": "Eliminar",
+    "lastAdminError": "No se puede degradar al último administrador. Primero promueve a otro miembro."
+  },
+  "invite": {
+    "title": "¡Estás Invitado!",
+    "noToken": "No se proporcionó token de invitación",
+    "notFound": "Invitación no encontrada",
+    "alreadyAccepted": "Esta invitación ya fue aceptada",
+    "expired": "Esta invitación ha expirado",
+    "errorTitle": "Invitación Inválida",
+    "successTitle": "¡Bienvenido!",
+    "successDescription": "Te has unido al equipo",
+    "redirecting": "Redirigiendo al panel...",
+    "churchInvitation": "Has sido invitado a unirte a {{church}}",
+    "invitedAs": "Estás invitado como:",
+    "loginRequired": "Se requiere iniciar sesión",
+    "loginRequiredDescription": "Inicia sesión con {{email}} para aceptar esta invitación",
+    "wrongEmailTitle": "Cuenta Incorrecta",
+    "wrongEmailDescription": "Has iniciado sesión con un correo diferente al de la invitación",
+    "wrongEmailDetails": "Esta invitación fue enviada a {{inviteEmail}}, pero has iniciado sesión como {{currentEmail}}. Por favor cierra sesión e inicia sesión con la cuenta correcta.",
+    "asUser": "Sesión iniciada como {{email}}",
+    "accept": "Aceptar Invitación",
+    "success": "¡Te has unido a {{church}}!"
   }
 }

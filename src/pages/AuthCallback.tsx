@@ -100,6 +100,14 @@ export function AuthCallbackPage() {
       return
     }
 
+    // Check for stored redirect URL (e.g., from invitation flow)
+    const storedRedirect = sessionStorage.getItem('postAuthRedirect')
+    if (storedRedirect) {
+      sessionStorage.removeItem('postAuthRedirect')
+      navigate(storedRedirect)
+      return
+    }
+
     // If user has church, go to dashboard
     // If not, go to church setup
     if (hasChurch === true) {

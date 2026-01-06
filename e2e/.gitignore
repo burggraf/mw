@@ -1,0 +1,7 @@
+# Test artifacts
+test-results/
+screenshots/
+*.png
+
+# Playwright report
+playwright-report/

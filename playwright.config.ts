@@ -5,14 +5,20 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: 0,
-  workers: 1,
-  reporter: 'list',
+  workers: 1, // Single worker for rate limit protection
+  reporter: [['list'], ['html', { open: 'never' }]],
   timeout: 120000, // 2 minutes per test
+  expect: {
+    timeout: 10000,
+  },
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
-    headless: false, // Run with visible browser for debugging
+    headless: process.env.CI ? true : false, // Visible browser locally, headless in CI
     video: 'on',
+    screenshot: 'only-on-failure',
+    // Grant clipboard permissions for copy/paste tests
+    permissions: ['clipboard-read', 'clipboard-write'],
   },
   projects: [
     {
@@ -21,8 +27,11 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
+    command: 'pnpm dev',
     url: 'http://localhost:5173',
     reuseExistingServer: true,
+    timeout: 30000,
   },
+  // Output directory for screenshots and traces
+  outputDir: './e2e/test-results',
 })

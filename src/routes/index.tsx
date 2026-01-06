@@ -14,6 +14,8 @@ import { EventsPage } from '@/pages/Events'
 import { EventEditorPage } from '@/pages/EventEditor'
 import { EventDetailPage } from '@/pages/EventDetail'
 import { DisplaysPage } from '@/pages/Displays'
+import { TeamPage } from '@/pages/Team'
+import { AcceptInvitePage } from '@/pages/AcceptInvite'
 import { Controller } from '@/pages/live/Controller'
 import { DisplayPage } from '@/pages/live/Display'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
@@ -50,6 +52,10 @@ const router = createBrowserRouter([
       {
         path: '/auth/callback',
         element: <AuthCallbackPage />,
+      },
+      {
+        path: '/accept-invite',
+        element: <AcceptInvitePage />,
       },
       {
         path: '/setup-church',
@@ -117,7 +123,7 @@ const router = createBrowserRouter([
           },
           {
             path: '/team',
-            element: <div className="p-8"><h1 className="text-2xl font-bold">Team</h1><p className="text-muted-foreground mt-2">Coming soon</p></div>,
+            element: <TeamPage />,
           },
           {
             path: '/settings',

@@ -2,19 +2,25 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import { useAuth } from '@/contexts/AuthContext'
 import { getSupabase } from '@/lib/supabase'
 import { isTauri, safeInvoke } from '@/lib/tauri'
+import { type UserRole, type Permission, hasPermission } from '@/types/team'
 
 export interface Church {
   id: string
   name: string
-  role: 'admin' | 'editor' | 'operator'
+  role: UserRole
 }
 
 interface ChurchContextType {
   churches: Church[]
   currentChurch: Church | null
+  currentRole: UserRole | null
   setCurrentChurch: (church: Church) => void
   isLoading: boolean
   refreshChurches: () => Promise<void>
+  can: (permission: Permission) => boolean
+  isAdmin: boolean
+  isEditor: boolean
+  isOperator: boolean
 }
 
 const ChurchContext = createContext<ChurchContextType | undefined>(undefined)
@@ -102,13 +108,29 @@ export function ChurchProvider({ children }: { children: ReactNode }) {
     await loadChurches()
   }
 
+  // Permission checking
+  const currentRole = currentChurch?.role ?? null
+
+  const can = (permission: Permission): boolean => {
+    return hasPermission(currentRole, permission)
+  }
+
+  const isAdmin = currentRole === 'admin'
+  const isEditor = currentRole === 'editor'
+  const isOperator = currentRole === 'operator'
+
   return (
     <ChurchContext.Provider value={{
       churches,
       currentChurch,
+      currentRole,
       setCurrentChurch,
       isLoading,
       refreshChurches,
+      can,
+      isAdmin,
+      isEditor,
+      isOperator,
     }}>
       {children}
     </ChurchContext.Provider>

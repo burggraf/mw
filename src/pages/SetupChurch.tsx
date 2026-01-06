@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
+import { useChurch } from '@/contexts/ChurchContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 export function SetupChurchPage() {
   const { t } = useTranslation()
   const { user, createChurch, signOut } = useAuth()
+  const { refreshChurches } = useChurch()
   const navigate = useNavigate()
 
   const [churchName, setChurchName] = useState('')
@@ -29,6 +31,8 @@ export function SetupChurchPage() {
 
     try {
       await createChurch(churchName)
+      // Refresh ChurchContext to load the newly created church
+      await refreshChurches()
       navigate('/dashboard')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create church')

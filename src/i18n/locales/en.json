@@ -20,7 +20,10 @@
     "deleting": "Deleting...",
     "noChurchSelected": "No church selected",
     "notFound": "Not found",
-    "optional": "optional"
+    "optional": "optional",
+    "actions": "Actions",
+    "backToHome": "Back to Home",
+    "backToDashboard": "Back to Dashboard"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -630,5 +633,77 @@
     "cropConfirm": "Apply",
     "fileTooLarge": "File must be under 5MB",
     "invalidFileType": "Only JPEG, PNG, WebP, and GIF are allowed"
+  },
+  "team": {
+    "title": "Team",
+    "subtitle": "Manage your church team members and invitations",
+    "members": "Members",
+    "membersDescription": "People who have access to your church",
+    "invitations": "Pending Invitations",
+    "invitationsDescription": "Invitations waiting to be accepted",
+    "member": "Member",
+    "role": "Role",
+    "status": "Status",
+    "expires": "Expires",
+    "inviteMember": "Invite Member",
+    "inviteDescription": "Send an invitation to join your church team",
+    "sendInvitation": "Send Invitation",
+    "invitationSent": "Invitation sent",
+    "invitationResent": "Invitation resent",
+    "invitationCanceled": "Invitation canceled",
+    "roleUpdated": "Role updated",
+    "memberRemoved": "Member removed",
+    "noMembers": "No team members",
+    "noInvitations": "No pending invitations",
+    "unknownUser": "Unknown User",
+    "you": "You",
+    "thisMember": "this member",
+    "roles": {
+      "admin": "Admin",
+      "editor": "Editor",
+      "operator": "Operator"
+    },
+    "roleDescriptions": {
+      "admin": "Full access to all features and settings",
+      "editor": "Can create and edit songs, events, and media",
+      "operator": "Can control displays during live events"
+    },
+    "status": {
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "expired": "Expired"
+    },
+    "copyLink": "Copy Invitation Link",
+    "linkCopied": "Link copied to clipboard",
+    "resendInvitation": "Resend Invitation",
+    "cancelInvitation": "Cancel Invitation",
+    "cancelInvitationTitle": "Cancel Invitation?",
+    "cancelInvitationDescription": "This will revoke the invitation sent to {{email}}. They won't be able to use the invitation link.",
+    "removeMember": "Remove Member",
+    "removeMemberTitle": "Remove Team Member?",
+    "removeMemberDescription": "{{name}} will lose access to this church. They can be invited again later.",
+    "remove": "Remove",
+    "lastAdminError": "Cannot demote the last admin. Promote another member first."
+  },
+  "invite": {
+    "title": "You're Invited!",
+    "noToken": "No invitation token provided",
+    "notFound": "Invitation not found",
+    "alreadyAccepted": "This invitation has already been accepted",
+    "expired": "This invitation has expired",
+    "errorTitle": "Invalid Invitation",
+    "successTitle": "Welcome!",
+    "successDescription": "You've joined the team",
+    "redirecting": "Redirecting to dashboard...",
+    "churchInvitation": "You've been invited to join {{church}}",
+    "invitedAs": "You're invited as:",
+    "loginRequired": "Sign in required",
+    "loginRequiredDescription": "Sign in with {{email}} to accept this invitation",
+    "wrongEmailTitle": "Wrong Account",
+    "wrongEmailDescription": "You're signed in with a different email than the invitation",
+    "wrongEmailDetails": "This invitation was sent to {{inviteEmail}}, but you're signed in as {{currentEmail}}. Please sign out and sign in with the correct account.",
+    "asUser": "Signed in as {{email}}",
+    "accept": "Accept Invitation",
+    "success": "You've joined {{church}}!"
   }
 }

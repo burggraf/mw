@@ -31,11 +31,17 @@ if [ -z "$GENIUS_ACCESS_TOKEN" ] || [ "$GENIUS_ACCESS_TOKEN" = "your_genius_toke
   exit 1
 fi
 
+if [ -z "$RESEND_API_KEY" ] || [ "$RESEND_API_KEY" = "re_xxx" ]; then
+  echo "Error: RESEND_API_KEY not set in .env.server"
+  exit 1
+fi
+
 echo "Deploying secrets to Supabase..."
 
 supabase secrets set PEXELS_API_KEY="$PEXELS_API_KEY"
 supabase secrets set UNSPLASH_ACCESS_KEY="$UNSPLASH_ACCESS_KEY"
 supabase secrets set PIXABAY_API_KEY="$PIXABAY_API_KEY"
 supabase secrets set GENIUS_ACCESS_TOKEN="$GENIUS_ACCESS_TOKEN"
+supabase secrets set RESEND_API_KEY="$RESEND_API_KEY"
 
 echo "Secrets deployed successfully!"

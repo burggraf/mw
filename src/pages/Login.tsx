@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -12,10 +12,13 @@ export function LoginPage() {
   const { t } = useTranslation()
   const { user, isLoading, signIn, signInWithGoogle, signInWithMagicLink } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
-  // If already logged in, redirect to dashboard
+  const redirectTo = searchParams.get('redirect') || '/dashboard'
+
+  // If already logged in, redirect
   if (user && !isLoading) {
-    navigate('/dashboard')
+    navigate(redirectTo)
     return null
   }
 
@@ -32,7 +35,7 @@ export function LoginPage() {
 
     try {
       await signIn(email, password)
-      navigate('/dashboard')
+      navigate(redirectTo)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
     } finally {
@@ -204,7 +207,10 @@ export function LoginPage() {
         <CardFooter>
           <p className="text-sm text-muted-foreground w-full text-center">
             {t('auth.noAccount')}{' '}
-            <Link to="/signup" className="text-primary hover:underline">
+            <Link
+              to={redirectTo !== '/dashboard' ? `/signup?redirect=${encodeURIComponent(redirectTo)}` : '/signup'}
+              className="text-primary hover:underline"
+            >
               {t('auth.signUp')}
             </Link>
           </p>

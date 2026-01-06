@@ -16,11 +16,13 @@ interface AuthContextType {
   session: Session | null
   isLoading: boolean
   signUp: (email: string, password: string) => Promise<SignUpResult>
+  signUpForInvitation: (email: string, password: string, displayName: string) => Promise<SignUpResult>
   signIn: (email: string, password: string) => Promise<void>
   signInWithGoogle: () => Promise<void>
   signInWithMagicLink: (email: string) => Promise<void>
   signOut: () => Promise<void>
   hasChurch: boolean | null
+  setHasChurch: (value: boolean) => void
   createChurch: (churchName: string) => Promise<void>
   userProfile: UserProfile | null
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>
@@ -220,6 +222,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { needsEmailConfirmation: !data.session }
   }
 
+  // Sign up specifically for invitation acceptance - includes display name
+  const signUpForInvitation = async (
+    email: string,
+    password: string,
+    displayName: string
+  ): Promise<SignUpResult> => {
+    const supabase = getSupabase()
+
+    // Sign up with display name in metadata (for profile auto-creation)
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: {
+          display_name: displayName,
+        },
+      },
+    })
+
+    if (error) throw error
+    if (!data.user) throw new Error('Signup failed')
+
+    return { needsEmailConfirmation: !data.session }
+  }
+
   const signIn = async (email: string, password: string) => {
     const supabase = getSupabase()
     const { error } = await supabase.auth.signInWithPassword({
@@ -299,11 +327,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       isLoading,
       signUp,
+      signUpForInvitation,
       signIn,
       signInWithGoogle,
       signInWithMagicLink,
       signOut,
       hasChurch,
+      setHasChurch,
       createChurch,
       userProfile,
       updateProfile,
