@@ -248,9 +248,32 @@ impl DisplayManager {
             return Ok(());
         }
 
-        // Check if window already exists
+        // Check if window already exists (may have been opened by another code path)
         if app.get_webview_window(&window_label).is_some() {
-            warn!("Window {} already exists but not tracked", window_label);
+            info!("Window {} already exists, adopting it for tracking", window_label);
+
+            // Ensure WebSocket server is running
+            let ws_port = self.get_or_start_ws_server(app).await?;
+            let device_id = self.get_or_init_device_id(app).await?;
+
+            // Track the existing display
+            self.open_displays.insert(display_id.clone(), OpenDisplay {
+                display_id: display_id.clone(),
+                window_label: window_label.clone(),
+                monitor_index: monitor_info.id,
+            });
+
+            // Start advertising for this display
+            self.start_display_advertising(
+                display_id,
+                &monitor_info.name,
+                monitor_info.size_x,
+                monitor_info.size_y,
+                ws_port,
+                &device_id,
+            ).await?;
+
+            info!("✓ Adopted existing display window '{}' and started advertising", monitor_info.name);
             return Ok(());
         }
 

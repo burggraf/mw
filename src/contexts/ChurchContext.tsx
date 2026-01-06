@@ -92,16 +92,8 @@ export function ChurchProvider({ children }: { children: ReactNode }) {
     loadChurches()
   }, [user])
 
-  // Auto-start display windows when a church is selected (Tauri only)
-  useEffect(() => {
-    if (currentChurch && isTauri()) {
-      // Auto-open display windows for all external monitors
-      safeInvoke('auto_start_display_windows')
-        .then((displays: unknown) => {
-          console.log('[ChurchContext] Auto-started display windows:', Array.isArray(displays) ? displays.length : 0)
-        })
-    }
-  }, [currentChurch])
+  // Display windows are now managed automatically by the Tauri DisplayManager
+  // No need to call auto_start_display_windows from frontend
 
   const setCurrentChurch = (church: Church) => {
     setCurrentChurchState(church)
