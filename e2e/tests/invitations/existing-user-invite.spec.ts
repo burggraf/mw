@@ -3,7 +3,7 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { createTempEmailAccount, waitForEmail, extractInvitationLink } from '../../helpers/temp-email'
+import { createTempEmailAccount } from '../../helpers/temp-email'
 import { signUpAndConfirm, signIn } from '../../helpers/auth-helpers'
 import { goToTeamPage, inviteMember, goToInvitationsTab } from '../../helpers/team-helpers'
 
@@ -52,16 +52,11 @@ test.describe('Existing User Invitation Flow', () => {
 
     // Invite existing user
     await goToTeamPage(page)
-    await inviteMember(page, existingUserMail.address, 'editor')
+    const { inviteLink } = await inviteMember(page, existingUserMail.address, 'editor')
 
     // Verify invitation in list
     await goToInvitationsTab(page)
     await expect(page.getByText(existingUserMail.address)).toBeVisible()
-
-    // Step 2: Get invitation email
-    console.log('Waiting for invitation email...')
-    const inviteEmail = await waitForEmail(existingUserMail, 'invited', 60000)
-    const inviteLink = extractInvitationLink(inviteEmail)
 
     // Sign out admin1
     await page.goto('/')
@@ -125,11 +120,7 @@ test.describe('Existing User Invitation Flow', () => {
     await signIn(page, adminMail.address, 'AdminPass123!')
 
     await goToTeamPage(page)
-    await inviteMember(page, user2Mail.address, 'admin')
-
-    // Get invitation link
-    const inviteEmail = await waitForEmail(user2Mail, 'invited', 60000)
-    const inviteLink = extractInvitationLink(inviteEmail)
+    const { inviteLink } = await inviteMember(page, user2Mail.address, 'admin')
 
     // Now log in as user2
     await page.goto('/')

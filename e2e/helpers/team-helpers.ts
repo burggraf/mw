@@ -37,14 +37,19 @@ export async function openInviteDialog(page: Page): Promise<void> {
   await page.waitForSelector('[role="dialog"]', { timeout: 5000 })
 }
 
+export interface InviteMemberResult {
+  token: string
+  inviteLink: string
+}
+
 /**
- * Invite a member
+ * Invite a member and return the invitation link
  */
 export async function inviteMember(
   page: Page,
   email: string,
   role: Role
-): Promise<void> {
+): Promise<InviteMemberResult> {
   await openInviteDialog(page)
 
   await page.fill('input[type="email"]', email)
@@ -53,20 +58,19 @@ export async function inviteMember(
   await page.click('[data-testid="role-select"]')
   await page.click(`[data-testid="role-option-${role}"]`)
 
-  // Listen for network errors on invitations endpoint
-  const invitationResponses: { url: string; status: number; error?: string }[] = []
+  // Capture the invitation response to get the token
+  let invitationToken: string | null = null
   const responseHandler = async (response: any) => {
     const url = response.url()
-    if (url.includes('invitations')) {
+    if (url.includes('/invitations') && response.request().method() === 'POST') {
       try {
-        const body = await response.text().catch(() => '')
-        invitationResponses.push({
-          url,
-          status: response.status(),
-          error: body.includes('error') ? body.substring(0, 200) : undefined
-        })
+        const body = await response.json().catch(() => null)
+        if (body && body.length > 0 && body[0].token) {
+          invitationToken = body[0].token
+          console.log('Captured invitation token:', invitationToken)
+        }
       } catch {
-        invitationResponses.push({ url, status: response.status() })
+        // Ignore parse errors
       }
     }
   }
@@ -77,18 +81,47 @@ export async function inviteMember(
 
   // Wait a bit for the request to complete
   await page.waitForTimeout(3000)
-  console.log('Invitation API responses:', JSON.stringify(invitationResponses, null, 2))
+
+  // Remove listener
+  page.off('response', responseHandler)
 
   // Check for error toast
   const errorToast = await page.locator('[data-sonner-toast][data-type="error"]').isVisible().catch(() => false)
   if (errorToast) {
     const errorText = await page.locator('[data-sonner-toast][data-type="error"]').textContent().catch(() => 'unknown')
     console.log('Error toast visible:', errorText)
+    throw new Error(`Invitation failed: ${errorText}`)
   }
 
   // Wait for dialog to close and success message
   await expect(page.locator('[role="dialog"]')).not.toBeVisible({ timeout: 10000 })
   console.log(`Invited ${email} as ${role}`)
+
+  // If we didn't capture the token from response, get it from the invitations tab
+  if (!invitationToken) {
+    console.log('Token not captured from response, fetching from invitations tab...')
+    await goToInvitationsTab(page)
+
+    // Look for the invitation row and get the token from data-token attribute
+    const row = page.locator(`[data-testid="invitation-row"]:has-text("${email}")`)
+    await row.waitFor({ state: 'visible', timeout: 10000 })
+    const tokenAttr = await row.getAttribute('data-token')
+
+    if (tokenAttr) {
+      invitationToken = tokenAttr
+      console.log('Got token from data-token attribute:', invitationToken)
+    }
+  }
+
+  if (!invitationToken) {
+    throw new Error('Failed to capture invitation token')
+  }
+
+  // Construct the invite link using localhost (tests run locally)
+  const baseUrl = 'http://localhost:5173'
+  const inviteLink = `${baseUrl}/accept-invite?token=${invitationToken}`
+
+  return { token: invitationToken, inviteLink }
 }
 
 /**

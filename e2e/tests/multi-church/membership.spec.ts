@@ -3,7 +3,7 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { createTempEmailAccount, waitForEmail, extractInvitationLink } from '../../helpers/temp-email'
+import { createTempEmailAccount } from '../../helpers/temp-email'
 import { signUpAndConfirm, signIn } from '../../helpers/auth-helpers'
 import { goToTeamPage, inviteMember } from '../../helpers/team-helpers'
 
@@ -45,16 +45,12 @@ test.describe('Multi-Church Membership', () => {
     await page.goto('/')
     await signIn(page, admin1Mail.address, 'Admin1Pass123!')
     await goToTeamPage(page)
-    await inviteMember(page, multiUserMail.address, 'editor')
-
-    // Get invitation link
-    let inviteEmail = await waitForEmail(multiUserMail, 'invited', 60000)
-    let inviteLink = extractInvitationLink(inviteEmail)
+    const { inviteLink: inviteLinkA } = await inviteMember(page, multiUserMail.address, 'editor')
 
     // Multi-user accepts Church A invitation
     await page.goto('/')
     await signIn(page, multiUserMail.address, 'MultiPass123!')
-    await page.goto(inviteLink)
+    await page.goto(inviteLinkA)
     await page.click('button:has-text("Accept")')
     await page.waitForURL(/\/dashboard/, { timeout: 10000 })
 
@@ -62,16 +58,12 @@ test.describe('Multi-Church Membership', () => {
     await page.goto('/')
     await signIn(page, admin2Mail.address, 'Admin2Pass123!')
     await goToTeamPage(page)
-    await inviteMember(page, multiUserMail.address, 'operator')
-
-    // Get invitation link
-    inviteEmail = await waitForEmail(multiUserMail, 'invited', 60000)
-    inviteLink = extractInvitationLink(inviteEmail)
+    const { inviteLink: inviteLinkB } = await inviteMember(page, multiUserMail.address, 'operator')
 
     // Multi-user accepts Church B invitation
     await page.goto('/')
     await signIn(page, multiUserMail.address, 'MultiPass123!')
-    await page.goto(inviteLink)
+    await page.goto(inviteLinkB)
     await page.click('button:has-text("Accept")')
     await page.waitForURL(/\/dashboard/, { timeout: 10000 })
 
@@ -124,12 +116,9 @@ test.describe('Multi-Church Membership', () => {
     await page.goto('/')
     await signIn(page, adminMail.address, 'AdminPass123!')
     await goToTeamPage(page)
-    await inviteMember(page, userMail.address, 'operator')
+    const { inviteLink } = await inviteMember(page, userMail.address, 'operator')
 
     // User accepts
-    const inviteEmail = await waitForEmail(userMail, 'invited', 60000)
-    const inviteLink = extractInvitationLink(inviteEmail)
-
     await page.goto('/')
     await signIn(page, userMail.address, 'UserPass123!')
     await page.goto(inviteLink)

@@ -160,7 +160,7 @@ export function InvitationsList({
             const isPending = invitation.status === 'pending'
 
             return (
-              <TableRow key={invitation.id} data-testid="invitation-row">
+              <TableRow key={invitation.id} data-testid="invitation-row" data-token={invitation.token}>
                 <TableCell className="font-medium" data-testid="invitation-email">{invitation.email}</TableCell>
                 <TableCell>
                   <Badge variant="outline">

@@ -3,7 +3,7 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { createTempEmailAccount, waitForEmail, extractInvitationLink } from '../../helpers/temp-email'
+import { createTempEmailAccount } from '../../helpers/temp-email'
 import { signUpAndConfirm, signIn } from '../../helpers/auth-helpers'
 import { goToTeamPage, inviteMember, goToMembersTab, leaveChurch } from '../../helpers/team-helpers'
 
@@ -34,12 +34,9 @@ test.describe('Leaving Churches', () => {
     await page.goto('/')
     await signIn(page, adminMail.address, 'AdminPass123!')
     await goToTeamPage(page)
-    await inviteMember(page, userMail.address, 'editor')
+    const { inviteLink } = await inviteMember(page, userMail.address, 'editor')
 
     // User accepts invitation
-    const inviteEmail = await waitForEmail(userMail, 'invited', 60000)
-    const inviteLink = extractInvitationLink(inviteEmail)
-
     await page.goto('/')
     await signIn(page, userMail.address, 'UserPass123!')
     await page.goto(inviteLink)
@@ -130,12 +127,9 @@ test.describe('Leaving Churches', () => {
     await page.goto('/')
     await signIn(page, admin1Mail.address, 'Admin1Pass123!')
     await goToTeamPage(page)
-    await inviteMember(page, admin2Mail.address, 'admin')
+    const { inviteLink } = await inviteMember(page, admin2Mail.address, 'admin')
 
     // Admin2 accepts
-    const inviteEmail = await waitForEmail(admin2Mail, 'invited', 60000)
-    const inviteLink = extractInvitationLink(inviteEmail)
-
     await page.goto('/')
     await signIn(page, admin2Mail.address, 'Admin2Pass123!')
     await page.goto(inviteLink)

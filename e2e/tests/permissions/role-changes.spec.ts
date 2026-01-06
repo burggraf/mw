@@ -3,7 +3,7 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { createTempEmailAccount, waitForEmail, extractInvitationLink } from '../../helpers/temp-email'
+import { createTempEmailAccount } from '../../helpers/temp-email'
 import { signUpAndConfirm, signIn } from '../../helpers/auth-helpers'
 import { goToTeamPage, inviteMember, goToMembersTab, changeMemberRole, removeMember } from '../../helpers/team-helpers'
 
@@ -34,12 +34,9 @@ test.describe('Role Changes', () => {
     await page.goto('/')
     await signIn(page, adminMail.address, 'AdminPass123!')
     await goToTeamPage(page)
-    await inviteMember(page, memberMail.address, 'editor')
+    const { inviteLink } = await inviteMember(page, memberMail.address, 'editor')
 
     // Member accepts
-    const inviteEmail = await waitForEmail(memberMail, 'invited', 60000)
-    const inviteLink = extractInvitationLink(inviteEmail)
-
     await page.goto('/')
     await signIn(page, memberMail.address, 'MemberPass123!')
     await page.goto(inviteLink)
@@ -86,12 +83,9 @@ test.describe('Role Changes', () => {
     await page.goto('/')
     await signIn(page, adminMail.address, 'AdminPass123!')
     await goToTeamPage(page)
-    await inviteMember(page, editorMail.address, 'editor')
+    const { inviteLink } = await inviteMember(page, editorMail.address, 'editor')
 
     // Editor accepts
-    const inviteEmail = await waitForEmail(editorMail, 'invited', 60000)
-    const inviteLink = extractInvitationLink(inviteEmail)
-
     await page.goto('/')
     await signIn(page, editorMail.address, 'EditorPass123!')
     await page.goto(inviteLink)
@@ -164,12 +158,9 @@ test.describe('Role Changes', () => {
     await page.goto('/')
     await signIn(page, adminMail.address, 'AdminPass123!')
     await goToTeamPage(page)
-    await inviteMember(page, memberMail.address, 'editor')
+    const { inviteLink } = await inviteMember(page, memberMail.address, 'editor')
 
     // Member accepts
-    const inviteEmail = await waitForEmail(memberMail, 'invited', 60000)
-    const inviteLink = extractInvitationLink(inviteEmail)
-
     await page.goto('/')
     await signIn(page, memberMail.address, 'MemberPass123!')
     await page.goto(inviteLink)

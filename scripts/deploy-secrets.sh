@@ -36,6 +36,11 @@ if [ -z "$RESEND_API_KEY" ] || [ "$RESEND_API_KEY" = "re_xxx" ]; then
   exit 1
 fi
 
+if [ -z "$APP_URL" ] || [ "$APP_URL" = "https://your-app-url.com" ]; then
+  echo "Error: APP_URL not set in .env.server"
+  exit 1
+fi
+
 echo "Deploying secrets to Supabase..."
 
 supabase secrets set PEXELS_API_KEY="$PEXELS_API_KEY"
@@ -43,5 +48,6 @@ supabase secrets set UNSPLASH_ACCESS_KEY="$UNSPLASH_ACCESS_KEY"
 supabase secrets set PIXABAY_API_KEY="$PIXABAY_API_KEY"
 supabase secrets set GENIUS_ACCESS_TOKEN="$GENIUS_ACCESS_TOKEN"
 supabase secrets set RESEND_API_KEY="$RESEND_API_KEY"
+supabase secrets set APP_URL="$APP_URL"
 
 echo "Secrets deployed successfully!"
