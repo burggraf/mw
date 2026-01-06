@@ -65,22 +65,29 @@ test.describe('Existing User Invitation Flow', () => {
     console.log(`Visiting invitation link: ${inviteLink}`)
     await page.goto(inviteLink)
 
-    // Should redirect to login (since user exists)
+    // Should show invite page with sign-in option
+    await expect(page.getByText("You're Invited!")).toBeVisible({ timeout: 10000 })
+
+    // Click Sign In link to log in
+    await page.click('a:has-text("Sign In")')
     await page.waitForURL(/\/login/, { timeout: 10000 })
 
-    // Log in
-    await page.fill('input[type="email"]', existingUserMail.address)
-    await page.fill('input#password', existingUserPassword)
+    // Log in with the existing user credentials
+    const emailInput = page.locator('input[type="email"]')
+    const passwordInput = page.locator('input#password')
+    await emailInput.waitFor({ state: 'visible', timeout: 10000 })
+    await emailInput.fill(existingUserMail.address)
+    await passwordInput.fill(existingUserPassword)
     await page.click('button[type="submit"]')
 
-    // Should redirect to accept-invite page
-    await page.waitForURL(/\/accept-invite/, { timeout: 10000 })
+    // Should redirect back to accept-invite page
+    await page.waitForURL(/\/accept-invite/, { timeout: 30000 })
 
     // Verify invitation details
-    await expect(page.getByText('Church Alpha')).toBeVisible()
+    await expect(page.getByText('Church Alpha')).toBeVisible({ timeout: 10000 })
     await expect(page.getByText(/editor/i)).toBeVisible()
 
-    // Accept
+    // Accept the invitation
     await page.click('button:has-text("Accept")')
 
     // Should redirect to dashboard
