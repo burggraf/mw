@@ -3,11 +3,14 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useChurch } from '@/contexts/ChurchContext'
 import { getSupabase } from '@/lib/supabase'
+import { getSongs } from '@/services/songs'
+import { getEvents } from '@/services/events'
+import { getDisplaysForChurch } from '@/services/displays'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
-import { AlertCircle, Database, CreditCard, Image, Presentation, FileImage, FolderOpen } from 'lucide-react'
+import { AlertCircle, Database, CreditCard, Image, Presentation, FileImage, FolderOpen, Music, Calendar, Monitor, BarChart3 } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 interface StorageCategory {
@@ -20,6 +23,14 @@ interface StorageCategory {
 interface StorageStats {
   total: number
   categories: StorageCategory[]
+}
+
+interface ChurchStats {
+  songs: number
+  events: number
+  backgrounds: number
+  slides: number
+  displays: number
 }
 
 function formatBytes(bytes: number): string {
@@ -36,6 +47,7 @@ export function ChurchProfilePage() {
   const { currentChurch, isAdmin } = useChurch()
 
   const [storageStats, setStorageStats] = useState<StorageStats | null>(null)
+  const [churchStats, setChurchStats] = useState<ChurchStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -49,18 +61,22 @@ export function ChurchProfilePage() {
   useEffect(() => {
     if (!currentChurch || !isAdmin) return
 
-    const loadStorageStats = async () => {
+    const loadStats = async () => {
       setLoading(true)
       setError(null)
 
       try {
         const supabase = getSupabase()
 
-        // Call RPC function that queries storage.objects directly for accurate sizes
-        const { data: storageData, error: storageError } = await supabase
-          .rpc('get_church_storage_stats', { p_church_id: currentChurch.id })
+        // Fetch all stats in parallel
+        const [storageResult, songs, events, displays] = await Promise.all([
+          supabase.rpc('get_church_storage_stats', { p_church_id: currentChurch.id }),
+          getSongs(currentChurch.id),
+          getEvents(currentChurch.id),
+          getDisplaysForChurch(currentChurch.id),
+        ])
 
-        if (storageError) throw storageError
+        if (storageResult.error) throw storageResult.error
 
         // Map categories to display info
         const categoryIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -77,7 +93,7 @@ export function ChurchProfilePage() {
           other: 'other',
         }
 
-        const categories: StorageCategory[] = (storageData || []).map((item: { category: string; file_count: number; total_bytes: number }) => ({
+        const categories: StorageCategory[] = (storageResult.data || []).map((item: { category: string; file_count: number; total_bytes: number }) => ({
           name: categoryNames[item.category] || item.category,
           size: Number(item.total_bytes) || 0,
           count: Number(item.file_count) || 0,
@@ -86,19 +102,31 @@ export function ChurchProfilePage() {
 
         const total = categories.reduce((sum, cat) => sum + cat.size, 0)
 
+        // Get background and slide counts from storage categories
+        const backgroundCat = categories.find(c => c.name === 'backgrounds')
+        const slideCat = categories.find(c => c.name === 'slides')
+
         setStorageStats({
           total,
           categories: categories.filter(cat => cat.count > 0),
         })
+
+        setChurchStats({
+          songs: songs.length,
+          events: events.length,
+          backgrounds: backgroundCat?.count || 0,
+          slides: slideCat?.count || 0,
+          displays: displays.length,
+        })
       } catch (err) {
-        console.error('Failed to load storage stats:', err)
+        console.error('Failed to load stats:', err)
         setError(t('churchProfile.error'))
       } finally {
         setLoading(false)
       }
     }
 
-    loadStorageStats()
+    loadStats()
   }, [currentChurch, isAdmin, t])
 
   if (!isAdmin) {
@@ -121,6 +149,63 @@ export function ChurchProfilePage() {
       </div>
 
       <div className="space-y-6">
+        {/* Analytics Card */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              {t('churchProfile.analytics')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="grid grid-cols-5 gap-4">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-12" />
+                ))}
+              </div>
+            ) : churchStats ? (
+              <div className="grid grid-cols-5 gap-4">
+                <div className="text-center">
+                  <div className="flex justify-center mb-1">
+                    <Music className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="text-2xl font-bold">{churchStats.songs}</div>
+                  <div className="text-xs text-muted-foreground">{t('nav.songs')}</div>
+                </div>
+                <div className="text-center">
+                  <div className="flex justify-center mb-1">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="text-2xl font-bold">{churchStats.events}</div>
+                  <div className="text-xs text-muted-foreground">{t('nav.events')}</div>
+                </div>
+                <div className="text-center">
+                  <div className="flex justify-center mb-1">
+                    <Image className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="text-2xl font-bold">{churchStats.backgrounds}</div>
+                  <div className="text-xs text-muted-foreground">{t('nav.backgrounds')}</div>
+                </div>
+                <div className="text-center">
+                  <div className="flex justify-center mb-1">
+                    <Presentation className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="text-2xl font-bold">{churchStats.slides}</div>
+                  <div className="text-xs text-muted-foreground">{t('nav.slides')}</div>
+                </div>
+                <div className="text-center">
+                  <div className="flex justify-center mb-1">
+                    <Monitor className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="text-2xl font-bold">{churchStats.displays}</div>
+                  <div className="text-xs text-muted-foreground">{t('nav.displays')}</div>
+                </div>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+
         {/* Storage Card */}
         <Card>
           <CardHeader>

@@ -2,20 +2,21 @@ import { useTranslation } from 'react-i18next'
 import { useChurch } from '@/contexts/ChurchContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Logo } from '@/components/Logo'
-import { Music, Calendar, Monitor, ImageIcon, Clock } from 'lucide-react'
+import { Music, Calendar, Monitor, ImageIcon, Presentation, Clock } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect, useCallback } from 'react'
 import { getSongs } from '@/services/songs'
 import { getEvents } from '@/services/events'
 import { getDisplaysForChurch } from '@/services/displays'
-import { getMedia } from '@/services/media'
+import { getMediaCount } from '@/services/media'
 import type { Event } from '@/types/event'
 
 interface DashboardStats {
   songCount: number
   eventCount: number
   displayCount: number
-  mediaCount: number
+  backgroundCount: number
+  slideCount: number
   upcomingEvents: Event[]
 }
 
@@ -49,7 +50,8 @@ const defaultStats: DashboardStats = {
   songCount: 0,
   eventCount: 0,
   displayCount: 0,
-  mediaCount: 0,
+  backgroundCount: 0,
+  slideCount: 0,
   upcomingEvents: [],
 }
 
@@ -83,11 +85,12 @@ export function DashboardPage() {
     if (!currentChurch) return
 
     try {
-      const [songs, events, displays, media] = await Promise.all([
+      const [songs, events, displays, backgroundCount, slideCount] = await Promise.all([
         getSongs(currentChurch.id),
         getEvents(currentChurch.id, 'upcoming'),
         getDisplaysForChurch(currentChurch.id),
-        getMedia(currentChurch.id),
+        getMediaCount(currentChurch.id, { category: 'background' }),
+        getMediaCount(currentChurch.id, { category: 'slide' }),
       ])
 
       // Filter events to only those in the next 7 days
@@ -102,7 +105,8 @@ export function DashboardPage() {
         songCount: songs.length,
         eventCount: events.length,
         displayCount: displays.length,
-        mediaCount: media.length,
+        backgroundCount,
+        slideCount,
         upcomingEvents: upcomingThisWeek,
       }
 
@@ -136,20 +140,28 @@ export function DashboardPage() {
       count: stats.eventCount,
     },
     {
+      title: t('nav.backgrounds'),
+      description: t('dashboard.manageBackgrounds'),
+      icon: ImageIcon,
+      href: '/backgrounds',
+      disabled: false,
+      count: stats.backgroundCount,
+    },
+    {
+      title: t('nav.slides'),
+      description: t('dashboard.manageSlides'),
+      icon: Presentation,
+      href: '/slides',
+      disabled: false,
+      count: stats.slideCount,
+    },
+    {
       title: t('nav.displays'),
       description: t('dashboard.configureDisplays'),
       icon: Monitor,
       href: '/displays',
       disabled: false,
       count: stats.displayCount,
-    },
-    {
-      title: t('nav.media'),
-      description: t('dashboard.manageMedia'),
-      icon: ImageIcon,
-      href: '/media',
-      disabled: false,
-      count: stats.mediaCount,
     },
   ]
 
