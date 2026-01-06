@@ -14,7 +14,7 @@ test.describe('Leaving Churches', () => {
     await signUpAndConfirm(page, adminMail, 'AdminPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Leave Test Church')
+      await page.fill('input#churchName', 'Leave Test Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -25,7 +25,7 @@ test.describe('Leaving Churches', () => {
     await signUpAndConfirm(page, userMail, 'UserPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'User Home Church')
+      await page.fill('input#churchName', 'User Home Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -76,7 +76,7 @@ test.describe('Leaving Churches', () => {
     await signUpAndConfirm(page, adminMail, 'AdminPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Sole Admin Church')
+      await page.fill('input#churchName', 'Sole Admin Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -110,7 +110,7 @@ test.describe('Leaving Churches', () => {
     await signUpAndConfirm(page, admin1Mail, 'Admin1Pass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Two Admins Church')
+      await page.fill('input#churchName', 'Two Admins Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -121,7 +121,7 @@ test.describe('Leaving Churches', () => {
     await signUpAndConfirm(page, admin2Mail, 'Admin2Pass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Admin2 Own Church')
+      await page.fill('input#churchName', 'Admin2 Own Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }

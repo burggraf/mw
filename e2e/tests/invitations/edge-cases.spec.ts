@@ -14,7 +14,7 @@ test.describe('Invitation Edge Cases', () => {
     await signUpAndConfirm(page, adminMail, 'AdminPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Cancel Test Church')
+      await page.fill('input#churchName', 'Cancel Test Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -52,7 +52,7 @@ test.describe('Invitation Edge Cases', () => {
     await signUpAndConfirm(page, adminMail, 'AdminPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Resend Test Church')
+      await page.fill('input#churchName', 'Resend Test Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -81,7 +81,7 @@ test.describe('Invitation Edge Cases', () => {
     await signUpAndConfirm(page, adminMail, 'AdminPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Duplicate Test Church')
+      await page.fill('input#churchName', 'Duplicate Test Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -114,7 +114,7 @@ test.describe('Invitation Edge Cases', () => {
     await signUpAndConfirm(page, adminMail, 'AdminPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Mismatch Test Church')
+      await page.fill('input#churchName', 'Mismatch Test Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -134,7 +134,7 @@ test.describe('Invitation Edge Cases', () => {
     await signUpAndConfirm(page, differentMail, 'DifferentPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Different User Church')
+      await page.fill('input#churchName', 'Different User Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -156,7 +156,7 @@ test.describe('Invitation Edge Cases', () => {
     await signUpAndConfirm(page, adminMail, 'AdminPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Already Accepted Church')
+      await page.fill('input#churchName', 'Already Accepted Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -167,7 +167,7 @@ test.describe('Invitation Edge Cases', () => {
     await signUpAndConfirm(page, inviteeMail, 'InviteePass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Invitee Church')
+      await page.fill('input#churchName', 'Invitee Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }

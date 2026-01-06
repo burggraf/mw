@@ -14,7 +14,7 @@ test.describe('Multi-Church Membership', () => {
     await signUpAndConfirm(page, admin1Mail, 'Admin1Pass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Church A')
+      await page.fill('input#churchName', 'Church A')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -25,7 +25,7 @@ test.describe('Multi-Church Membership', () => {
     await signUpAndConfirm(page, admin2Mail, 'Admin2Pass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Church B')
+      await page.fill('input#churchName', 'Church B')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -36,7 +36,7 @@ test.describe('Multi-Church Membership', () => {
     await signUpAndConfirm(page, multiUserMail, 'MultiPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Church C')
+      await page.fill('input#churchName', 'Church C')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -104,7 +104,7 @@ test.describe('Multi-Church Membership', () => {
     await signUpAndConfirm(page, adminMail, 'AdminPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Admin Church')
+      await page.fill('input#churchName', 'Admin Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -115,7 +115,7 @@ test.describe('Multi-Church Membership', () => {
     await signUpAndConfirm(page, userMail, 'UserPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'User Own Church')
+      await page.fill('input#churchName', 'User Own Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }

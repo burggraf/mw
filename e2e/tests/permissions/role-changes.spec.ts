@@ -14,7 +14,7 @@ test.describe('Role Changes', () => {
     await signUpAndConfirm(page, adminMail, 'AdminPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Role Change Church')
+      await page.fill('input#churchName', 'Role Change Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -25,7 +25,7 @@ test.describe('Role Changes', () => {
     await signUpAndConfirm(page, memberMail, 'MemberPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Member Own Church')
+      await page.fill('input#churchName', 'Member Own Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -66,7 +66,7 @@ test.describe('Role Changes', () => {
     await signUpAndConfirm(page, adminMail, 'AdminPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Editor Perm Church')
+      await page.fill('input#churchName', 'Editor Perm Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -77,7 +77,7 @@ test.describe('Role Changes', () => {
     await signUpAndConfirm(page, editorMail, 'EditorPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Editor Own Church')
+      await page.fill('input#churchName', 'Editor Own Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -144,7 +144,7 @@ test.describe('Role Changes', () => {
     await signUpAndConfirm(page, adminMail, 'AdminPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Remove Member Church')
+      await page.fill('input#churchName', 'Remove Member Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -155,7 +155,7 @@ test.describe('Role Changes', () => {
     await signUpAndConfirm(page, memberMail, 'MemberPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'To Remove Own Church')
+      await page.fill('input#churchName', 'To Remove Own Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -206,7 +206,7 @@ test.describe('Role Changes', () => {
     await signUpAndConfirm(page, adminMail, 'AdminPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Last Admin Demote Church')
+      await page.fill('input#churchName', 'Last Admin Demote Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }

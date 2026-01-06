@@ -22,7 +22,7 @@ test.describe('Existing User Invitation Flow', () => {
     await signUpAndConfirm(page, admin1Mail, admin1Password)
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Church Alpha')
+      await page.fill('input#churchName', 'Church Alpha')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -37,7 +37,7 @@ test.describe('Existing User Invitation Flow', () => {
     await signUpAndConfirm(page, existingUserMail, existingUserPassword)
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Church Beta')
+      await page.fill('input#churchName', 'Church Beta')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -104,7 +104,7 @@ test.describe('Existing User Invitation Flow', () => {
     await signUpAndConfirm(page, adminMail, 'AdminPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Direct Accept Church')
+      await page.fill('input#churchName', 'Direct Accept Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
@@ -115,7 +115,7 @@ test.describe('Existing User Invitation Flow', () => {
     await signUpAndConfirm(page, user2Mail, 'User2Pass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input[name="churchName"]', 'Other Church')
+      await page.fill('input#churchName', 'Other Church')
       await page.click('button[type="submit"]')
       await page.waitForURL(/\/dashboard/, { timeout: 10000 })
     }
