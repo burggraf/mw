@@ -55,4 +55,4 @@ export interface EventWithItems extends Event {
 }
 
 // Filter options for event list
-export type EventFilter = 'upcoming' | 'past'
+export type EventFilter = 'upcoming' | 'past' | 'all'

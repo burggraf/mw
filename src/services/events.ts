@@ -52,8 +52,11 @@ export async function getEvents(churchId: string, filter: EventFilter = 'upcomin
 
   if (filter === 'upcoming') {
     query = query.gte('scheduled_at', now).order('scheduled_at', { ascending: true })
-  } else {
+  } else if (filter === 'past') {
     query = query.lt('scheduled_at', now).order('scheduled_at', { ascending: false })
+  } else {
+    // 'all' - no date filter, order by most recent first
+    query = query.order('scheduled_at', { ascending: false })
   }
 
   const { data, error } = await query

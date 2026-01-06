@@ -76,7 +76,8 @@
     "upcomingThisWeek": "Proximos Esta Semana",
     "noUpcomingEvents": "No hay eventos programados esta semana",
     "today": "Hoy",
-    "tomorrow": "Manana"
+    "tomorrow": "Manana",
+    "upcoming": "Próximos"
   },
   "settings": {
     "title": "Configuracion",
@@ -655,6 +656,7 @@
     "noFiles": "Sin archivos",
     "files": "{{count}} archivo",
     "files_plural": "{{count}} archivos",
+    "totalEvents": "Total de Eventos",
     "accessDenied": "Acceso Denegado",
     "adminOnly": "Solo los administradores pueden acceder al perfil de la iglesia"
   },

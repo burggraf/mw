@@ -13,7 +13,8 @@ import type { Event } from '@/types/event'
 
 interface DashboardStats {
   songCount: number
-  eventCount: number
+  totalEventCount: number
+  upcomingEventCount: number
   displayCount: number
   backgroundCount: number
   slideCount: number
@@ -48,7 +49,8 @@ function saveCachedStats(churchId: string, stats: DashboardStats): void {
 
 const defaultStats: DashboardStats = {
   songCount: 0,
-  eventCount: 0,
+  totalEventCount: 0,
+  upcomingEventCount: 0,
   displayCount: 0,
   backgroundCount: 0,
   slideCount: 0,
@@ -85,8 +87,9 @@ export function DashboardPage() {
     if (!currentChurch) return
 
     try {
-      const [songs, events, displays, backgroundCount, slideCount] = await Promise.all([
+      const [songs, allEvents, upcomingEvents, displays, backgroundCount, slideCount] = await Promise.all([
         getSongs(currentChurch.id),
+        getEvents(currentChurch.id, 'all'),
         getEvents(currentChurch.id, 'upcoming'),
         getDisplaysForChurch(currentChurch.id),
         getMediaCount(currentChurch.id, { category: 'background' }),
@@ -96,14 +99,15 @@ export function DashboardPage() {
       // Filter events to only those in the next 7 days
       const now = new Date()
       const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-      const upcomingThisWeek = events.filter(event => {
+      const upcomingThisWeek = upcomingEvents.filter(event => {
         const eventDate = new Date(event.scheduledAt)
         return eventDate >= now && eventDate <= oneWeekFromNow
       })
 
       const newStats: DashboardStats = {
         songCount: songs.length,
-        eventCount: events.length,
+        totalEventCount: allEvents.length,
+        upcomingEventCount: upcomingEvents.length,
         displayCount: displays.length,
         backgroundCount,
         slideCount,
@@ -137,7 +141,9 @@ export function DashboardPage() {
       icon: Calendar,
       href: '/events',
       disabled: false,
-      count: stats.eventCount,
+      count: stats.totalEventCount,
+      subCount: stats.upcomingEventCount,
+      subCountLabel: t('dashboard.upcoming'),
     },
     {
       title: t('nav.backgrounds'),
@@ -220,8 +226,13 @@ export function DashboardPage() {
               </CardHeader>
               <CardContent>
                 {!action.disabled && action.count !== null && (
-                  <div className="text-2xl font-bold mb-1">
-                    {action.count}
+                  <div className="mb-1">
+                    <span className="text-2xl font-bold">{action.count}</span>
+                    {'subCount' in action && action.subCount !== undefined && (
+                      <span className="text-sm text-muted-foreground ml-2">
+                        ({action.subCount} {action.subCountLabel})
+                      </span>
+                    )}
                   </div>
                 )}
                 <CardDescription>

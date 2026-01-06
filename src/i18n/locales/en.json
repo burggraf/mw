@@ -76,7 +76,8 @@
     "upcomingThisWeek": "Upcoming This Week",
     "noUpcomingEvents": "No events scheduled this week",
     "today": "Today",
-    "tomorrow": "Tomorrow"
+    "tomorrow": "Tomorrow",
+    "upcoming": "Upcoming"
   },
   "settings": {
     "title": "Settings",
@@ -655,6 +656,7 @@
     "noFiles": "No files",
     "files": "{{count}} file",
     "files_plural": "{{count}} files",
+    "totalEvents": "Total Events",
     "accessDenied": "Access Denied",
     "adminOnly": "Only administrators can access the church profile"
   },

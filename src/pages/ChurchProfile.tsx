@@ -27,7 +27,8 @@ interface StorageStats {
 
 interface ChurchStats {
   songs: number
-  events: number
+  totalEvents: number
+  upcomingEvents: number
   backgrounds: number
   slides: number
   displays: number
@@ -69,10 +70,11 @@ export function ChurchProfilePage() {
         const supabase = getSupabase()
 
         // Fetch all stats in parallel
-        const [storageResult, songs, events, displays] = await Promise.all([
+        const [storageResult, songs, allEvents, upcomingEvents, displays] = await Promise.all([
           supabase.rpc('get_church_storage_stats', { p_church_id: currentChurch.id }),
           getSongs(currentChurch.id),
-          getEvents(currentChurch.id),
+          getEvents(currentChurch.id, 'all'),
+          getEvents(currentChurch.id, 'upcoming'),
           getDisplaysForChurch(currentChurch.id),
         ])
 
@@ -113,7 +115,8 @@ export function ChurchProfilePage() {
 
         setChurchStats({
           songs: songs.length,
-          events: events.length,
+          totalEvents: allEvents.length,
+          upcomingEvents: upcomingEvents.length,
           backgrounds: backgroundCat?.count || 0,
           slides: slideCat?.count || 0,
           displays: displays.length,
@@ -159,13 +162,13 @@ export function ChurchProfilePage() {
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="grid grid-cols-5 gap-4">
-                {[...Array(5)].map((_, i) => (
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+                {[...Array(6)].map((_, i) => (
                   <Skeleton key={i} className="h-12" />
                 ))}
               </div>
             ) : churchStats ? (
-              <div className="grid grid-cols-5 gap-4">
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
                 <div className="text-center">
                   <div className="flex justify-center mb-1">
                     <Music className="h-4 w-4 text-muted-foreground" />
@@ -177,8 +180,15 @@ export function ChurchProfilePage() {
                   <div className="flex justify-center mb-1">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                   </div>
-                  <div className="text-2xl font-bold">{churchStats.events}</div>
-                  <div className="text-xs text-muted-foreground">{t('nav.events')}</div>
+                  <div className="text-2xl font-bold">{churchStats.totalEvents}</div>
+                  <div className="text-xs text-muted-foreground">{t('churchProfile.totalEvents')}</div>
+                </div>
+                <div className="text-center">
+                  <div className="flex justify-center mb-1">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="text-2xl font-bold">{churchStats.upcomingEvents}</div>
+                  <div className="text-xs text-muted-foreground">{t('dashboard.upcoming')}</div>
                 </div>
                 <div className="text-center">
                   <div className="flex justify-center mb-1">
