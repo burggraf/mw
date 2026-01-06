@@ -61,8 +61,17 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     const appUrl = Deno.env.get('APP_URL') || 'http://localhost:5173';
+    const skipEmails = Deno.env.get('SKIP_INVITATION_EMAILS') === 'true';
 
-    console.log('send-invitation called, RESEND_API_KEY configured:', !!resendApiKey);
+    console.log('send-invitation called, RESEND_API_KEY configured:', !!resendApiKey, 'skipEmails:', skipEmails);
+
+    if (skipEmails) {
+      console.log('SKIP_INVITATION_EMAILS=true, skipping email send');
+      return new Response(
+        JSON.stringify({ success: true, message: 'Email sending skipped (test mode)' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (!resendApiKey) {
       console.log('RESEND_API_KEY not configured, skipping email send');
