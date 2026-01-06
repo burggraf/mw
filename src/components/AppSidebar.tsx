@@ -54,6 +54,7 @@ import {
   Monitor,
   Presentation,
   User,
+  Building,
 } from 'lucide-react'
 
 const navItems = [
@@ -76,7 +77,7 @@ export function AppSidebar() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, userProfile, signOut } = useAuth()
-  const { churches, currentChurch, setCurrentChurch } = useChurch()
+  const { churches, currentChurch, setCurrentChurch, isAdmin } = useChurch()
   const { resolvedTheme, setTheme } = useTheme()
   const { setOpenMobile } = useSidebar()
   const [profileModalOpen, setProfileModalOpen] = useState(false)
@@ -308,6 +309,12 @@ export function AppSidebar() {
                   <User className="mr-2 h-4 w-4" />
                   {t('profile.title')}
                 </DropdownMenuItem>
+                {isAdmin && (
+                  <DropdownMenuItem onClick={() => handleNavigation('/church-profile')}>
+                    <Building className="mr-2 h-4 w-4" />
+                    {t('churchProfile.title')}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={handleSignOut}>
                   <LogOut className="mr-2 h-4 w-4" />
                   {t('auth.signOut')}

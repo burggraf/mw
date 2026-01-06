@@ -15,6 +15,7 @@ import { EventEditorPage } from '@/pages/EventEditor'
 import { EventDetailPage } from '@/pages/EventDetail'
 import { DisplaysPage } from '@/pages/Displays'
 import { TeamPage } from '@/pages/Team'
+import { ChurchProfilePage } from '@/pages/ChurchProfile'
 import { AcceptInvitePage } from '@/pages/AcceptInvite'
 import { Controller } from '@/pages/live/Controller'
 import { DisplayPage } from '@/pages/live/Display'
@@ -124,6 +125,10 @@ const router = createBrowserRouter([
           {
             path: '/team',
             element: <TeamPage />,
+          },
+          {
+            path: '/church-profile',
+            element: <ChurchProfilePage />,
           },
           {
             path: '/settings',

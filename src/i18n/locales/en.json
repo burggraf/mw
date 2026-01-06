@@ -619,7 +619,7 @@
     "close": "Close"
   },
   "profile": {
-    "title": "Profile",
+    "title": "User Profile",
     "displayName": "Display Name",
     "displayNamePlaceholder": "Enter your name",
     "avatar": "Avatar",
@@ -633,6 +633,29 @@
     "cropConfirm": "Apply",
     "fileTooLarge": "File must be under 5MB",
     "invalidFileType": "Only JPEG, PNG, WebP, and GIF are allowed"
+  },
+  "churchProfile": {
+    "title": "Church Profile",
+    "analytics": "Analytics",
+    "storage": "Storage",
+    "storageUsed": "Storage Used",
+    "totalStorage": "Total Storage",
+    "loading": "Loading storage data...",
+    "error": "Failed to load storage data",
+    "subscription": "Subscription",
+    "plan": "Plan",
+    "freePlan": "Free Plan",
+    "subscriptionComingSoon": "Billing & subscription management coming soon",
+    "storageBreakdown": "Storage Breakdown",
+    "backgrounds": "Backgrounds",
+    "slides": "Slides",
+    "thumbnails": "Thumbnails",
+    "other": "Other",
+    "noFiles": "No files",
+    "files": "{{count}} file",
+    "files_plural": "{{count}} files",
+    "accessDenied": "Access Denied",
+    "adminOnly": "Only administrators can access the church profile"
   },
   "team": {
     "title": "Team",
