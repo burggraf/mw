@@ -5,6 +5,7 @@ mod commands;
 mod edid;
 mod websocket;
 mod mdns;
+mod display_manager;
 
 use std::sync::Arc;
 use tauri::Manager;
@@ -68,6 +69,7 @@ pub fn run() {
         .manage(Arc::new(auto_start_mode))
         .manage(Arc::new(Mutex::new(websocket::WebSocketServer::new())))
         .manage(Arc::new(mdns::AdvertiserState::new()))
+        .manage(Arc::new(display_manager::DisplayManagerState::new()))
         .invoke_handler({
             // Desktop: includes all commands including multi-monitor display management
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
@@ -127,6 +129,19 @@ pub fn run() {
             if mode != AutoStartMode::None {
                 commands::start_auto_test(app.handle().clone(), mode);
             }
+
+            // Start display manager for automatic external display detection (desktop only)
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            {
+                let display_manager = app.state::<Arc<display_manager::DisplayManagerState>>();
+                let dm = display_manager.inner().clone();
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    dm.start_monitoring(handle).await;
+                });
+                tracing::info!("Display manager monitoring started");
+            }
+
             Ok(())
         })
         .run(tauri::generate_context!())

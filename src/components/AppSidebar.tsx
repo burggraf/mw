@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChurch } from '@/contexts/ChurchContext'
 import { useTheme } from '@/contexts/ThemeContext'
-import { isTauri } from '@/lib/tauri'
+// isTauri import removed - no longer needed after Display Mode removal
 import { ProfileModal } from '@/components/ProfileModal'
 import { ChurchAvatar } from '@/components/ChurchAvatar'
 import {
@@ -69,9 +69,7 @@ const navItems = [
   { key: 'settings', icon: Settings, href: '/settings', disabled: true },
 ]
 
-const liveItems = [
-  { key: 'displayMode', icon: Monitor, href: '/live/display' },
-]
+// Display Mode removed - external displays are now managed automatically by the Tauri backend
 
 export function AppSidebar() {
   const { t, i18n } = useTranslation()
@@ -218,31 +216,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Live Section */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Live</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {liveItems.map((item) => {
-                const isDisabled = !isTauri()
-                return (
-                  <SidebarMenuItem key={item.key}>
-                    <SidebarMenuButton
-                      isActive={location.pathname === item.href || location.pathname.startsWith(item.href + '/')}
-                      disabled={isDisabled}
-                      tooltip={t(`${item.key}.title`)}
-                      onClick={isDisabled ? undefined : () => handleNavigation(item.href)}
-                      className={isDisabled ? 'opacity-50' : ''}
-                    >
-                      <item.icon className="size-4" />
-                      <span>{t(`${item.key}.title`)}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* Live Section removed - external displays are now managed automatically */}
       </SidebarContent>
 
       <SidebarFooter>

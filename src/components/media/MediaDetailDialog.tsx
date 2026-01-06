@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { X, Plus, Type, Folder, Pen } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Media, SlideFolder } from '@/types/media'
-import { updateMedia, getSignedMediaUrl, getMediaById, createMedia } from '@/services/media'
+import { updateMedia, getSignedMediaUrl, createMedia } from '@/services/media'
 import { SlideAnnotationEditor } from '@/components/slides/SlideAnnotationEditor'
 import { getSupabase } from '@/lib/supabase'
 import { generateStoragePath, generateImageThumbnail, getImageDimensions } from '@/lib/media-utils'
@@ -273,7 +273,7 @@ Was blind, but now I see`
         const oldThumbnailPath = media.thumbnailPath
 
         // Update the database record to point to new files
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('media')
           .update({
             storage_path: storagePath,
@@ -322,7 +322,7 @@ Was blind, but now I see`
           source: 'upload',
           tags: [...media.tags, 'annotated'],
           category: 'slide',
-          folderId: media.folderId,
+          folderId: media.folderId ?? undefined,
           loopTime: media.loopTime,
         })
 
