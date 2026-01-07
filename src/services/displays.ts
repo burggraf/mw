@@ -325,8 +325,8 @@ export async function markStaleDisplaysOffline(churchId: string): Promise<void> 
 export async function registerLocalDisplay(
   churchId: string,
   displayId: string,
-  displayName: string,
-  deviceId?: string
+  _displayName: string,
+  _deviceId?: string
 ): Promise<void> {
   const supabase = getSupabase();
 
