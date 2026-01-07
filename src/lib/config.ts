@@ -1,3 +1,5 @@
+import { createClient } from '@supabase/supabase-js'
+
 export interface AppConfig {
   supabaseUrl: string
   supabaseAnonKey: string
@@ -8,12 +10,10 @@ export interface AppConfig {
   googleClientId?: string
 }
 
-// Try local bundled config first, then fallback to remote
-const LOCAL_CONFIG = '/config.json'
-const REMOTE_CONFIG = 'https://app.mobileworship.app/config.json'
+// Source of truth for config
+const REMOTE_CONFIG = 'https://mobileworship.com/config.json'
 
 const CACHE_KEY = 'mw_config'
-const CACHE_TTL = 60 * 60 * 1000 // 1 hour
 
 interface CachedConfig {
   config: AppConfig
@@ -28,43 +28,34 @@ async function fetchConfig(url: string): Promise<AppConfig> {
   return await response.json() as AppConfig
 }
 
-export async function loadConfig(): Promise<AppConfig> {
-  // Try to load from cache first
-  const cached = getCachedConfig()
-
-  // In dev or if cache is expired, fetch fresh config
-  if (import.meta.env.DEV || !cached || Date.now() - cached.timestamp > CACHE_TTL) {
-    try {
-      // Try local bundled config first (for Tauri/Android apps)
-      const config = await fetchConfig(LOCAL_CONFIG)
-      setCachedConfig(config)
-      return config
-    } catch (localError) {
-      console.warn('Local config failed, trying remote:', localError)
-      try {
-        // Fallback to remote config
-        const config = await fetchConfig(REMOTE_CONFIG)
-        setCachedConfig(config)
-        return config
-      } catch (remoteError) {
-        // If both fail but we have cache, use it
-        if (cached) {
-          console.warn('Remote config failed, using cached version:', remoteError)
-          return cached.config
-        }
-        throw new Error(`Failed to load config from both local and remote sources`)
-      }
+/**
+ * Test if Supabase credentials are valid by creating a minimal client
+ * and checking if we can connect (doesn't require auth)
+ */
+async function validateSupabaseConfig(url: string, anonKey: string): Promise<boolean> {
+  try {
+    const client = createClient(url, anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+    })
+    // Try a simple health check - just getting the session should validate the URL/key
+    const { error } = await client.auth.getSession()
+    // An error about invalid credentials means the config is bad
+    // But "no session" is expected and fine
+    if (error?.message?.includes('Invalid') || error?.message?.includes('API key')) {
+      return false
     }
+    return true
+  } catch {
+    return false
   }
-
-  return cached.config
 }
 
-function getCachedConfig(): CachedConfig | null {
+function getCachedConfig(): AppConfig | null {
   try {
     const raw = localStorage.getItem(CACHE_KEY)
     if (!raw) return null
-    return JSON.parse(raw) as CachedConfig
+    const cached = JSON.parse(raw) as CachedConfig
+    return cached.config
   } catch {
     return null
   }
@@ -80,4 +71,40 @@ function setCachedConfig(config: AppConfig): void {
   } catch {
     // localStorage might be unavailable
   }
+}
+
+/**
+ * Load config with remote-first, cache-fallback strategy:
+ * 1. Try cached values first
+ * 2. If cache doesn't exist or doesn't work, fetch from remote
+ * 3. Cache the remote values for future use
+ */
+export async function loadConfig(): Promise<AppConfig> {
+  const cached = getCachedConfig()
+
+  // Step 1: Try cached config first
+  if (cached) {
+    const isValid = await validateSupabaseConfig(cached.supabaseUrl, cached.supabaseAnonKey)
+    if (isValid) {
+      console.log('[Config] Using cached config')
+      return cached
+    }
+    console.log('[Config] Cached config invalid, fetching fresh')
+  }
+
+  // Step 2: Fetch from remote (source of truth)
+  console.log('[Config] Fetching from remote:', REMOTE_CONFIG)
+  const config = await fetchConfig(REMOTE_CONFIG)
+
+  // Validate the remote config before using it
+  const isValid = await validateSupabaseConfig(config.supabaseUrl, config.supabaseAnonKey)
+  if (!isValid) {
+    throw new Error('Remote config contains invalid Supabase credentials')
+  }
+
+  // Step 3: Cache the valid config for future use
+  setCachedConfig(config)
+  console.log('[Config] Cached remote config')
+
+  return config
 }
