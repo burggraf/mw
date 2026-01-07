@@ -283,3 +283,33 @@ export async function markStaleDisplaysOffline(churchId: string): Promise<void> 
 
   if (error) throw error;
 }
+
+/**
+ * Register or update a local mode display (auto-detected external monitors)
+ * Uses upsert to create if doesn't exist, or update if it does
+ */
+export async function registerLocalDisplay(
+  churchId: string,
+  displayId: string,
+  displayName: string,
+  deviceId?: string
+): Promise<void> {
+  const supabase = getSupabase();
+
+  const { error } = await supabase
+    .from('displays')
+    .upsert({
+      church_id: churchId,
+      display_id: displayId,
+      device_id: deviceId || displayId,
+      name: displayName,
+      display_class: 'audience', // Default for auto-detected displays
+      is_online: true,
+      last_seen_at: new Date().toISOString(),
+    }, {
+      onConflict: 'display_id',
+      ignoreDuplicates: false,
+    });
+
+  if (error) throw error;
+}

@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tokio::sync::Mutex;
 use tracing::{info, warn, error, debug};
 
@@ -23,8 +23,28 @@ const STARTUP_DELAY_SECS: u64 = 2;
 #[derive(Debug, Clone)]
 struct OpenDisplay {
     display_id: String,
+    display_name: String,
+    device_id: String,
+    width: u32,
+    height: u32,
     window_label: String,
     monitor_index: i32,
+}
+
+/// Event payload for when a local display is opened
+#[derive(Clone, serde::Serialize)]
+struct LocalDisplayOpened {
+    display_id: String,
+    display_name: String,
+    device_id: String,
+    width: i32,
+    height: i32,
+}
+
+/// Event payload for when a local display is closed
+#[derive(Clone, serde::Serialize)]
+struct LocalDisplayClosed {
+    display_id: String,
 }
 
 /// Per-display mDNS advertiser
@@ -62,6 +82,17 @@ pub struct DisplayManager {
     ws_port: Option<u16>,
 }
 
+/// Information about an open local display (for frontend)
+/// Re-exported for use by commands
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct LocalDisplayInfo {
+    pub display_id: String,
+    pub display_name: String,
+    pub device_id: String,
+    pub width: u32,
+    pub height: u32,
+}
+
 impl DisplayManager {
     /// Create a new DisplayManager
     pub fn new() -> Self {
@@ -71,6 +102,19 @@ impl DisplayManager {
             device_id: None,
             ws_port: None,
         }
+    }
+
+    /// Get information about all currently open displays
+    pub fn get_open_displays(&self) -> Vec<LocalDisplayInfo> {
+        self.open_displays.values().map(|d| {
+            LocalDisplayInfo {
+                display_id: d.display_id.clone(),
+                display_name: d.display_name.clone(),
+                device_id: d.device_id.clone(),
+                width: d.width,
+                height: d.height,
+            }
+        }).collect()
     }
 
     /// Get or initialize the device ID
@@ -259,6 +303,10 @@ impl DisplayManager {
             // Track the existing display
             self.open_displays.insert(display_id.clone(), OpenDisplay {
                 display_id: display_id.clone(),
+                display_name: monitor_info.name.clone(),
+                device_id: device_id.clone(),
+                width: monitor_info.size_x,
+                height: monitor_info.size_y,
                 window_label: window_label.clone(),
                 monitor_index: monitor_info.id,
             });
@@ -272,6 +320,15 @@ impl DisplayManager {
                 ws_port,
                 &device_id,
             ).await?;
+
+            // Emit event for adopted display too
+            let _ = app.emit("local-display-opened", LocalDisplayOpened {
+                display_id: display_id.to_string(),
+                display_name: monitor_info.name.clone(),
+                device_id: device_id.clone(),
+                width: monitor_info.size_x as i32,
+                height: monitor_info.size_y as i32,
+            });
 
             info!("✓ Adopted existing display window '{}' and started advertising", monitor_info.name);
             return Ok(());
@@ -298,26 +355,60 @@ impl DisplayManager {
         let encoded_name = urlencoding::encode(&monitor_info.name);
         let encoded_display_id = urlencoding::encode(display_id);
 
-        let _window = WebviewWindowBuilder::new(
+        // Physical coordinates work for Sidecar placement
+        // CSS in Display.tsx will handle scaling the content to fit
+        info!(
+            "Window: {}x{} at ({}, {}) physical - scale: {}",
+            monitor_info.size_x, monitor_info.size_y,
+            monitor_info.position_x, monitor_info.position_y,
+            monitor_info.scale_factor
+        );
+
+        // Create window with decorations first (required for Sidecar to render)
+        // Then remove decorations after window is visible on the external display
+        let window = WebviewWindowBuilder::new(
             app,
             &window_label,
             WebviewUrl::App(format!(
-                "/live/display?eventId=default&displayName={}&displayId={}&localMode=true",
-                encoded_name, encoded_display_id
+                "/live/display?eventId=default&displayName={}&displayId={}&localMode=true&scaleFactor={}",
+                encoded_name, encoded_display_id, monitor_info.scale_factor
             ).into())
         )
         .position(monitor_info.position_x as f64, monitor_info.position_y as f64)
         .inner_size(monitor_info.size_x as f64, monitor_info.size_y as f64)
         .resizable(false)
-        .decorations(false)
+        .decorations(true) // Start with decorations for Sidecar compatibility
         .skip_taskbar(true)
         .always_on_top(true)
+        .visible(true)
+        .focused(true)
+        .title("Mobile Worship Display")
         .build()
         .map_err(|e| format!("Failed to create display window: {}", e))?;
+
+        // Remove decorations after window is visible on external display
+        // Note: set_fullscreen(true) and set_maximized(true) both move window to main display
+        // on Sidecar, so we only remove decorations. The macOS global menu bar will remain
+        // visible at the top - this is a Sidecar/macOS limitation that cannot be worked around.
+        std::thread::spawn({
+            let window = window.clone();
+            move || {
+                std::thread::sleep(std::time::Duration::from_millis(500));
+                if let Err(e) = window.set_decorations(false) {
+                    eprintln!("Failed to remove decorations: {}", e);
+                } else {
+                    eprintln!("Removed window decorations");
+                }
+            }
+        });
 
         // Track the open display
         self.open_displays.insert(display_id.clone(), OpenDisplay {
             display_id: display_id.clone(),
+            display_name: monitor_info.name.clone(),
+            device_id: device_id.clone(),
+            width: monitor_info.size_x,
+            height: monitor_info.size_y,
             window_label: window_label.clone(),
             monitor_index: monitor_info.id,
         });
@@ -331,6 +422,16 @@ impl DisplayManager {
             ws_port,
             &device_id,
         ).await?;
+
+        // Emit event to main window so it can register the display in the database
+        // The main window has ChurchContext and can handle DB operations
+        let _ = app.emit("local-display-opened", LocalDisplayOpened {
+            display_id: display_id.to_string(),
+            display_name: monitor_info.name.clone(),
+            device_id: device_id.clone(),
+            width: monitor_info.size_x as i32,
+            height: monitor_info.size_y as i32,
+        });
 
         info!("✓ Display window '{}' opened and advertising", monitor_info.name);
         Ok(())
@@ -348,6 +449,11 @@ impl DisplayManager {
             if let Some(window) = app.get_webview_window(&display.window_label) {
                 let _ = window.destroy();
             }
+
+            // Emit event to main window so it can mark display as offline
+            let _ = app.emit("local-display-closed", LocalDisplayClosed {
+                display_id: display_id.to_string(),
+            });
         }
         Ok(())
     }
@@ -539,6 +645,12 @@ impl DisplayManagerState {
         if let Some(tx) = tx_guard.take() {
             let _ = tx.send(());
         }
+    }
+
+    /// Get currently open local displays
+    pub async fn get_open_displays(&self) -> Vec<LocalDisplayInfo> {
+        let mgr = self.manager.lock().await;
+        mgr.get_open_displays()
     }
 }
 

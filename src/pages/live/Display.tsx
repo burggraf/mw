@@ -58,6 +58,13 @@ const getDisplayIdFromUrl = (): string | null => {
   return urlParams.get('displayId')
 }
 
+// Get scale factor from URL params (for HiDPI displays like iPad via Sidecar)
+const getScaleFactorFromUrl = (): number => {
+  const urlParams = new URLSearchParams(window.location.search)
+  const scaleFactor = urlParams.get('scaleFactor')
+  return scaleFactor ? parseFloat(scaleFactor) : 1
+}
+
 export function DisplayPage({ eventId }: DisplayPageProps) {
   const { t } = useTranslation()
   const { currentChurch } = useChurch()
@@ -65,7 +72,10 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
 
   // Get display ID from URL - this identifies which display this window represents
   const displayIdRef = useRef<string | null>(getDisplayIdFromUrl())
+  // Get scale factor for HiDPI displays (e.g., iPad via Sidecar has scale factor 2)
+  const scaleFactorRef = useRef<number>(getScaleFactorFromUrl())
   console.log('[Display] Display ID from URL:', displayIdRef.current)
+  console.log('[Display] Scale factor from URL:', scaleFactorRef.current)
 
   // Check if a message is targeted at this display
   // Returns true if message should be processed (broadcast or targeted to us)
@@ -97,6 +107,7 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
   const [menuIndex, setMenuIndex] = useState(0)
   const [isAndroid, setIsAndroid] = useState(false)
   const [activeDisplayId, setActiveDisplayId] = useState<string | null>(null)
+  const [eventListenersReady, setEventListenersReady] = useState(false)
 
   // Refs to track current song/slide for refresh when media arrives
   const currentSongIdRef = useRef<string | null>(null)
@@ -323,9 +334,6 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
 
   // Send periodic heartbeats to keep display marked as online
   useEffect(() => {
-    // Only send heartbeats in remote mode (not local display windows)
-    if (localMode) return
-
     // Wait until displayId is available
     if (!activeDisplayId) return
 
@@ -350,7 +358,7 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
         heartbeatIntervalRef.current = null
       }
     }
-  }, [localMode, activeDisplayId])
+  }, [activeDisplayId])
 
   // Handle precache message from controller
   const handlePrecache = useCallback(async (data: PrecacheMessage, ws?: WebSocket) => {
@@ -440,19 +448,121 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
     // Mark as initializing IMMEDIATELY at the start to prevent duplicate runs
     // This must be the FIRST thing checked to prevent React strict mode from running twice
     if (isInitializingRef.current || serverPortRef.current !== null) {
-      console.log('[Display] Already initialized or initializing, skipping')
+      console.log('[Display]','Already initialized, skipping')
       return
     }
     isInitializingRef.current = true
 
     // Check if Tauri APIs are available
     const hasTauri = isTauri()
-    console.log('[Display] Tauri available:', hasTauri)
+    console.log('[Display]',`Tauri available: ${hasTauri}, localMode: ${localMode}`)
 
     if (localMode) {
-      console.log('[Display] Running in local mode - using Tauri events')
-      setIsWaiting(false)
-      return
+      console.log('[Display]',`Local mode - setting up Tauri event listeners`)
+      console.log('[Display]',`Display ID: ${displayIdRef.current}`)
+
+      // Set up Tauri event listeners for local mode
+      let unlistenLyrics: (() => void) | undefined
+      let unlistenSlide: (() => void) | undefined
+
+      const setupLocalEventListeners = async () => {
+        console.log('[Display]','Importing @tauri-apps/api/event...')
+        const { listen } = await import('@tauri-apps/api/event')
+        console.log('[Display]','Import successful, setting up listeners...')
+
+        // Listen for lyrics events
+        unlistenLyrics = await listen<{
+          target_display_id?: string
+          church_id: string
+          event_id: string
+          song_id: string
+          title: string
+          lyrics: string
+          background_url?: string
+          timestamp: number
+        }>('display-lyrics', (event) => {
+          console.log('[Display]',`Received display-lyrics: ${event.payload.title}`)
+          const data = event.payload
+
+          // Check if this message is targeted at this display
+          if (data.target_display_id && displayIdRef.current && data.target_display_id !== displayIdRef.current) {
+            console.log('[Display]',`Ignoring - target: ${data.target_display_id}, our ID: ${displayIdRef.current}`)
+            return
+          }
+
+          // Process lyrics the same way as WebSocket messages
+          const song: Song = {
+            id: data.song_id,
+            churchId: data.church_id,
+            title: data.title,
+            content: data.lyrics,
+            author: null,
+            copyrightInfo: null,
+            ccliNumber: null,
+            arrangements: { default: [] },
+            backgrounds: {},
+            audienceBackgroundId: null,
+            stageBackgroundId: null,
+            lobbyBackgroundId: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date(data.timestamp).toISOString(),
+          }
+
+          const cached = songCache.get(song.id)
+          if (!cached || cached.updated_at < String(data.timestamp)) {
+            songCache.set(song.id, { song, updated_at: String(data.timestamp) })
+            console.log('[Display]',`Cached song: ${song.title}`)
+          }
+
+          // Handle background
+          if (data.background_url) {
+            if (data.background_url.startsWith('#')) {
+              setBackgroundColor(data.background_url)
+              setBackgroundUrl(null)
+            } else {
+              setBackgroundUrl(data.background_url)
+              setBackgroundColor(null)
+            }
+            backgroundUrlRef.current = data.background_url
+          }
+
+          // Load the first slide
+          console.log('[Display]',`Loading slide 0 for song ${song.id}`)
+          loadSlide(song.id, 0)
+        })
+
+        // Listen for slide events
+        unlistenSlide = await listen<{
+          target_display_id?: string
+          church_id: string
+          event_id: string
+          song_id: string
+          slide_index: number
+          timestamp: number
+        }>('display-slide', (event) => {
+          console.log('[Display]',`Received display-slide: song=${event.payload.song_id}, index=${event.payload.slide_index}`)
+          const data = event.payload
+
+          // Check if this message is targeted at this display
+          if (data.target_display_id && displayIdRef.current && data.target_display_id !== displayIdRef.current) {
+            console.log('[Display]',`Ignoring slide - target: ${data.target_display_id}`)
+            return
+          }
+
+          loadSlide(data.song_id, data.slide_index)
+        })
+
+        console.log('[Display]','Event listeners set up successfully')
+        setEventListenersReady(true)
+        setIsWaiting(false)
+      }
+
+      setupLocalEventListeners()
+
+      return () => {
+        unlistenLyrics?.()
+        unlistenSlide?.()
+      }
     }
 
     console.log('[Display] Remote mode - starting WebSocket server')
@@ -889,29 +999,44 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
     }, 0)
   }, [])
 
+  // For HiDPI displays (like iPad via Sidecar with scale factor 2),
+  // the window is created at physical pixel size but content renders at 1:1
+  // We need to scale down the entire content to fit
+  const scaleFactor = scaleFactorRef.current
+  const scale = scaleFactor > 1 ? 1 / scaleFactor : 1
+
+
   return (
     <div
       ref={containerRef}
       tabIndex={0}
       autoFocus
-      className="fixed inset-0 bg-black flex items-center justify-center overflow-hidden"
+      className="fixed inset-0 bg-black overflow-hidden"
       style={{ outline: 'none' }}
       onClick={handleContainerClick}
       onBlur={handleContainerBlur}
     >
-      {/* Background */}
+      {/* Scaled content wrapper - scales down for HiDPI displays */}
+      <div
+        className="absolute inset-0 flex items-center justify-center"
+        style={{
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left',
+        }}
+      >
+      {/* Background - use 100vw/vh to ensure it fills the viewport */}
       {backgroundUrl ? (
         <img
           src={backgroundUrl}
           alt=""
-          className="absolute inset-0 object-cover"
+          style={{ position: 'absolute', top: 0, left: 0, width: '100vw', height: '100vh', objectFit: 'cover' }}
           onError={(e) => console.error('[Display] Image failed to load:', backgroundUrl, e)}
           onLoad={() => console.log('[Display] Image loaded successfully:', backgroundUrl)}
         />
       ) : backgroundColor ? (
-        <div className="absolute inset-0" style={{ backgroundColor }} />
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor }} />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-800" />
+        <div className="bg-gradient-to-br from-slate-900 to-slate-800" style={{ position: 'absolute', top: 0, left: 0, width: '100vw', height: '100vh' }} />
       )}
 
       {/* Slide content */}
@@ -1001,6 +1126,7 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
           )}
         </div>
       )}
+      </div>{/* End of scaled content wrapper */}
 
       {/* Android TV Menu Overlay */}
       {showMenu && isAndroid && (

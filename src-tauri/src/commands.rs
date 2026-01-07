@@ -842,6 +842,38 @@ pub async fn publish_lyrics(
     background_url: Option<String>,
     target_display_id: Option<String>,
 ) -> Result<(), String> {
+    use tauri::Emitter;
+
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+
+    // Also emit Tauri event for local display windows
+    #[derive(Clone, serde::Serialize)]
+    struct LyricsEvent {
+        target_display_id: Option<String>,
+        church_id: String,
+        event_id: String,
+        song_id: String,
+        title: String,
+        lyrics: String,
+        background_url: Option<String>,
+        timestamp: i64,
+    }
+
+    let _ = app.emit("display-lyrics", LyricsEvent {
+        target_display_id: target_display_id.clone(),
+        church_id: church_id.clone(),
+        event_id: event_id.clone(),
+        song_id: song_id.clone(),
+        title: title.clone(),
+        lyrics: lyrics.clone(),
+        background_url: background_url.clone(),
+        timestamp,
+    });
+
+    // Broadcast via WebSocket to remote displays
     let ws_state = app.state::<Arc<tokio::sync::Mutex<WebSocketServer>>>();
     let server = ws_state.lock().await;
 
@@ -853,10 +885,7 @@ pub async fn publish_lyrics(
         title,
         lyrics,
         background_url,
-        timestamp: std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64,
+        timestamp,
     });
 
     server.broadcast(message).await
@@ -874,6 +903,34 @@ pub async fn publish_slide(
     slide_index: usize,
     target_display_id: Option<String>,
 ) -> Result<(), String> {
+    use tauri::Emitter;
+
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+
+    // Also emit Tauri event for local display windows
+    #[derive(Clone, serde::Serialize)]
+    struct SlideEvent {
+        target_display_id: Option<String>,
+        church_id: String,
+        event_id: String,
+        song_id: String,
+        slide_index: usize,
+        timestamp: i64,
+    }
+
+    let _ = app.emit("display-slide", SlideEvent {
+        target_display_id: target_display_id.clone(),
+        church_id: church_id.clone(),
+        event_id: event_id.clone(),
+        song_id: song_id.clone(),
+        slide_index,
+        timestamp,
+    });
+
+    // Broadcast via WebSocket to remote displays
     let ws_state = app.state::<Arc<tokio::sync::Mutex<WebSocketServer>>>();
     let server = ws_state.lock().await;
 
@@ -883,10 +940,7 @@ pub async fn publish_slide(
         event_id,
         song_id,
         slide_index,
-        timestamp: std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64,
+        timestamp,
     });
 
     server.broadcast(message).await
@@ -1092,4 +1146,14 @@ pub async fn get_local_ip_addresses() -> Result<Vec<String>, String> {
 
     tracing::info!("Found local IP addresses: {:?}", addresses);
     Ok(addresses)
+}
+
+/// Get currently open local displays (managed by DisplayManager)
+/// This allows the frontend to query existing displays on startup
+#[tauri::command]
+pub async fn get_open_local_displays(
+    app_handle: AppHandle,
+) -> Result<Vec<crate::display_manager::LocalDisplayInfo>, String> {
+    let state = app_handle.state::<Arc<crate::display_manager::DisplayManagerState>>();
+    Ok(state.get_open_displays().await)
 }

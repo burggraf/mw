@@ -178,7 +178,26 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const broadcastLyrics = useCallback((message: LyricsMessage) => {
+  const broadcastLyrics = useCallback(async (message: LyricsMessage) => {
+    // Send via Tauri command for local displays (emits Tauri events)
+    if (isTauri()) {
+      try {
+        await safeInvoke('publish_lyrics', {
+          churchId: message.church_id,
+          eventId: message.event_id,
+          songId: message.song_id,
+          title: message.title,
+          lyrics: message.lyrics,
+          backgroundUrl: message.background_url || null,
+          targetDisplayId: null, // broadcast to all
+        })
+        console.log('[WebSocketContext] Published lyrics via Tauri for local displays')
+      } catch (e) {
+        console.error('[WebSocketContext] Failed to publish lyrics via Tauri:', e)
+      }
+    }
+
+    // Also send via WebSocket for remote displays
     const payload = { type: 'lyrics', data: message }
     const json = JSON.stringify(payload)
 
@@ -190,10 +209,27 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       }
     })
 
-    console.log(`[WebSocketContext] Broadcast lyrics to ${wsRef.current.size} connections`)
+    console.log(`[WebSocketContext] Broadcast lyrics to ${wsRef.current.size} WebSocket connections`)
   }, [])
 
-  const broadcastSlide = useCallback((message: SlideMessage) => {
+  const broadcastSlide = useCallback(async (message: SlideMessage) => {
+    // Send via Tauri command for local displays (emits Tauri events)
+    if (isTauri()) {
+      try {
+        await safeInvoke('publish_slide', {
+          churchId: message.church_id,
+          eventId: message.event_id,
+          songId: message.song_id,
+          slideIndex: message.slide_index,
+          targetDisplayId: null, // broadcast to all
+        })
+        console.log('[WebSocketContext] Published slide via Tauri for local displays')
+      } catch (e) {
+        console.error('[WebSocketContext] Failed to publish slide via Tauri:', e)
+      }
+    }
+
+    // Also send via WebSocket for remote displays
     const payload = { type: 'slide', data: message }
     const json = JSON.stringify(payload)
 
@@ -205,7 +241,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       }
     })
 
-    console.log(`[WebSocketContext] Broadcast slide to ${wsRef.current.size} connections`)
+    console.log(`[WebSocketContext] Broadcast slide to ${wsRef.current.size} WebSocket connections`)
   }, [])
 
   const broadcastMedia = useCallback((message: MediaMessage) => {

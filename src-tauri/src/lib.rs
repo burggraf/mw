@@ -96,6 +96,7 @@ pub fn run() {
                     commands::start_udp_listener,
                     commands::get_device_id,
                     commands::get_local_ip_addresses,
+                    commands::get_open_local_displays,
                 ]
             }
             // Mobile (Android/iOS): excludes desktop-only multi-monitor commands

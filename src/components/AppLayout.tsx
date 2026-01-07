@@ -2,12 +2,16 @@ import { Outlet } from 'react-router-dom'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/AppSidebar'
 import { Separator } from '@/components/ui/separator'
+import { useLocalDisplayManager } from '@/hooks/useLocalDisplayManager'
 
 interface AppLayoutProps {
   children?: React.ReactNode
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
+  // Manage local displays (external monitors) opened by Tauri DisplayManager
+  useLocalDisplayManager()
+
   return (
     <SidebarProvider>
       <AppSidebar />
