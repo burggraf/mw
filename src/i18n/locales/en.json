@@ -709,7 +709,12 @@
     "removeMemberTitle": "Remove Team Member?",
     "removeMemberDescription": "{{name}} will lose access to this church. They can be invited again later.",
     "remove": "Remove",
-    "lastAdminError": "Cannot demote the last admin. Promote another member first."
+    "lastAdminError": "Cannot demote the last admin. Promote another member first.",
+    "leaveChurch": "Leave Church",
+    "leaveChurchTitle": "Leave Church?",
+    "leaveChurchDescription": "You will lose access to this church. You can be invited again later.",
+    "leaveChurchSuccess": "You have left the church",
+    "leaveLastAdminError": "You are the last admin and cannot leave. Transfer admin role first."
   },
   "invite": {
     "title": "You're Invited!",

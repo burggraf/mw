@@ -24,14 +24,19 @@ export function TeamPage() {
   const [showInviteDialog, setShowInviteDialog] = useState(false)
 
   const loadMembers = async () => {
-    if (!currentChurch) return
+    if (!currentChurch) {
+      console.error('[Team] No current church, skipping member load')
+      return
+    }
 
     try {
       setLoadingMembers(true)
+      console.log('[Team] Loading members for church:', currentChurch.id)
       const data = await getChurchMembers(currentChurch.id)
+      console.log('[Team] Loaded members:', data.length)
       setMembers(data)
     } catch (error) {
-      console.error('Failed to load members:', error)
+      console.error('[Team] Failed to load members:', error)
       toast.error(t('common.error'))
     } finally {
       setLoadingMembers(false)
@@ -39,14 +44,19 @@ export function TeamPage() {
   }
 
   const loadInvitations = async () => {
-    if (!currentChurch) return
+    if (!currentChurch) {
+      console.error('[Team] No current church, skipping invitations load')
+      return
+    }
 
     try {
       setLoadingInvitations(true)
+      console.log('[Team] Loading invitations for church:', currentChurch.id)
       const data = await getPendingInvitations(currentChurch.id)
+      console.log('[Team] Loaded invitations:', data.length)
       setInvitations(data)
     } catch (error) {
-      console.error('Failed to load invitations:', error)
+      console.error('[Team] Failed to load invitations:', error)
       toast.error(t('common.error'))
     } finally {
       setLoadingInvitations(false)

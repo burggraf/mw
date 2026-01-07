@@ -61,7 +61,10 @@ test.describe('Invitation Edge Cases', () => {
     // Navigate to invitations tab and resend
     await goToInvitationsTab(page)
     const row = page.locator(`[data-testid="invitation-row"]:has-text("${inviteeMail.address}")`)
-    await row.locator('button:has-text("Resend")').click()
+    // Click the dropdown trigger to open the menu
+    await row.locator('[data-testid="invitation-actions-trigger"]').click()
+    // Click the resend button in the dropdown menu
+    await page.locator('[data-testid="resend-invitation-button"]').click()
 
     // Wait for success message
     await expect(page.getByText(/sent|resent/i)).toBeVisible({ timeout: 5000 })
@@ -94,10 +97,10 @@ test.describe('Invitation Edge Cases', () => {
     await page.click('[data-testid="role-option-admin"]')
     await page.click('button:has-text("Send Invitation")')
 
-    // Should show error about duplicate
-    await expect(page.getByText(/already.*invited|pending.*invitation|duplicate/i)).toBeVisible({
-      timeout: 10000,
-    })
+    // Should show error about duplicate - check in toast container only
+    const errorToast = page.locator('[data-sonner-toast][data-type="error"]')
+    await expect(errorToast).toBeVisible({ timeout: 10000 })
+    await expect(errorToast).toContainText(/already.*invited|invitation.*sent/i, { timeout: 10000 })
 
     console.log('Duplicate invitation correctly rejected')
   })
@@ -132,10 +135,9 @@ test.describe('Invitation Edge Cases', () => {
     // Try to use invitation link as different user
     await page.goto(inviteLink)
 
-    // Should show email mismatch error
-    await expect(page.getByText(/different.*email|doesn't match|wrong.*account/i)).toBeVisible({
-      timeout: 10000,
-    })
+    // Should show email mismatch error - check for specific text in the error UI
+    await expect(page.getByText('Wrong Account')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText(/signed in with a different email/i)).toBeVisible({ timeout: 10000 })
 
     console.log('Email mismatch correctly detected')
   })

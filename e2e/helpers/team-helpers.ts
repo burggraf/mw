@@ -10,7 +10,30 @@ export type Role = 'admin' | 'editor' | 'operator'
  * Navigate to team page
  */
 export async function goToTeamPage(page: Page): Promise<void> {
+  const currentUrl = page.url()
+  console.log('[goToTeamPage] Current URL before navigation:', currentUrl)
+
+  // If on setup-church page, this is an error - tests should create church first
+  if (currentUrl.includes('/setup-church')) {
+    throw new Error('Cannot go to team page - user is on setup-church page. Church must be created first.')
+  }
+
+  // First, ensure church context is loaded by waiting for church selector
+  // This prevents race conditions where Team page loads before church context is ready
+  if (!currentUrl.includes('/team')) {
+    // If not already on team page, wait for church selector to ensure context is loaded
+    try {
+      await page.waitForSelector('[data-testid="church-selector"]', { timeout: 5000 })
+      console.log('[goToTeamPage] Church selector found, context loaded')
+    } catch {
+      // Church selector not found
+      console.log('[goToTeamPage] Church selector not found, may cause issues')
+    }
+  }
+
+  console.log('[goToTeamPage] Navigating to /team')
   await page.goto('/team')
+
   // Wait for page to load - look for either Team heading or redirect to login
   await Promise.race([
     page.waitForSelector('h1', { timeout: 10000 }),
@@ -22,8 +45,17 @@ export async function goToTeamPage(page: Page): Promise<void> {
     throw new Error('Redirected to login - user not authenticated')
   }
 
-  // Wait for content to load
-  await page.waitForTimeout(1000)
+  // If redirected back to setup-church, church doesn't exist yet
+  if (page.url().includes('/setup-church')) {
+    throw new Error('Redirected to setup-church - church must be created first')
+  }
+
+  // Wait for members tab to be present and clickable
+  await page.waitForSelector('button[role="tab"]:has-text("Members")', { timeout: 5000 })
+
+  // Wait for members to finish loading (check for member rows or empty state)
+  await page.waitForTimeout(500)
+  console.log('[goToTeamPage] Team page loaded successfully')
 }
 
 /**
@@ -128,7 +160,7 @@ export async function inviteMember(
  * Switch to invitations tab
  */
 export async function goToInvitationsTab(page: Page): Promise<void> {
-  await page.click('button[role="tab"]:has-text("Invitations")')
+  await page.click('button[role="tab"]:has-text("Pending")')
   await page.waitForSelector('[data-testid="invitations-list"]', { timeout: 5000 })
 }
 
@@ -137,7 +169,15 @@ export async function goToInvitationsTab(page: Page): Promise<void> {
  */
 export async function goToMembersTab(page: Page): Promise<void> {
   await page.click('button[role="tab"]:has-text("Members")')
-  await page.waitForSelector('[data-testid="members-list"]', { timeout: 5000 })
+
+  // Wait for members list to appear
+  await page.waitForSelector('[data-testid="members-list"]', { timeout: 10000 })
+
+  // Wait for at least one member row to appear (ensures data is loaded)
+  await page.waitForSelector('[data-testid="member-row"]', { timeout: 5000 }).catch(() => {
+    // If no member rows, might be empty - log but don't fail
+    console.log('No member rows found - list might be empty')
+  })
 }
 
 /**
@@ -164,10 +204,15 @@ export async function cancelInvitation(page: Page, email: string): Promise<void>
   await goToInvitationsTab(page)
 
   const row = page.locator(`[data-testid="invitation-row"]:has-text("${email}")`)
-  await row.locator('button:has-text("Cancel")').click()
+  // Click the dropdown trigger to open the menu
+  await row.locator('[data-testid="invitation-actions-trigger"]').click()
 
-  // Confirm in dialog
-  await page.click('button:has-text("Confirm")')
+  // Click the cancel button in the dropdown menu
+  await page.locator('[data-testid="cancel-invitation-button"]').click()
+
+  // Confirm in dialog - target AlertDialogCancel button specifically
+  const dialogCancel = page.locator('[data-state="open"] >> .AlertDialogCancel')
+  await dialogCancel.click()
 
   // Wait for row to disappear
   await expect(row).not.toBeVisible({ timeout: 5000 })
@@ -180,7 +225,11 @@ export async function resendInvitation(page: Page, email: string): Promise<void>
   await goToInvitationsTab(page)
 
   const row = page.locator(`[data-testid="invitation-row"]:has-text("${email}")`)
-  await row.locator('button:has-text("Resend")').click()
+  // Click the dropdown trigger to open the menu
+  await row.locator('[data-testid="invitation-actions-trigger"]').click()
+
+  // Click the resend button in the dropdown menu
+  await page.locator('[data-testid="resend-invitation-button"]').click()
 
   // Wait for success message
   await expect(page.getByText(/sent|resent/i)).toBeVisible({ timeout: 5000 })

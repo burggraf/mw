@@ -709,7 +709,12 @@
     "removeMemberTitle": "¿Eliminar Miembro del Equipo?",
     "removeMemberDescription": "{{name}} perderá acceso a esta iglesia. Pueden ser invitados nuevamente después.",
     "remove": "Eliminar",
-    "lastAdminError": "No se puede degradar al último administrador. Primero promueve a otro miembro."
+    "lastAdminError": "No se puede degradar al último administrador. Primero promueve a otro miembro.",
+    "leaveChurch": "Abandonar Iglesia",
+    "leaveChurchTitle": "¿Abandonar Iglesia?",
+    "leaveChurchDescription": "Perderás acceso a esta iglesia. Puedes ser invitado nuevamente después.",
+    "leaveChurchSuccess": "Has abandonado la iglesia",
+    "leaveLastAdminError": "Eres el último administrador y no puedes abandonar. Transfiere el rol de administrador primero."
   },
   "invite": {
     "title": "¡Estás Invitado!",

@@ -177,13 +177,18 @@ export function InvitationsList({
                   {isPending && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          data-testid="invitation-actions-trigger"
+                        >
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
                           onClick={() => handleCopyLink(invitation)}
+                          data-testid="copy-link-button"
                         >
                           <Copy className="h-4 w-4 mr-2" />
                           {t('team.copyLink')}
@@ -191,6 +196,7 @@ export function InvitationsList({
                         <DropdownMenuItem
                           onClick={() => handleResend(invitation)}
                           disabled={resending === invitation.id}
+                          data-testid="resend-invitation-button"
                         >
                           {resending === invitation.id ? (
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -202,6 +208,7 @@ export function InvitationsList({
                         <DropdownMenuItem
                           className="text-destructive"
                           onClick={() => setInviteToCancel(invitation)}
+                          data-testid="cancel-invitation-button"
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
                           {t('team.cancelInvitation')}

@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChurch } from '@/contexts/ChurchContext'
-import { changeRole, removeMember, getAdminCount } from '@/services/memberships'
+import { changeRole, removeMember, leaveChurch, getAdminCount } from '@/services/memberships'
 import type { Membership, UserRole } from '@/types/team'
 import {
   Table,
@@ -38,7 +39,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { MoreHorizontal, Trash2, Shield, Loader2 } from 'lucide-react'
+import { MoreHorizontal, Trash2, Shield, Loader2, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface TeamMembersListProps {
@@ -53,12 +54,15 @@ export function TeamMembersList({
   loading,
 }: TeamMembersListProps) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const { user } = useAuth()
-  const { isAdmin, currentChurch } = useChurch()
+  const { isAdmin, currentChurch, setCurrentChurch, userChurches } = useChurch()
 
   const [memberToRemove, setMemberToRemove] = useState<Membership | null>(null)
+  const [showLeaveChurchDialog, setShowLeaveChurchDialog] = useState(false)
   const [changingRole, setChangingRole] = useState<string | null>(null)
   const [removing, setRemoving] = useState(false)
+  const [leaving, setLeaving] = useState(false)
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return '?'
@@ -109,6 +113,44 @@ export function TeamMembersList({
       toast.error(error.message || t('common.error'))
     } finally {
       setRemoving(false)
+    }
+  }
+
+  const handleLeaveChurch = async () => {
+    if (!currentChurch) return
+
+    console.log('[TeamMembersList] Attempting to leave church:', currentChurch.id)
+    setLeaving(true)
+    try {
+      // Find the current user's membership
+      const currentUserMembership = members.find(m => m.userId === user?.id)
+      if (!currentUserMembership) {
+        console.error('[TeamMembersList] Current user membership not found')
+        throw new Error('Membership not found')
+      }
+
+      console.log('[TeamMembersList] Found membership:', currentUserMembership.id)
+      await leaveChurch(currentUserMembership.id)
+      console.log('[TeamMembersList] Successfully left church')
+      toast.success(t('team.leaveChurchSuccess'))
+
+      // Switch to another church or go to setup-church
+      const otherChurches = userChurches.filter(c => c.id !== currentChurch.id)
+      console.log('[TeamMembersList] Other churches available:', otherChurches.length)
+      if (otherChurches.length > 0) {
+        setCurrentChurch(otherChurches[0])
+        navigate('/dashboard')
+      } else {
+        // No more churches, go to setup
+        console.log('[TeamMembersList] No more churches, navigating to setup-church')
+        navigate('/setup-church')
+      }
+    } catch (error: any) {
+      console.error('[TeamMembersList] Failed to leave church:', error)
+      toast.error(error.message || t('common.error'))
+    } finally {
+      setLeaving(false)
+      setShowLeaveChurchDialog(false)
     }
   }
 
@@ -209,7 +251,7 @@ export function TeamMembersList({
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  {canEdit && (
+                  {canEdit ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon">
@@ -226,7 +268,17 @@ export function TeamMembersList({
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  )}
+                  ) : isCurrentUser ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowLeaveChurchDialog(true)}
+                      data-testid="leave-church-button"
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      {t('team.leaveChurch')}
+                    </Button>
+                  ) : null}
                 </TableCell>
               </TableRow>
             )
@@ -258,6 +310,33 @@ export function TeamMembersList({
             >
               {removing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t('team.remove')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={showLeaveChurchDialog}
+        onOpenChange={setShowLeaveChurchDialog}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('team.leaveChurchTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('team.leaveChurchDescription')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={leaving}>
+              {t('common.cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleLeaveChurch}
+              disabled={leaving}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {leaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t('team.leaveChurch')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
