@@ -5,11 +5,14 @@ import { useChurch } from '@/contexts/ChurchContext'
 import {
   getDisplaysForChurch,
   addDiscoveredDisplay,
+  createDisplay,
   updateDisplay,
+  updateDisplayEnabled,
   deleteDisplay,
   markStaleDisplaysOffline,
 } from '@/services/displays'
-import type { Display, DisplayClass, DiscoveredDisplay } from '@/types/display'
+import type { Display, DisplayClass, DiscoveredDisplay, MonitorInfo } from '@/types/display'
+import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -83,6 +86,8 @@ export function DisplaysPage() {
   const [displayToDelete, setDisplayToDelete] = useState<Display | null>(null)
   const [displayToEdit, setDisplayToEdit] = useState<Display | null>(null)
   const [discoveredToAdd, setDiscoveredToAdd] = useState<DiscoveredDisplay | null>(null)
+  const [availableMonitors, setAvailableMonitors] = useState<MonitorInfo[]>([])
+  const [monitorToAdd, setMonitorToAdd] = useState<MonitorInfo | null>(null)
 
   // Form state for add/edit dialogs
   const [formName, setFormName] = useState('')
@@ -302,6 +307,91 @@ export function DisplaysPage() {
     }
   }
 
+  // Toggle enabled state for a display
+  async function handleToggleEnabled(display: Display) {
+    try {
+      await updateDisplayEnabled(display.displayId, !display.enabled)
+      setDisplays(displays.map(d =>
+        d.id === display.id ? { ...d, enabled: !d.enabled } : d
+      ))
+      toast.success(display.enabled
+        ? t('displays.displayDisabled', 'Display disabled')
+        : t('displays.displayEnabled', 'Display enabled')
+      )
+    } catch (error) {
+      console.error('Failed to toggle display:', error)
+      toast.error(t('common.error'))
+    }
+  }
+
+  // Open dialog to add a local monitor
+  function openAddMonitorDialog(monitor: MonitorInfo) {
+    setFormName(monitor.name)
+    setFormLocation('')
+    setFormDisplayClass('audience')
+    setMonitorToAdd(monitor)
+  }
+
+  // Add a local monitor as a display
+  async function handleAddMonitor() {
+    if (!currentChurch || !monitorToAdd) return
+
+    try {
+      const deviceId = await safeInvoke<string>('get_device_id')
+      const newDisplay = await createDisplay(currentChurch.id, {
+        displayId: monitorToAdd.displayId,
+        deviceId: deviceId || monitorToAdd.displayId,
+        name: formName,
+        location: formLocation || null,
+        displayClass: formDisplayClass,
+        manufacturer: monitorToAdd.manufacturer || null,
+        model: monitorToAdd.model || null,
+        serialNumber: monitorToAdd.serialNumber || null,
+        width: monitorToAdd.sizeX,
+        height: monitorToAdd.sizeY,
+        physicalWidthCm: monitorToAdd.physicalWidthCm || null,
+        physicalHeightCm: monitorToAdd.physicalHeightCm || null,
+      })
+
+      setDisplays([...displays, newDisplay].sort((a, b) => a.name.localeCompare(b.name)))
+      setAvailableMonitors(availableMonitors.filter(m => m.displayId !== monitorToAdd.displayId))
+      toast.success(t('displays.displayAdded', 'Display added successfully'))
+    } catch (error) {
+      console.error('Failed to add display:', error)
+      toast.error(t('common.error'))
+    } finally {
+      setMonitorToAdd(null)
+      resetForm()
+    }
+  }
+
+  // Auto-detect available (unregistered) external monitors
+  useEffect(() => {
+    if (!hasTauri || !currentChurch) return
+
+    const fetchAvailable = async () => {
+      try {
+        const monitors = await safeInvoke<MonitorInfo[]>('get_available_monitors')
+        if (!monitors) return
+
+        // Filter to external monitors only (not primary)
+        const external = monitors.filter(m => !m.isPrimary)
+
+        // Filter out already registered displays
+        const registeredIds = new Set(displays.map(d => d.displayId))
+        const unregistered = external.filter(m => !registeredIds.has(m.displayId))
+
+        setAvailableMonitors(unregistered)
+      } catch (err) {
+        console.error('Failed to fetch monitors:', err)
+      }
+    }
+
+    fetchAvailable()
+    const interval = setInterval(fetchAvailable, 5000)
+    return () => clearInterval(interval)
+  }, [currentChurch, displays])
+
   if (!currentChurch) {
     return null
   }
@@ -392,6 +482,47 @@ export function DisplaysPage() {
         </Card>
       )}
 
+      {/* Available (Unregistered) Local Monitors Section */}
+      {availableMonitors.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Monitor className="h-5 w-5 text-blue-500" />
+              {t('displays.availableDisplays', 'Available Displays')}
+            </CardTitle>
+            <CardDescription>
+              {t('displays.availableDescription', 'External monitors connected to this computer. Click Add to enable them.')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {availableMonitors.map((monitor) => (
+                <div
+                  key={monitor.displayId}
+                  className="flex flex-col p-4 rounded-lg border bg-card"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <Monitor className="h-8 w-8 text-muted-foreground flex-shrink-0" />
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">{monitor.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {monitor.sizeX}x{monitor.sizeY}
+                        </div>
+                      </div>
+                    </div>
+                    <Button size="sm" onClick={() => openAddMonitorDialog(monitor)}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      {t('common.add', 'Add')}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Registered Displays Section */}
       {loading ? (
         <Card>
@@ -424,6 +555,7 @@ export function DisplaysPage() {
                 <TableHead className="min-w-[100px] hidden lg:table-cell text-center">{t('displays.classLabel', 'Class')}</TableHead>
                 <TableHead className="min-w-[100px] hidden xl:table-cell">{t('displays.platform', 'Platform')}</TableHead>
                 <TableHead className="min-w-[80px] text-center">{t('displays.statusLabel', 'Status')}</TableHead>
+                <TableHead className="min-w-[80px] text-center">{t('displays.enabled', 'Enabled')}</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -467,6 +599,12 @@ export function DisplaysPage() {
                         {t('displays.offline', 'Offline')}
                       </Badge>
                     )}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Switch
+                      checked={display.enabled}
+                      onCheckedChange={() => handleToggleEnabled(display)}
+                    />
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -636,6 +774,64 @@ export function DisplaysPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add Monitor Dialog */}
+      <Dialog open={!!monitorToAdd} onOpenChange={() => setMonitorToAdd(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('displays.addDisplay', 'Add Display')}</DialogTitle>
+            <DialogDescription>
+              {t('displays.addDisplayDescription', 'Configure the display settings before adding it to your church.')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="monitor-name">{t('displays.name', 'Name')}</Label>
+              <Input
+                id="monitor-name"
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                placeholder={t('displays.namePlaceholder', 'e.g., Main Screen')}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="monitor-location">{t('displays.location', 'Location')}</Label>
+              <Input
+                id="monitor-location"
+                value={formLocation}
+                onChange={(e) => setFormLocation(e.target.value)}
+                placeholder={t('displays.locationPlaceholder', 'e.g., Sanctuary')}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="monitor-class">{t('displays.classLabel', 'Display Class')}</Label>
+              <Select value={formDisplayClass} onValueChange={(v) => setFormDisplayClass(v as DisplayClass)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="audience">{t('displays.class.audience', 'Audience')}</SelectItem>
+                  <SelectItem value="stage">{t('displays.class.stage', 'Stage')}</SelectItem>
+                  <SelectItem value="lobby">{t('displays.class.lobby', 'Lobby')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {monitorToAdd && (
+              <div className="text-sm text-muted-foreground">
+                <div>{t('displays.resolution', 'Resolution')}: {monitorToAdd.sizeX}x{monitorToAdd.sizeY}</div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMonitorToAdd(null)}>
+              {t('common.cancel', 'Cancel')}
+            </Button>
+            <Button onClick={handleAddMonitor}>
+              {t('common.add', 'Add')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
