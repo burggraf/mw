@@ -3,12 +3,12 @@
 //! Manages automatic detection and lifecycle of external displays.
 //! Opens display windows on startup and monitors for hot-plug events.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tokio::sync::Mutex;
-use tracing::{info, warn, error, debug};
+use tracing::{info, error, debug};
 
 use crate::commands::MonitorInfo;
 use crate::edid::{get_display_fingerprints, DisplayInfo};
@@ -379,7 +379,7 @@ impl DisplayManager {
         .resizable(false)
         .decorations(true) // Start with decorations for Sidecar compatibility
         .skip_taskbar(true)
-        .always_on_top(true)
+        .always_on_top(false) // Don't cover controller window
         .visible(true)
         .focused(true)
         .title("Mobile Worship Display")
@@ -470,6 +470,24 @@ impl DisplayManager {
             .ok()
             .flatten();
 
+        // Get primary monitor's scale factor for coordinate conversion
+        // macOS returns monitor positions in logical coordinates but we need physical for window placement
+        let primary_scale = primary_monitor
+            .as_ref()
+            .map(|pm| pm.scale_factor())
+            .unwrap_or(1.0);
+
+        // Log primary monitor info for debugging
+        if let Some(ref pm) = primary_monitor {
+            info!(
+                "Primary monitor: {:?} at ({}, {}) size {}x{} scale {}",
+                pm.name(),
+                pm.position().x, pm.position().y,
+                pm.size().width, pm.size().height,
+                pm.scale_factor()
+            );
+        }
+
         let fingerprints = get_display_fingerprints();
 
         let mut result = Vec::new();
@@ -516,6 +534,20 @@ impl DisplayManager {
                     (fallback_id, String::new(), String::new(), String::from("0"), 0, 0)
                 };
 
+            // Monitor positions from Tauri are in logical coordinates
+            // Convert to physical coordinates by multiplying by primary scale factor
+            // This ensures window placement works correctly when primary has HiDPI scaling
+            let physical_x = (monitor.position().x as f64 * primary_scale) as i32;
+            let physical_y = (monitor.position().y as f64 * primary_scale) as i32;
+
+            info!(
+                "Monitor {} position: logical ({}, {}) -> physical ({}, {}) [primary_scale={}]",
+                os_name,
+                monitor.position().x, monitor.position().y,
+                physical_x, physical_y,
+                primary_scale
+            );
+
             result.push(MonitorInfo {
                 display_id,
                 id: idx as i32,
@@ -523,8 +555,8 @@ impl DisplayManager {
                 manufacturer,
                 model,
                 serial_number,
-                position_x: monitor.position().x,
-                position_y: monitor.position().y,
+                position_x: physical_x,
+                position_y: physical_y,
                 size_x: monitor.size().width,
                 size_y: monitor.size().height,
                 physical_width_cm,
@@ -538,28 +570,26 @@ impl DisplayManager {
     }
 
     /// Sync display windows with current monitors
-    /// Opens windows for new monitors, closes windows for removed monitors
-    async fn sync_displays(&mut self, app: &AppHandle) -> Result<(), String> {
+    /// Only opens windows for displays that are enabled in the database
+    pub async fn sync_displays(&mut self, app: &AppHandle, enabled_display_ids: &HashSet<String>) -> Result<(), String> {
         let current_monitors = Self::get_external_monitors(app)?;
-        let current_ids: std::collections::HashSet<_> = current_monitors.iter()
-            .map(|m| m.display_id.clone())
-            .collect();
 
-        // Find displays to close (no longer connected)
+        // Find displays to close (no longer enabled or disconnected)
         let to_close: Vec<_> = self.open_displays.keys()
-            .filter(|id| !current_ids.contains(*id))
+            .filter(|id| !enabled_display_ids.contains(*id))
             .cloned()
             .collect();
 
         for display_id in to_close {
-            info!("Monitor disconnected: {}", display_id);
+            info!("Display disabled or disconnected: {}", display_id);
             self.close_display(app, &display_id)?;
         }
 
-        // Find displays to open (newly connected)
+        // Find displays to open (enabled and connected)
         for monitor in current_monitors {
-            if !self.open_displays.contains_key(&monitor.display_id) {
-                info!("New monitor detected: {} ({})", monitor.name, monitor.display_id);
+            if enabled_display_ids.contains(&monitor.display_id)
+                && !self.open_displays.contains_key(&monitor.display_id) {
+                info!("Opening enabled display: {} ({})", monitor.name, monitor.display_id);
                 if let Err(e) = self.open_display_with_advertising(app, &monitor).await {
                     error!("Failed to open display {}: {}", monitor.display_id, e);
                 }
@@ -572,7 +602,7 @@ impl DisplayManager {
 
 /// Global display manager state
 pub struct DisplayManagerState {
-    manager: Arc<Mutex<DisplayManager>>,
+    pub manager: Arc<Mutex<DisplayManager>>,
     shutdown_tx: Arc<Mutex<Option<tokio::sync::oneshot::Sender<()>>>>,
 }
 
@@ -586,6 +616,8 @@ impl DisplayManagerState {
 
     /// Start monitoring displays
     /// Call this once from app setup
+    /// Note: The manager no longer auto-opens windows. The frontend drives sync
+    /// via the sync_displays_with_enabled command with the list of enabled displays.
     pub async fn start_monitoring(&self, app: AppHandle) {
         let (shutdown_tx, mut shutdown_rx) = tokio::sync::oneshot::channel();
 
@@ -601,27 +633,16 @@ impl DisplayManagerState {
             info!("Display manager waiting {}s for app initialization...", STARTUP_DELAY_SECS);
             tokio::time::sleep(Duration::from_secs(STARTUP_DELAY_SECS)).await;
 
-            info!("Display manager starting initial sync...");
+            info!("Display manager ready - waiting for frontend to call sync_displays_with_enabled");
 
-            // Initial sync
-            {
-                let mut mgr = manager.lock().await;
-                if let Err(e) = mgr.sync_displays(&app).await {
-                    error!("Initial display sync failed: {}", e);
-                }
-            }
-
-            info!("Display manager starting polling loop ({}s interval)", POLL_INTERVAL_SECS);
-
-            // Polling loop
+            // Polling loop - now just monitors for shutdown
+            // The frontend drives sync via sync_displays_with_enabled command
             let mut interval = tokio::time::interval(Duration::from_secs(POLL_INTERVAL_SECS));
             loop {
                 tokio::select! {
                     _ = interval.tick() => {
-                        let mut mgr = manager.lock().await;
-                        if let Err(e) = mgr.sync_displays(&app).await {
-                            warn!("Display sync error: {}", e);
-                        }
+                        // Don't auto-sync - frontend drives sync via sync_displays_with_enabled command
+                        // The interval is kept for potential future use (hot-plug detection, etc.)
                     }
                     _ = &mut shutdown_rx => {
                         info!("Display manager shutting down");

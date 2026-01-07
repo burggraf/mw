@@ -3,7 +3,7 @@ use std::fs;
 use std::io::Write;
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use tauri::{AppHandle, Emitter, Manager};
 use base64::Engine;
 
@@ -1156,4 +1156,19 @@ pub async fn get_open_local_displays(
 ) -> Result<Vec<crate::display_manager::LocalDisplayInfo>, String> {
     let state = app_handle.state::<Arc<crate::display_manager::DisplayManagerState>>();
     Ok(state.get_open_displays().await)
+}
+
+/// Sync display windows with enabled displays from the database
+/// Opens windows for enabled displays, closes windows for disabled/disconnected displays
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+pub async fn sync_displays_with_enabled(
+    app: AppHandle,
+    enabled_display_ids: Vec<String>,
+) -> Result<(), String> {
+    let state = app.state::<Arc<crate::display_manager::DisplayManagerState>>();
+    let enabled_set: HashSet<String> = enabled_display_ids.into_iter().collect();
+
+    let mut manager = state.manager.lock().await;
+    manager.sync_displays(&app, &enabled_set).await
 }

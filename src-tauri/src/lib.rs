@@ -97,6 +97,7 @@ pub fn run() {
                     commands::get_device_id,
                     commands::get_local_ip_addresses,
                     commands::get_open_local_displays,
+                    commands::sync_displays_with_enabled,
                 ]
             }
             // Mobile (Android/iOS): excludes desktop-only multi-monitor commands
