@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useChurch } from '@/contexts/ChurchContext'
 import { isTauri, safeInvoke } from '@/lib/tauri'
-import { registerLocalDisplay, updateDisplayHeartbeat } from '@/services/displays'
+import { registerLocalDisplay, updateDisplayHeartbeat, getEnabledDisplaysForDevice } from '@/services/displays'
 
 interface LocalDisplayOpenedPayload {
   display_id: string
@@ -112,6 +112,27 @@ export function useLocalDisplayManager() {
     }
   }, [startHeartbeat])
 
+  // Sync display windows with enabled displays from database
+  const syncDisplaysWithEnabled = useCallback(async () => {
+    if (!currentChurch || !isTauri()) return
+
+    try {
+      // Get this device's ID
+      const deviceId = await safeInvoke<string>('get_device_id')
+      if (!deviceId) return
+
+      // Get enabled displays for this device from Supabase
+      const enabledDisplays = await getEnabledDisplaysForDevice(deviceId)
+      const enabledIds = enabledDisplays.map(d => d.displayId)
+
+      // Tell DisplayManager which displays to open
+      await safeInvoke('sync_displays_with_enabled', { enabledDisplayIds: enabledIds })
+      console.log('[LocalDisplayManager] Synced with', enabledIds.length, 'enabled displays')
+    } catch (err) {
+      console.error('[LocalDisplayManager] Failed to sync enabled displays:', err)
+    }
+  }, [currentChurch])
+
   // Fetch and register existing displays when church becomes available
   useEffect(() => {
     if (!currentChurch || !isTauri()) return
@@ -156,6 +177,18 @@ export function useLocalDisplayManager() {
 
     fetchAndRegisterExisting()
   }, [currentChurch?.id, registerAndStartHeartbeat])
+
+  // Sync display windows with enabled displays from database
+  useEffect(() => {
+    if (!currentChurch || !isTauri()) return
+
+    // Initial sync
+    syncDisplaysWithEnabled()
+
+    // Periodic sync every 5 seconds
+    const interval = setInterval(syncDisplaysWithEnabled, 5000)
+    return () => clearInterval(interval)
+  }, [currentChurch, syncDisplaysWithEnabled])
 
   // Set up event listeners for display opened/closed events
   useEffect(() => {
