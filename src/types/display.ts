@@ -22,6 +22,7 @@ export interface Display {
   port: number | null; // WebSocket port
   // Status
   isOnline: boolean;
+  enabled: boolean; // Whether to auto-open window for this display
   lastSeenAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -51,6 +52,7 @@ export interface DisplayUpdateInput {
   name?: string;
   location?: string | null;
   displayClass?: DisplayClass;
+  enabled?: boolean;
   // Hardware info can be updated (e.g., if EDID changes)
   manufacturer?: string | null;
   model?: string | null;
