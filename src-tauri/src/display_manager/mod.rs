@@ -366,6 +366,14 @@ impl DisplayManager {
 
         // Create window with decorations first (required for Sidecar to render)
         // Initially invisible to avoid flashing on wrong screen
+        // Note: MonitorInfo already contains LOGICAL coordinates (converted from physical in get_external_monitors)
+        info!(
+            "Creating window: {}x{} at ({}, {}) [scale={}]",
+            monitor_info.size_x, monitor_info.size_y,
+            monitor_info.position_x, monitor_info.position_y,
+            monitor_info.scale_factor
+        );
+
         let window = WebviewWindowBuilder::new(
             app,
             &window_label,
@@ -432,14 +440,15 @@ impl DisplayManager {
             &device_id,
         ).await?;
 
-        // Don't auto-register - displays must be added via UI first
-        // let _ = app.emit("local-display-opened", LocalDisplayOpened {
-        //     display_id: display_id.to_string(),
-        //     display_name: monitor_info.name.clone(),
-        //     device_id: device_id.clone(),
-        //     width: monitor_info.size_x as i32,
-        //     height: monitor_info.size_y as i32,
-        // });
+        // Emit event to notify frontend so it can start heartbeats
+        // (registerLocalDisplay only updates existing displays, won't auto-register new ones)
+        let _ = app.emit("local-display-opened", LocalDisplayOpened {
+            display_id: display_id.to_string(),
+            display_name: monitor_info.name.clone(),
+            device_id: device_id.clone(),
+            width: monitor_info.size_x as i32,
+            height: monitor_info.size_y as i32,
+        });
 
         info!("✓ Display window '{}' opened and advertising", monitor_info.name);
         Ok(())
@@ -535,23 +544,24 @@ impl DisplayManager {
                     (fallback_id, String::new(), String::new(), String::from("0"), 0, 0)
                 };
 
-            // Use monitor's logical coordinates directly - Tauri will handle scaling
+            // Convert physical coordinates to logical coordinates
+            // monitor.position() and monitor.size() return PHYSICAL pixels
+            // We need logical pixels for window positioning (physical / scale)
             let monitor_scale = monitor.scale_factor();
-            let logical_x = monitor.position().x;
-            let logical_y = monitor.position().y;
+            let physical_x = monitor.position().x;
+            let physical_y = monitor.position().y;
+            let logical_x = (physical_x as f64 / monitor_scale) as i32;
+            let logical_y = (physical_y as f64 / monitor_scale) as i32;
+            let logical_width = (monitor.size().width as f64 / monitor_scale) as u32;
+            let logical_height = (monitor.size().height as f64 / monitor_scale) as u32;
 
             info!(
-                "Monitor {} position: logical ({}, {}) [scale={}]",
+                "Monitor {}: physical pos ({}, {}), logical pos ({}, {}), logical size {}x{} [scale={}]",
                 os_name,
+                physical_x, physical_y,
                 logical_x, logical_y,
+                logical_width, logical_height,
                 monitor_scale
-            );
-
-            info!(
-                "Monitor {} size: {}x{} (from monitor.size().width x monitor.size().height)",
-                os_name,
-                monitor.size().width,
-                monitor.size().height
             );
 
             result.push(MonitorInfo {
@@ -563,8 +573,8 @@ impl DisplayManager {
                 serial_number,
                 position_x: logical_x,
                 position_y: logical_y,
-                size_x: monitor.size().width,
-                size_y: monitor.size().height,
+                size_x: logical_width,
+                size_y: logical_height,
                 physical_width_cm,
                 physical_height_cm,
                 scale_factor: monitor.scale_factor(),

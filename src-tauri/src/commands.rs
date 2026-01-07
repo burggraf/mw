@@ -457,7 +457,6 @@ pub async fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<Monitor
 
     // Get EDID fingerprints for all displays
     let fingerprints = get_display_fingerprints();
-    tracing::info!("Got {} EDID fingerprints for {} monitors", fingerprints.len(), monitors.len());
 
     let mut result = Vec::new();
     for (idx, monitor) in monitors.iter().enumerate() {
@@ -509,6 +508,15 @@ pub async fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<Monitor
                 )
             };
 
+        // Convert physical coordinates to logical coordinates
+        // monitor.position() and monitor.size() return PHYSICAL pixels
+        // We need logical pixels for window positioning (physical / scale)
+        let scale = monitor.scale_factor();
+        let logical_x = (monitor.position().x as f64 / scale) as i32;
+        let logical_y = (monitor.position().y as f64 / scale) as i32;
+        let logical_width = (monitor.size().width as f64 / scale) as u32;
+        let logical_height = (monitor.size().height as f64 / scale) as u32;
+
         result.push(MonitorInfo {
             display_id,
             id: idx as i32,
@@ -516,13 +524,13 @@ pub async fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<Monitor
             manufacturer,
             model,
             serial_number,
-            position_x: monitor.position().x,
-            position_y: monitor.position().y,
-            size_x: monitor.size().width,
-            size_y: monitor.size().height,
+            position_x: logical_x,
+            position_y: logical_y,
+            size_x: logical_width,
+            size_y: logical_height,
             physical_width_cm,
             physical_height_cm,
-            scale_factor: monitor.scale_factor(),
+            scale_factor: scale,
             is_primary,
         });
     }
@@ -643,8 +651,15 @@ pub async fn auto_start_display_windows(app_handle: AppHandle) -> Result<Vec<Mon
             continue;
         }
 
+        // Convert physical coordinates to logical coordinates
+        let scale = monitor.scale_factor();
         let monitor_size = monitor.size();
         let monitor_pos = monitor.position();
+        let logical_x = (monitor_pos.x as f64 / scale) as i32;
+        let logical_y = (monitor_pos.y as f64 / scale) as i32;
+        let logical_width = (monitor_size.width as f64 / scale) as u32;
+        let logical_height = (monitor_size.height as f64 / scale) as u32;
+
         let display_name = monitor.name()
             .map(|n| n.to_string())
             .unwrap_or_else(|| format!("Display {}", idx + 1));
@@ -685,13 +700,13 @@ pub async fn auto_start_display_windows(app_handle: AppHandle) -> Result<Vec<Mon
                 manufacturer: manufacturer.clone(),
                 model: model.clone(),
                 serial_number: serial_number.clone(),
-                position_x: monitor_pos.x,
-                position_y: monitor_pos.y,
-                size_x: monitor_size.width,
-                size_y: monitor_size.height,
+                position_x: logical_x,
+                position_y: logical_y,
+                size_x: logical_width,
+                size_y: logical_height,
                 physical_width_cm,
                 physical_height_cm,
-                scale_factor: monitor.scale_factor(),
+                scale_factor: scale,
                 is_primary: false,
             });
             continue;
@@ -702,10 +717,10 @@ pub async fn auto_start_display_windows(app_handle: AppHandle) -> Result<Vec<Mon
             display_name,
             display_id,
             idx,
-            monitor_size.width,
-            monitor_size.height,
-            monitor_pos.x,
-            monitor_pos.y
+            logical_width,
+            logical_height,
+            logical_x,
+            logical_y
         );
 
         // Create the display window with display_id in URL
@@ -715,12 +730,12 @@ pub async fn auto_start_display_windows(app_handle: AppHandle) -> Result<Vec<Mon
             &app_handle,
             &window_label,
             WebviewUrl::App(format!(
-                "/live/display?eventId=default&displayName={}&displayId={}&localMode=true",
-                encoded_name, encoded_display_id
+                "/live/display?eventId=default&displayName={}&displayId={}&localMode=true&scaleFactor={}",
+                encoded_name, encoded_display_id, scale
             ).into())
         )
-        .position(monitor_pos.x as f64, monitor_pos.y as f64)
-        .inner_size(monitor_size.width as f64, monitor_size.height as f64)
+        .position(logical_x as f64, logical_y as f64)
+        .inner_size(logical_width as f64, logical_height as f64)
         .resizable(false)
         .decorations(false)
         .skip_taskbar(true)
@@ -737,13 +752,13 @@ pub async fn auto_start_display_windows(app_handle: AppHandle) -> Result<Vec<Mon
                     manufacturer,
                     model,
                     serial_number,
-                    position_x: monitor_pos.x,
-                    position_y: monitor_pos.y,
-                    size_x: monitor_size.width,
-                    size_y: monitor_size.height,
+                    position_x: logical_x,
+                    position_y: logical_y,
+                    size_x: logical_width,
+                    size_y: logical_height,
                     physical_width_cm,
                     physical_height_cm,
-                    scale_factor: monitor.scale_factor(),
+                    scale_factor: scale,
                     is_primary: false,
                 });
             }
@@ -1150,6 +1165,7 @@ pub async fn get_local_ip_addresses() -> Result<Vec<String>, String> {
 
 /// Get currently open local displays (managed by DisplayManager)
 /// This allows the frontend to query existing displays on startup
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[tauri::command]
 pub async fn get_open_local_displays(
     app_handle: AppHandle,

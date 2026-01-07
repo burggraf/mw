@@ -1000,12 +1000,8 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
     }, 0)
   }, [])
 
-  // For HiDPI displays (like iPad via Sidecar with scale factor 2),
-  // the window is created at physical pixel size but content renders at 1:1
-  // We need to scale down the entire content to fit
-  const scaleFactor = scaleFactorRef.current
-  const scale = scaleFactor > 1 ? 1 / scaleFactor : 1
-
+  // Note: Window is now created at correct logical size (physical/scale), so no
+  // content scaling is needed. The system handles HiDPI scaling automatically.
 
   return (
     <div
@@ -1017,14 +1013,8 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
       onClick={handleContainerClick}
       onBlur={handleContainerBlur}
     >
-      {/* Scaled content wrapper - scales down for HiDPI displays */}
-      <div
-        className="absolute inset-0 flex items-center justify-center"
-        style={{
-          transform: `scale(${scale})`,
-          transformOrigin: 'top left',
-        }}
-      >
+      {/* Content wrapper - fills viewport */}
+      <div className="absolute inset-0 flex items-center justify-center">
       {/* Background - use 100vw/vh to ensure it fills the viewport */}
       {backgroundUrl ? (
         <img

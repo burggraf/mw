@@ -5,6 +5,7 @@ mod commands;
 mod edid;
 mod websocket;
 mod mdns;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod display_manager;
 
 use std::sync::Arc;
@@ -61,15 +62,19 @@ pub fn run() {
         tracing::info!("Auto-start mode: {:?}", auto_start_mode);
     }
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_machine_uid::init())
         .manage(Arc::new(auto_start_mode))
         .manage(Arc::new(Mutex::new(websocket::WebSocketServer::new())))
-        .manage(Arc::new(mdns::AdvertiserState::new()))
-        .manage(Arc::new(display_manager::DisplayManagerState::new()))
+        .manage(Arc::new(mdns::AdvertiserState::new()));
+
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    let builder = builder.manage(Arc::new(display_manager::DisplayManagerState::new()));
+
+    builder
         .invoke_handler({
             // Desktop: includes all commands including multi-monitor display management
             #[cfg(not(any(target_os = "android", target_os = "ios")))]
