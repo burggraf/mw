@@ -21,6 +21,7 @@ function rowToDisplay(row: any): Display {
     host: row.host,
     port: row.port,
     isOnline: row.is_online,
+    enabled: row.enabled ?? true, // Default to true for backward compat
     lastSeenAt: row.last_seen_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -82,6 +83,23 @@ export async function getDisplaysByDeviceId(deviceId: string): Promise<Display[]
     .from('displays')
     .select('*')
     .eq('device_id', deviceId)
+    .order('name');
+
+  if (error) throw error;
+  return (data || []).map(rowToDisplay);
+}
+
+/**
+ * Get enabled displays for a specific device
+ * Used by DisplayManager to know which windows to open
+ */
+export async function getEnabledDisplaysForDevice(deviceId: string): Promise<Display[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('displays')
+    .select('*')
+    .eq('device_id', deviceId)
+    .eq('enabled', true)
     .order('name');
 
   if (error) throw error;
@@ -267,6 +285,22 @@ export async function updateDisplayHeartbeat(displayId: string): Promise<void> {
 }
 
 /**
+ * Update display's enabled state
+ */
+export async function updateDisplayEnabled(displayId: string, enabled: boolean): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('displays')
+    .update({
+      enabled,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('display_id', displayId);
+
+  if (error) throw error;
+}
+
+/**
  * Mark displays as offline if they haven't been seen recently
  */
 export async function markStaleDisplaysOffline(churchId: string): Promise<void> {
@@ -285,8 +319,8 @@ export async function markStaleDisplaysOffline(churchId: string): Promise<void> 
 }
 
 /**
- * Register or update a local mode display (auto-detected external monitors)
- * Uses upsert to create if doesn't exist, or update if it does
+ * Update a local display's online status (heartbeat only)
+ * No longer creates displays - they must be added via UI first
  */
 export async function registerLocalDisplay(
   churchId: string,
@@ -296,20 +330,18 @@ export async function registerLocalDisplay(
 ): Promise<void> {
   const supabase = getSupabase();
 
+  // Only update if the display already exists and is enabled
   const { error } = await supabase
     .from('displays')
-    .upsert({
-      church_id: churchId,
-      display_id: displayId,
-      device_id: deviceId || displayId,
-      name: displayName,
-      display_class: 'audience', // Default for auto-detected displays
+    .update({
       is_online: true,
       last_seen_at: new Date().toISOString(),
-    }, {
-      onConflict: 'display_id',
-      ignoreDuplicates: false,
-    });
+    })
+    .eq('display_id', displayId)
+    .eq('church_id', churchId);
 
-  if (error) throw error;
+  // Ignore errors - display might not be registered yet
+  if (error) {
+    console.log('[displays] Display not registered, skipping heartbeat:', displayId);
+  }
 }
