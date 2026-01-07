@@ -321,14 +321,14 @@ impl DisplayManager {
                 &device_id,
             ).await?;
 
-            // Emit event for adopted display too
-            let _ = app.emit("local-display-opened", LocalDisplayOpened {
-                display_id: display_id.to_string(),
-                display_name: monitor_info.name.clone(),
-                device_id: device_id.clone(),
-                width: monitor_info.size_x as i32,
-                height: monitor_info.size_y as i32,
-            });
+            // Don't auto-register - displays must be added via UI first
+            // let _ = app.emit("local-display-opened", LocalDisplayOpened {
+            //     display_id: display_id.to_string(),
+            //     display_name: monitor_info.name.clone(),
+            //     device_id: device_id.clone(),
+            //     width: monitor_info.size_x as i32,
+            //     height: monitor_info.size_y as i32,
+            // });
 
             info!("✓ Adopted existing display window '{}' and started advertising", monitor_info.name);
             return Ok(());
@@ -423,15 +423,14 @@ impl DisplayManager {
             &device_id,
         ).await?;
 
-        // Emit event to main window so it can register the display in the database
-        // The main window has ChurchContext and can handle DB operations
-        let _ = app.emit("local-display-opened", LocalDisplayOpened {
-            display_id: display_id.to_string(),
-            display_name: monitor_info.name.clone(),
-            device_id: device_id.clone(),
-            width: monitor_info.size_x as i32,
-            height: monitor_info.size_y as i32,
-        });
+        // Don't auto-register - displays must be added via UI first
+        // let _ = app.emit("local-display-opened", LocalDisplayOpened {
+        //     display_id: display_id.to_string(),
+        //     display_name: monitor_info.name.clone(),
+        //     device_id: device_id.clone(),
+        //     width: monitor_info.size_x as i32,
+        //     height: monitor_info.size_y as i32,
+        // });
 
         info!("✓ Display window '{}' opened and advertising", monitor_info.name);
         Ok(())
