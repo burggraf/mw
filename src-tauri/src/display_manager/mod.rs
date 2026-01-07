@@ -365,7 +365,7 @@ impl DisplayManager {
         );
 
         // Create window with decorations first (required for Sidecar to render)
-        // Then remove decorations after window is visible on the external display
+        // Initially invisible to avoid flashing on wrong screen
         let window = WebviewWindowBuilder::new(
             app,
             &window_label,
@@ -374,17 +374,26 @@ impl DisplayManager {
                 encoded_name, encoded_display_id, monitor_info.scale_factor
             ).into())
         )
-        .position(monitor_info.position_x as f64, monitor_info.position_y as f64)
         .inner_size(monitor_info.size_x as f64, monitor_info.size_y as f64)
         .resizable(false)
         .decorations(true) // Start with decorations for Sidecar compatibility
         .skip_taskbar(true)
         .always_on_top(false) // Don't cover controller window
-        .visible(true)
-        .focused(true)
+        .visible(false) // Start hidden, show after positioning
         .title("Mobile Worship Display")
         .build()
         .map_err(|e| format!("Failed to create display window: {}", e))?;
+
+        // Move to external display using logical coordinates
+        // The monitor position from Tauri is already in the correct coordinate space
+        window.set_position(tauri::Position::Logical(tauri::LogicalPosition {
+            x: monitor_info.position_x as f64,
+            y: monitor_info.position_y as f64,
+        }))
+        .map_err(|e| format!("Failed to position window: {}", e))?;
+
+        window.show()
+        .map_err(|e| format!("Failed to show window: {}", e))?;
 
         // Remove decorations after window is visible on external display
         // Note: set_fullscreen(true) and set_maximized(true) both move window to main display
@@ -469,13 +478,6 @@ impl DisplayManager {
             .ok()
             .flatten();
 
-        // Get primary monitor's scale factor for coordinate conversion
-        // macOS returns monitor positions in logical coordinates but we need physical for window placement
-        let primary_scale = primary_monitor
-            .as_ref()
-            .map(|pm| pm.scale_factor())
-            .unwrap_or(1.0);
-
         // Log primary monitor info for debugging
         if let Some(ref pm) = primary_monitor {
             info!(
@@ -533,18 +535,23 @@ impl DisplayManager {
                     (fallback_id, String::new(), String::new(), String::from("0"), 0, 0)
                 };
 
-            // Monitor positions from Tauri are in logical coordinates
-            // Convert to physical coordinates by multiplying by primary scale factor
-            // This ensures window placement works correctly when primary has HiDPI scaling
-            let physical_x = (monitor.position().x as f64 * primary_scale) as i32;
-            let physical_y = (monitor.position().y as f64 * primary_scale) as i32;
+            // Use monitor's logical coordinates directly - Tauri will handle scaling
+            let monitor_scale = monitor.scale_factor();
+            let logical_x = monitor.position().x;
+            let logical_y = monitor.position().y;
 
             info!(
-                "Monitor {} position: logical ({}, {}) -> physical ({}, {}) [primary_scale={}]",
+                "Monitor {} position: logical ({}, {}) [scale={}]",
                 os_name,
-                monitor.position().x, monitor.position().y,
-                physical_x, physical_y,
-                primary_scale
+                logical_x, logical_y,
+                monitor_scale
+            );
+
+            info!(
+                "Monitor {} size: {}x{} (from monitor.size().width x monitor.size().height)",
+                os_name,
+                monitor.size().width,
+                monitor.size().height
             );
 
             result.push(MonitorInfo {
@@ -554,8 +561,8 @@ impl DisplayManager {
                 manufacturer,
                 model,
                 serial_number,
-                position_x: physical_x,
-                position_y: physical_y,
+                position_x: logical_x,
+                position_y: logical_y,
                 size_x: monitor.size().width,
                 size_y: monitor.size().height,
                 physical_width_cm,

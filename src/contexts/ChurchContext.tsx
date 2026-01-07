@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { getSupabase } from '@/lib/supabase'
-import { isTauri, safeInvoke } from '@/lib/tauri'
 import { type UserRole, type Permission, hasPermission } from '@/types/team'
 
 export interface Church {

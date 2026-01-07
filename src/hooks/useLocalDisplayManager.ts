@@ -125,6 +125,11 @@ export function useLocalDisplayManager() {
       const enabledDisplays = await getEnabledDisplaysForDevice(deviceId)
       const enabledIds = enabledDisplays.map(d => d.displayId)
 
+      console.log('[LocalDisplayManager] Found', enabledDisplays.length, 'enabled displays for device:', deviceId)
+      enabledDisplays.forEach(d => {
+        console.log('  - Display:', d.name, '(', d.displayId.substring(0, 8), '...)', 'enabled:', d.enabled)
+      })
+
       // Tell DisplayManager which displays to open
       await safeInvoke('sync_displays_with_enabled', { enabledDisplayIds: enabledIds })
       console.log('[LocalDisplayManager] Synced with', enabledIds.length, 'enabled displays')

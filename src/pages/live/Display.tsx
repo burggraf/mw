@@ -107,6 +107,7 @@ export function DisplayPage({ eventId }: DisplayPageProps) {
   const [menuIndex, setMenuIndex] = useState(0)
   const [isAndroid, setIsAndroid] = useState(false)
   const [activeDisplayId, setActiveDisplayId] = useState<string | null>(null)
+  // @ts-expect-error - eventListenersReady tracks Tauri listener setup status
   const [eventListenersReady, setEventListenersReady] = useState(false)
 
   // Refs to track current song/slide for refresh when media arrives
