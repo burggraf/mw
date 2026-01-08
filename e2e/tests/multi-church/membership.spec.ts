@@ -122,12 +122,23 @@ test.describe('Multi-Church Membership', () => {
     const { inviteLink } = await inviteMember(page, userMail.address, 'operator')
 
     // User accepts
-    await page.goto('/')
+    console.log('[Test] Signing in as user to accept invitation')
     await signIn(page, userMail.address, 'UserPass123!')
+
+    console.log('[Test] Navigating to invite link:', inviteLink)
     await page.goto(inviteLink)
 
     // Wait for page to load and click Accept button
+    console.log('[Test] Waiting for accept invitation page to load...')
     await page.waitForLoadState('domcontentloaded')
+
+    // Check if we're on login page (shouldn't be)
+    const currentUrl = page.url()
+    if (currentUrl.includes('/login')) {
+      throw new Error('[Test] Redirected to login instead of accept invitation page. Session may have been lost.')
+    }
+
+    console.log('[Test] Clicking Accept button')
     await page.click('button:has-text("Accept")')
 
     // Wait for redirect with increased timeout for slow internet
