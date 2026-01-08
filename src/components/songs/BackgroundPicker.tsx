@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useChurch } from '@/contexts/ChurchContext'
-import { getMedia, getSignedMediaUrl } from '@/services/media'
+import { getMedia, getSignedMediaUrl, getMediaCount } from '@/services/media'
 import type { Media } from '@/types/media'
 import type { DisplayClass } from '@/types/style'
 import {
@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { Check } from 'lucide-react'
+import { MediaPagination } from '@/components/media/MediaPagination'
 
 interface BackgroundPickerProps {
   open: boolean
@@ -34,19 +35,25 @@ export function BackgroundPicker({
   const [backgrounds, setBackgrounds] = useState<Media[]>([])
   const [thumbnailUrls, setThumbnailUrls] = useState<Map<string, string>>(new Map())
   const [loading, setLoading] = useState(false)
+  const [totalCount, setTotalCount] = useState(0)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(12)
 
-  useEffect(() => {
-    if (open && currentChurch) {
-      loadBackgrounds()
-    }
-  }, [open, currentChurch])
-
-  async function loadBackgrounds() {
+  const loadBackgrounds = useCallback(async () => {
     if (!currentChurch) return
     setLoading(true)
     try {
-      // Get all media that can serve as backgrounds (images, videos, colors)
-      const media = await getMedia(currentChurch.id)
+      // Get paginated background media (exclude slides)
+      const media = await getMedia(
+        currentChurch.id,
+        { category: 'background' },
+        { page: currentPage, perPage: pageSize }
+      )
+
+      // Get total count for pagination
+      const count = await getMediaCount(currentChurch.id, { category: 'background' })
+      setTotalCount(count)
+
       // Filter to images and videos, plus include built-in solid colors
       const validBackgrounds = media.filter(m =>
         m.type === 'image' || m.type === 'video' || m.backgroundColor !== null
@@ -76,7 +83,20 @@ export function BackgroundPicker({
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentChurch, currentPage, pageSize])
+
+  useEffect(() => {
+    if (open && currentChurch) {
+      // Reset to page 1 when dialog opens
+      setCurrentPage(1)
+    }
+  }, [open, currentChurch])
+
+  useEffect(() => {
+    if (open && currentChurch) {
+      loadBackgrounds()
+    }
+  }, [loadBackgrounds, open, currentChurch])
 
   function handleSelect(backgroundId: string | null) {
     onSelect(backgroundId)
@@ -161,6 +181,16 @@ export function BackgroundPicker({
                 </button>
               ))}
             </div>
+
+            {/* Pagination */}
+            <MediaPagination
+              currentPage={currentPage}
+              totalCount={totalCount}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              loading={loading}
+            />
 
             {backgrounds.length === 0 && (
               <p className="text-center text-muted-foreground py-8">
