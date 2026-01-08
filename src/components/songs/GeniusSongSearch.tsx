@@ -10,6 +10,7 @@ import {
   createSong,
   type GeniusSong,
 } from '@/services/songs'
+import { structureSongLyrics } from '@/services/songStructure'
 import {
   Dialog,
   DialogContent,
@@ -92,10 +93,16 @@ export function GeniusSongSearch({
     setView('preview')
     setLoadingLyrics(true)
     setLyrics(null)
+    setStructuredLyrics(null)
 
     try {
       const response = await getGeniusLyrics(song.title, song.artist)
       setLyrics(response.lyrics)
+
+      // If we got lyrics, automatically structure them
+      if (response.lyrics) {
+        await handleStructureLyrics(song, response.lyrics)
+      }
     } catch (error) {
       console.error('Failed to fetch lyrics:', error)
       toast.error(t('songs.genius.lyricsError'))
@@ -104,10 +111,31 @@ export function GeniusSongSearch({
     }
   }
 
+  const handleStructureLyrics = async (song: GeniusSong, rawLyrics: string) => {
+    setStructuring(true)
+
+    try {
+      const response = await structureSongLyrics(song.title, song.artist, rawLyrics)
+      setStructuredLyrics(response.markdown)
+      setSectionsDetected(response.sections)
+      setUsedFallback(response.fallback)
+      setView('structured')
+    } catch (error) {
+      console.error('Failed to structure lyrics:', error)
+      // On error, just show the raw lyrics in preview mode
+      toast.error(t('songs.genius.lyricsError'))
+    } finally {
+      setStructuring(false)
+    }
+  }
+
   const handleBack = () => {
     setView('search')
     setSelectedSong(null)
     setLyrics(null)
+    setStructuredLyrics(null)
+    setSectionsDetected(0)
+    setUsedFallback(false)
   }
 
   const handleImport = async () => {
