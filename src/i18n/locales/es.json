@@ -150,6 +150,7 @@
       "createFolderDescription": "Crear una nueva carpeta para organizar tus canciones.",
       "editFolderDescription": "Actualiza el nombre o descripción de la carpeta."
     },
+    "newFolderOption": "+ Nueva carpeta...",
     "folderCreated": "Carpeta creada",
     "folderUpdated": "Carpeta actualizada",
     "folderDeleted": "Carpeta eliminada",

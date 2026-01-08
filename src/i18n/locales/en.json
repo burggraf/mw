@@ -150,6 +150,7 @@
       "createFolderDescription": "Create a new folder to organize your songs.",
       "editFolderDescription": "Update the folder name or description."
     },
+    "newFolderOption": "+ New folder...",
     "folderCreated": "Folder created",
     "folderUpdated": "Folder updated",
     "folderDeleted": "Folder deleted",

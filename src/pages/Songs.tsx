@@ -64,6 +64,7 @@ export function SongsPage() {
   const [folderDialogOpen, setFolderDialogOpen] = useState(false)
   const [editingFolder, setEditingFolder] = useState<SongFolder | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [moveSongIdsOnCreate, setMoveSongIdsOnCreate] = useState<string[]>([])
 
   useEffect(() => {
     if (currentChurch) {
@@ -148,15 +149,24 @@ export function SongsPage() {
         await updateSongFolder(editingFolder.id, input)
         toast.success(t('songs.folderUpdated'))
       } else {
-        await createSongFolder(currentChurch.id, input)
+        const newFolder = await createSongFolder(currentChurch.id, input)
         toast.success(t('songs.folderCreated'))
+
+        // Move selected songs to the newly created folder
+        if (moveSongIdsOnCreate.length > 0) {
+          await bulkMoveToFolder(moveSongIdsOnCreate, newFolder.id)
+          setSelectedSongIds(new Set())
+          setMoveSongIdsOnCreate([])
+          toast.success(t('songs.bulkMoveSuccess', { count: moveSongIdsOnCreate.length }))
+        }
       }
       await loadFolders()
+      await loadSongs()
     } catch (error) {
       console.error('Failed to save folder:', error)
       toast.error(t('common.error'))
     }
-  }, [currentChurch, editingFolder, loadFolders, t])
+  }, [currentChurch, editingFolder, loadFolders, loadSongs, t, moveSongIdsOnCreate])
 
   async function handleDeleteFolder(folder: SongFolder) {
     if (!currentChurch) return
@@ -479,6 +489,7 @@ export function SongsPage() {
           currentFolderId={selectedFolderId}
           onMoveToFolder={handleBulkMoveToFolder}
           onCreateNewFolder={() => {
+            setMoveSongIdsOnCreate(Array.from(selectedSongIds))
             setEditingFolder(null)
             setFolderDialogOpen(true)
           }}

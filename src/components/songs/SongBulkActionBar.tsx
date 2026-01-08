@@ -114,7 +114,7 @@ export function SongBulkActionBar({
               ))}
               {folders.length > 0 && <DropdownMenuSeparator />}
               <DropdownMenuItem onClick={onCreateNewFolder}>
-                {t('slides.newFolderOption')}
+                {t('songs.newFolderOption')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
