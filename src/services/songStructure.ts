@@ -36,5 +36,9 @@ export async function structureSongLyrics(
     throw error
   }
 
+  if (!data) {
+    throw new Error('No data returned from structure-song-lyrics edge function')
+  }
+
   return data as StructureSongLyricsResponse
 }
