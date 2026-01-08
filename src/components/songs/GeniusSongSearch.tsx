@@ -28,7 +28,7 @@ interface GeniusSongSearchProps {
   onSuccess?: () => void
 }
 
-type ViewState = 'search' | 'preview'
+type ViewState = 'search' | 'preview' | 'structured'
 
 export function GeniusSongSearch({
   open,
@@ -47,6 +47,10 @@ export function GeniusSongSearch({
   const [lyrics, setLyrics] = useState<string | null>(null)
   const [loadingLyrics, setLoadingLyrics] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [structuredLyrics, setStructuredLyrics] = useState<string | null>(null)
+  const [sectionsDetected, setSectionsDetected] = useState(0)
+  const [structuring, setStructuring] = useState(false)
+  const [usedFallback, setUsedFallback] = useState(false)
 
   const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
