@@ -61,6 +61,10 @@ export function GeniusSongSearch({
       setResults([])
       setSelectedSong(null)
       setLyrics(null)
+      setStructuredLyrics(null)
+      setSectionsDetected(0)
+      setStructuring(false)
+      setUsedFallback(false)
     }
     onOpenChange(isOpen)
   }
