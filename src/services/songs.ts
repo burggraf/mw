@@ -17,6 +17,7 @@ export function rowToSong(row: any): Song {
     audienceBackgroundId: row.audience_background_id,
     stageBackgroundId: row.stage_background_id,
     lobbyBackgroundId: row.lobby_background_id,
+    folderId: row.folder_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }

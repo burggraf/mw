@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Card, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Plus, Search, MoreHorizontal, Pencil, Copy, Trash2, Music, Globe } from 'lucide-react'
+import { Plus, Search, MoreHorizontal, Pencil, Copy, Trash2, Music, Globe, FolderPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { GeniusSongSearch } from '@/components/songs/GeniusSongSearch'
 import type { SongFolder, SongFolderInput } from '@/types/folder'
@@ -250,8 +250,8 @@ export function SongsPage() {
   const filteredSongs = songs.filter((song) => {
     // Apply folder filter
     if (selectedFolderId === null) {
-      // Show songs not in any folder
-      return !song.folderId
+      // Show all songs
+      return true
     }
     return song.folderId === selectedFolderId
   })
@@ -259,67 +259,97 @@ export function SongsPage() {
   return (
     <div className="flex gap-6 p-4 md:p-8 min-h-screen">
       {/* Sidebar - Folder Navigation */}
-      {folders.length > 0 && (
-        <div className="w-64 flex-shrink-0">
-          <div className="sticky top-8 border rounded-lg bg-muted/10 p-4">
-            <h3 className="font-semibold mb-3">{t('songs.folders')}</h3>
-            <div className="space-y-1">
-              <Button
-                variant={selectedFolderId === null ? 'secondary' : 'ghost'}
-                className="w-full justify-start"
-                onClick={() => setSelectedFolderId(null)}
-              >
-                {t('songs.allSongs')}
-              </Button>
-              {folders.map((folder) => (
-                <div key={folder.id} className="group flex items-center gap-1">
-                  <Button
-                    variant={selectedFolderId === folder.id ? 'secondary' : 'ghost'}
-                    className="flex-1 justify-start"
-                    onClick={() => setSelectedFolderId(folder.id)}
-                  >
-                    {folder.name}
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setEditingFolder(folder)
-                          setFolderDialogOpen(true)
-                        }}
-                      >
-                        {t('common.edit')}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={() => handleDeleteFolder(folder)}
-                      >
-                        {t('common.delete')}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              ))}
+      <div className="w-56 flex-shrink-0">
+        <div className="sticky top-8 border rounded-lg bg-muted/10 p-4">
+          <div className="flex flex-col gap-1">
+            {/* All Songs button at the top */}
+            <button
+              onClick={() => setSelectedFolderId(null)}
+              className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                selectedFolderId === null
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+              }`}
+            >
+              <Music className="h-4 w-4" />
+              <span>{t('songs.allSongs')}</span>
+            </button>
+          </div>
+
+          {/* Folders Section */}
+          <div className="flex flex-col gap-1 mt-4">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-sm font-medium text-muted-foreground">
+                {t('songs.folders')}
+              </h3>
               <Button
                 variant="ghost"
-                className="w-full justify-start text-muted-foreground"
+                size="icon"
+                className="h-6 w-6"
                 onClick={() => {
                   setEditingFolder(null)
                   setFolderDialogOpen(true)
                 }}
+                title={t('songs.folder.createFolder')}
               >
-                <Plus className="h-4 w-4 mr-2" />
-                {t('songs.folder.createFolder')}
+                <FolderPlus className="h-4 w-4" />
               </Button>
             </div>
+
+            {/* Folder list */}
+            {folders.map((folder) => (
+              <div
+                key={folder.id}
+                className={`group flex items-start gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                  selectedFolderId === folder.id
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                }`}
+              >
+                <button
+                  onClick={() => setSelectedFolderId(folder.id)}
+                  className="flex flex-1 items-start gap-3 text-left min-w-0"
+                >
+                  <Music className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span className="break-words">{folder.name}</span>
+                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={`h-6 w-6 shrink-0 ${
+                        selectedFolderId === folder.id && 'text-primary-foreground hover:text-primary-foreground'
+                      }`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setEditingFolder(folder)
+                        setFolderDialogOpen(true)
+                      }}
+                    >
+                      <Pencil className="mr-2 h-4 w-4" />
+                      {t('common.edit')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleDeleteFolder(folder)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      {t('common.delete')}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            ))}
           </div>
         </div>
-      )}
+      </div>
 
       {/* Main Content */}
       <div className="flex-1 min-w-0">
