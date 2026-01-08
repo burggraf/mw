@@ -136,7 +136,14 @@
       "poweredBy": "Desarrollado por",
       "searchError": "Error al buscar canciones",
       "lyricsError": "Error al cargar letras",
-      "importError": "Error al importar cancion"
+      "importError": "Error al importar cancion",
+      "structuring": "Estructurando letras con IA...",
+      "structuredPreview": "Vista Estructurada",
+      "regenerate": "Regenerar con IA",
+      "sectionsDetected": "{{count}} secciones detectadas",
+      "editManually": "Editar manualmente",
+      "aiProcessing": "La IA está organizando tus letras en diapositivas...",
+      "useBasicFormat": "Usar formato básico"
     },
     "folder": {
       "name": "Nombre",

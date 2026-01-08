@@ -136,7 +136,14 @@
       "poweredBy": "Powered by",
       "searchError": "Failed to search songs",
       "lyricsError": "Failed to load lyrics",
-      "importError": "Failed to import song"
+      "importError": "Failed to import song",
+      "structuring": "Structuring lyrics with AI...",
+      "structuredPreview": "Structured Preview",
+      "regenerate": "Regenerate with AI",
+      "sectionsDetected": "Detected {{count}} sections",
+      "editManually": "Edit manually",
+      "aiProcessing": "AI is organizing your lyrics into slides...",
+      "useBasicFormat": "Use basic formatting"
     },
     "folder": {
       "name": "Name",
