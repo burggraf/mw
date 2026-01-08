@@ -19,8 +19,9 @@ interface StructureResponse {
 }
 
 function escapeYaml(str: string): string {
-  if (str.includes(':') || str.includes('#') || str.includes("'") || str.includes('"')) {
-    return `"${str.replace(/"/g, '\\"')}"`;
+  // More comprehensive escaping for YAML special characters
+  if (/[:#\n'"{}\[\]>|*\\&!%@`]/.test(str)) {
+    return `"${str.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`;
   }
   return str;
 }
@@ -201,9 +202,15 @@ author: ${escapeYaml(author)}
 ---\n\n${cleanedMarkdown}`;
     }
 
+    // Validate AI response structure
+    const sectionCount = countSectionsInMarkdown(cleanedMarkdown);
+    if (sectionCount > 100 || sectionCount < 1) {
+      throw new Error('Invalid AI response structure: unexpected section count');
+    }
+
     return {
       markdown: cleanedMarkdown,
-      sections: countSectionsInMarkdown(cleanedMarkdown),
+      sections: sectionCount,
       fallback: false,
     };
   } catch (error) {
@@ -220,6 +227,15 @@ Deno.serve(async (req: Request) => {
   try {
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     const { title, author, lyrics }: StructureRequest = await req.json();
+
+    const MAX_LYRICS_LENGTH = 50000; // ~50K characters
+
+    if (lyrics && lyrics.length > MAX_LYRICS_LENGTH) {
+      return new Response(
+        JSON.stringify({ error: "lyrics too large" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (!title || !author) {
       return new Response(
