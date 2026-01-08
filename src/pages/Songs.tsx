@@ -59,7 +59,7 @@ export function SongsPage() {
   const [songToDelete, setSongToDelete] = useState<Song | null>(null)
   const [showGeniusSearch, setShowGeniusSearch] = useState(false)
   const [folders, setFolders] = useState<SongFolder[]>([])
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null | undefined>(null)
   const [selectedSongIds, setSelectedSongIds] = useState<Set<string>>(new Set())
   const [folderDialogOpen, setFolderDialogOpen] = useState(false)
   const [editingFolder, setEditingFolder] = useState<SongFolder | null>(null)
@@ -253,6 +253,10 @@ export function SongsPage() {
       // Show all songs
       return true
     }
+    if (selectedFolderId === '') {
+      // Show unclassified songs (not in any folder)
+      return !song.folderId
+    }
     return song.folderId === selectedFolderId
   })
 
@@ -273,6 +277,18 @@ export function SongsPage() {
             >
               <Music className="h-4 w-4" />
               <span>{t('songs.allSongs')}</span>
+            </button>
+            {/* Unclassified button */}
+            <button
+              onClick={() => setSelectedFolderId('')}
+              className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                selectedFolderId === ''
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+              }`}
+            >
+              <Music className="h-4 w-4" />
+              <span>{t('songs.unclassified')}</span>
             </button>
           </div>
 

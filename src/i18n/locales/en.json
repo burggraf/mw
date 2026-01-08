@@ -162,6 +162,7 @@
     "selected": "selected",
     "moveToFolder": "Move to Folder",
     "allSongs": "All Songs",
+    "unclassified": "Unclassified",
     "removeFromFolder": "Remove from Folder",
     "clearSelection": "Clear",
     "deleteConfirm": {
@@ -230,6 +231,7 @@
     "filters": "Filters",
     "allMedia": "All Slides",
     "allSlides": "All Slides",
+    "unclassified": "Unclassified",
     "recentlyAdded": "Recently Added",
     "images": "Images",
     "videos": "Videos",

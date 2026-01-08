@@ -118,7 +118,13 @@ export function SlidesPage() {
       if (selectedTags.length > 0) filters.tags = selectedTags
 
       // Filter by folder if one is selected
-      if (selectedFolderId !== null) {
+      if (selectedFolderId === null) {
+        // "All Slides" - don't filter by folder
+      } else if (selectedFolderId === '') {
+        // "Unclassified" - filter for slides not in any folder
+        filters.folderId = null
+      } else {
+        // Specific folder
         filters.folderId = selectedFolderId
       }
 

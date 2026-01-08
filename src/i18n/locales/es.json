@@ -162,6 +162,7 @@
     "selected": "seleccionados",
     "moveToFolder": "Mover a Carpeta",
     "allSongs": "Todas las Canciones",
+    "unclassified": "Sin Clasificar",
     "removeFromFolder": "Quitar de Carpeta",
     "clearSelection": "Limpiar",
     "deleteConfirm": {
@@ -230,6 +231,7 @@
     "filters": "Filtros",
     "allMedia": "Todas las Diapositivas",
     "allSlides": "Todas las Diapositivas",
+    "unclassified": "Sin Clasificar",
     "recentlyAdded": "Agregadas Recientemente",
     "images": "Imágenes",
     "videos": "Videos",

@@ -35,8 +35,8 @@ export interface MediaSidebarProps {
   translationNamespace?: 'backgrounds' | 'slides'
   // Folder support (optional - only for slides)
   folders?: SlideFolder[]
-  selectedFolderId?: string | null
-  onFolderSelect?: (folderId: string | null) => void
+  selectedFolderId?: string | null | undefined
+  onFolderSelect?: (folderId: string | null | undefined) => void
   onCreateFolder?: () => void
   onEditFolder?: (folder: SlideFolder) => void
   onDeleteFolder?: (folder: SlideFolder) => void
@@ -87,6 +87,21 @@ export function MediaSidebar({
           >
             <Sparkles className="h-4 w-4" />
             <span>{t(`${ns}.allSlides`)}</span>
+          </button>
+        )}
+        {/* Unclassified button (only for slides) */}
+        {showFolders && (
+          <button
+            onClick={() => onFolderSelect('')}
+            className={cn(
+              'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+              selectedFolderId === ''
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+            )}
+          >
+            <Folder className="h-4 w-4" />
+            <span>{t(`${ns}.unclassified`)}</span>
           </button>
         )}
 
