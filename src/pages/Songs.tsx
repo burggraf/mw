@@ -66,29 +66,6 @@ export function SongsPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [moveSongIdsOnCreate, setMoveSongIdsOnCreate] = useState<string[]>([])
 
-  useEffect(() => {
-    if (currentChurch) {
-      loadSongs()
-      loadFolders()
-    }
-  }, [currentChurch, loadSongs, loadFolders])
-
-  useEffect(() => {
-    if (!currentChurch) return
-
-    const timeoutId = setTimeout(() => {
-      if (searchQuery.trim()) {
-        searchSongs(currentChurch.id, searchQuery)
-          .then(setSongs)
-          .catch(console.error)
-      } else {
-        loadSongs()
-      }
-    }, 300)
-
-    return () => clearTimeout(timeoutId)
-  }, [searchQuery, currentChurch, loadSongs])
-
   const loadSongs = useCallback(async () => {
     if (!currentChurch) return
 
@@ -140,6 +117,29 @@ export function SongsPage() {
       console.error('Failed to load folders:', error)
     }
   }, [currentChurch])
+
+  useEffect(() => {
+    if (currentChurch) {
+      loadSongs()
+      loadFolders()
+    }
+  }, [currentChurch, loadSongs, loadFolders])
+
+  useEffect(() => {
+    if (!currentChurch) return
+
+    const timeoutId = setTimeout(() => {
+      if (searchQuery.trim()) {
+        searchSongs(currentChurch.id, searchQuery)
+          .then(setSongs)
+          .catch(console.error)
+      } else {
+        loadSongs()
+      }
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchQuery, currentChurch, loadSongs])
 
   const handleFolderSaved = useCallback(async (input: SongFolderInput) => {
     if (!currentChurch) return
@@ -502,7 +502,12 @@ export function SongsPage() {
       {/* Folder Dialog */}
       <SongFolderDialog
         open={folderDialogOpen}
-        onOpenChange={setFolderDialogOpen}
+        onOpenChange={(open) => {
+          setFolderDialogOpen(open)
+          if (!open) {
+            setMoveSongIdsOnCreate([]) // Clear pending moves when dialog closes
+          }
+        }}
         onSave={handleFolderSaved}
         folder={editingFolder}
       />

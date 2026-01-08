@@ -3,8 +3,18 @@ import type { SongFolder, SongFolderInput } from '@/types/folder';
 import type { Song } from '@/types/song';
 import { rowToSong } from './songs';
 
+// Database row types
+interface SongFolderRow {
+  id: string;
+  church_id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // Convert database row to SongFolder type
-function rowToSongFolder(row: any): SongFolder {
+function rowToSongFolder(row: SongFolderRow): SongFolder {
   return {
     id: row.id,
     churchId: row.church_id,
@@ -83,7 +93,7 @@ export async function updateSongFolder(
   const supabase = getSupabase();
 
   // Build update object conditionally - only update fields that are provided
-  const updateData: Record<string, any> = {};
+  const updateData: Partial<{ name: string; description: string | null }> = {};
   if (input.name !== undefined) updateData.name = input.name;
   if (input.description !== undefined) updateData.description = input.description || null;
 
