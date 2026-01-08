@@ -137,6 +137,18 @@
       "searchError": "Failed to search songs",
       "lyricsError": "Failed to load lyrics",
       "importError": "Failed to import song"
+    },
+    "folder": {
+      "name": "Name",
+      "nameRequired": "Name is required",
+      "namePlaceholder": "Enter folder name",
+      "description": "Description",
+      "descriptionPlaceholder": "Optional description",
+      "createFolder": "Create Folder",
+      "editFolder": "Edit Folder",
+      "saveError": "Failed to save folder",
+      "createFolderDescription": "Create a new folder to organize your songs.",
+      "editFolderDescription": "Update the folder name or description."
     }
   },
   "backgrounds": {

@@ -3,7 +3,7 @@ import { parseSong, songToMarkdown, generateDefaultArrangement } from '@/lib/son
 import type { Song, SongInput, SongArrangements } from '@/types/song'
 
 // Convert database row to Song type
-function rowToSong(row: any): Song {
+export function rowToSong(row: any): Song {
   return {
     id: row.id,
     churchId: row.church_id,

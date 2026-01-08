@@ -137,6 +137,18 @@
       "searchError": "Error al buscar canciones",
       "lyricsError": "Error al cargar letras",
       "importError": "Error al importar cancion"
+    },
+    "folder": {
+      "name": "Nombre",
+      "nameRequired": "El nombre es obligatorio",
+      "namePlaceholder": "Ingresa el nombre de la carpeta",
+      "description": "Descripcion",
+      "descriptionPlaceholder": "Descripcion opcional",
+      "createFolder": "Crear Carpeta",
+      "editFolder": "Editar Carpeta",
+      "saveError": "Error al guardar la carpeta",
+      "createFolderDescription": "Crear una nueva carpeta para organizar tus canciones.",
+      "editFolderDescription": "Actualiza el nombre o descripción de la carpeta."
     }
   },
   "backgrounds": {
