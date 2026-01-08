@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Textarea } from '@/components/ui/textarea'
 
 interface GeniusSongSearchProps {
   open: boolean
@@ -151,8 +152,8 @@ export function GeniusSongSearch({
     setImporting(true)
 
     try {
-      // Convert lyrics to song markdown format
-      const content = formatLyricsAsMarkdown(selectedSong, lyrics)
+      // Use structured lyrics if available, otherwise fall back to raw
+      const content = structuredLyrics || formatLyricsAsMarkdown(selectedSong, lyrics)
 
       const newSong = await createSong(currentChurch.id, {
         title: selectedSong.title,
@@ -174,12 +175,19 @@ export function GeniusSongSearch({
     }
   }
 
+  const handleRegenerate = async () => {
+    if (!selectedSong || !lyrics) return
+
+    setView('preview')
+    await handleStructureLyrics(selectedSong, lyrics)
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {view === 'preview' && (
+            {(view === 'preview' || view === 'structured') && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -288,6 +296,65 @@ export function GeniusSongSearch({
               >
                 Genius
               </a>
+            </div>
+          </>
+        ) : view === 'structured' ? (
+          <>
+            {/* Structured preview */}
+            <div className="flex-1 -mx-6 px-6 flex flex-col">
+              <div className="flex items-center justify-between py-2 border-b mb-4">
+                <span className="text-sm text-muted-foreground">
+                  {t('songs.genius.sectionsDetected', { count: sectionsDetected })}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRegenerate}
+                  disabled={structuring}
+                  className="h-8"
+                >
+                  {structuring ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
+                  {t('songs.genius.regenerate')}
+                </Button>
+              </div>
+
+              <Textarea
+                value={structuredLyrics || ''}
+                onChange={(e) => setStructuredLyrics(e.target.value)}
+                className="flex-1 font-mono text-sm min-h-[300px] resize-none"
+                placeholder={t('songs.genius.editManually')}
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-between pt-4 border-t">
+              <a
+                href={selectedSong?.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-muted-foreground underline hover:text-foreground flex items-center gap-1"
+              >
+                {t('songs.genius.viewOnGenius')}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleBack}>
+                  {t('common.back')}
+                </Button>
+                <Button
+                  onClick={handleImport}
+                  disabled={importing || !structuredLyrics}
+                >
+                  {importing ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2" />
+                  )}
+                  {t('songs.genius.import')}
+                </Button>
+              </div>
             </div>
           </>
         ) : (
