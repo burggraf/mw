@@ -149,6 +149,15 @@
       "saveError": "Error al guardar la carpeta",
       "createFolderDescription": "Crear una nueva carpeta para organizar tus canciones.",
       "editFolderDescription": "Actualiza el nombre o descripción de la carpeta."
+    },
+    "selected": "seleccionados",
+    "moveToFolder": "Mover a Carpeta",
+    "allSongs": "Todas las Canciones",
+    "removeFromFolder": "Quitar de Carpeta",
+    "clearSelection": "Limpiar",
+    "deleteConfirm": {
+      "title": "Eliminar Canciones",
+      "message": "¿Estás seguro de que quieres eliminar {{count}} canción(es)? Esta acción no se puede deshacer."
     }
   },
   "backgrounds": {

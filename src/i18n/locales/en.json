@@ -149,6 +149,15 @@
       "saveError": "Failed to save folder",
       "createFolderDescription": "Create a new folder to organize your songs.",
       "editFolderDescription": "Update the folder name or description."
+    },
+    "selected": "selected",
+    "moveToFolder": "Move to Folder",
+    "allSongs": "All Songs",
+    "removeFromFolder": "Remove from Folder",
+    "clearSelection": "Clear",
+    "deleteConfirm": {
+      "title": "Delete Songs",
+      "message": "Are you sure you want to delete {{count}} song(s)? This action cannot be undone."
     }
   },
   "backgrounds": {
