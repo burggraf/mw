@@ -35,11 +35,11 @@ export async function goToTeamPage(page: Page): Promise<void> {
   console.log('[goToTeamPage] Navigating to /team')
   await page.goto('/team')
 
-  // Wait for page to load - look for either Team heading or redirect to login
+  // Wait for page to load successfully OR redirect to login/setup-church (increased timeout for slow internet)
   await Promise.race([
-    page.waitForSelector('h1', { timeout: 10000 }),
-    page.waitForURL(/\/login/, { timeout: 10000 }),
-    page.waitForURL(/\/setup-church/, { timeout: 10000 }),
+    page.waitForSelector('h1', { timeout: 30000 }),
+    page.waitForURL(/\/login/, { timeout: 30000 }),
+    page.waitForURL(/\/setup-church/, { timeout: 30000 }),
   ])
 
   // If redirected to login, that's an error in the test setup
@@ -52,11 +52,11 @@ export async function goToTeamPage(page: Page): Promise<void> {
     throw new Error('Redirected to setup-church - church must be created first. Test should check for setup-church page and create church before calling goToTeamPage.')
   }
 
-  // Wait for members tab to be present and clickable
-  await page.waitForSelector('button[role="tab"]:has-text("Members")', { timeout: 5000 })
+  // Wait for members tab to be present and clickable (increased for slow internet)
+  await page.waitForSelector('button[role="tab"]:has-text("Members")', { timeout: 15000 })
 
-  // Wait for members to finish loading (check for member rows or empty state)
-  await page.waitForTimeout(500)
+  // Wait for members to finish loading
+  await page.waitForTimeout(1000)
   console.log('[goToTeamPage] Team page loaded successfully')
 }
 
@@ -113,8 +113,8 @@ export async function inviteMember(
   console.log('Clicking Send Invitation button...')
   await page.click('button:has-text("Send Invitation")')
 
-  // Wait a bit for the request to complete
-  await page.waitForTimeout(5000)
+  // Wait for the request to complete (increased for slow internet)
+  await page.waitForTimeout(10000)
 
   // Remove listener
   page.off('response', responseHandler)
@@ -138,15 +138,15 @@ export async function inviteMember(
 
   console.log('[inviteMember] Invitation token captured:', invitationToken)
 
-  // Wait for dialog to close and success message
+  // Wait for dialog to close and success message (increased timeout for slow internet)
   // If dialog doesn't close automatically, close it manually
   try {
-    await expect(page.locator('[role="dialog"]')).not.toBeVisible({ timeout: 5000 })
+    await expect(page.locator('[role="dialog"]')).not.toBeVisible({ timeout: 10000 })
   } catch {
     console.log('[inviteMember] Dialog still open, closing manually')
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(500)
-    await expect(page.locator('[role="dialog"]')).not.toBeVisible({ timeout: 5000 })
+    await page.waitForTimeout(1000)
+    await expect(page.locator('[role="dialog"]')).not.toBeVisible({ timeout: 10000 })
   }
   console.log(`Invited ${email} as ${role}`)
 
@@ -155,8 +155,8 @@ export async function inviteMember(
     console.log('Token not captured from response, fetching from invitations tab...')
     await goToInvitationsTab(page)
 
-    // Wait for invitations to load - the list might take time to appear
-    await page.waitForTimeout(2000)
+    // Wait for invitations to load - the list might take time to appear (increased for slow internet)
+    await page.waitForTimeout(5000)
 
     // Check if invitations list exists
     const listVisible = await page.locator('[data-testid="invitations-list"]').isVisible().catch(() => false)
@@ -164,14 +164,14 @@ export async function inviteMember(
       // Either no invitations or list is still loading - refresh to be sure
       console.log('[inviteMember] Invitations list not visible, refreshing...')
       await page.reload()
-      await page.waitForTimeout(2000)
+      await page.waitForTimeout(5000)
       await goToInvitationsTab(page)
-      await page.waitForTimeout(2000)
+      await page.waitForTimeout(5000)
     }
 
-    // Look for the invitation row and get the token from data-token attribute
+    // Look for the invitation row and get the token from data-token attribute (increased timeout)
     const row = page.locator(`[data-testid="invitation-row"]:has-text("${email}")`)
-    await row.waitFor({ state: 'visible', timeout: 10000 })
+    await row.waitFor({ state: 'visible', timeout: 20000 })
     const tokenAttr = await row.getAttribute('data-token')
 
     if (tokenAttr) {
@@ -196,7 +196,7 @@ export async function inviteMember(
  */
 export async function goToInvitationsTab(page: Page): Promise<void> {
   await page.click('button[role="tab"]:has-text("Pending")')
-  await page.waitForSelector('[data-testid="invitations-list"]', { timeout: 5000 })
+  await page.waitForSelector('[data-testid="invitations-list"]', { timeout: 15000 })
 }
 
 /**
@@ -205,11 +205,11 @@ export async function goToInvitationsTab(page: Page): Promise<void> {
 export async function goToMembersTab(page: Page): Promise<void> {
   await page.click('button[role="tab"]:has-text("Members")')
 
-  // Wait for members list to appear
-  await page.waitForSelector('[data-testid="members-list"]', { timeout: 10000 })
+  // Wait for members list to appear (increased for slow internet)
+  await page.waitForSelector('[data-testid="members-list"]', { timeout: 20000 })
 
-  // Wait for at least one member row to appear (ensures data is loaded)
-  await page.waitForSelector('[data-testid="member-row"]', { timeout: 5000 }).catch(() => {
+  // Wait for at least one member row to appear (ensures data is loaded, increased for slow internet)
+  await page.waitForSelector('[data-testid="member-row"]', { timeout: 10000 }).catch(() => {
     // If no member rows, might be empty - log but don't fail
     console.log('No member rows found - list might be empty')
   })

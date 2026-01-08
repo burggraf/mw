@@ -20,7 +20,7 @@ export async function signUp(
   password: string
 ): Promise<void> {
   await page.goto('/signup')
-  await page.waitForLoadState('networkidle')
+  await page.waitForLoadState('domcontentloaded')
 
   // Use locators for better retry behavior when React re-renders
   const emailInput = page.locator('input[type="email"]')
@@ -28,19 +28,26 @@ export async function signUp(
   const confirmPasswordInput = page.locator('input#confirmPassword')
   const submitButton = page.locator('button[type="submit"]')
 
-  await emailInput.waitFor({ state: 'visible', timeout: 10000 })
+  await emailInput.waitFor({ state: 'visible', timeout: 15000 })
   await emailInput.fill(email)
   await passwordInput.fill(password)
   await confirmPasswordInput.fill(password)
 
   console.log('Submitting signup form...')
-  await submitButton.click()
 
-  // Wait for "check your email" message
-  await expect(page.getByText(/check your email|confirm/i)).toBeVisible({
-    timeout: 10000,
-  })
-  console.log('Signup submitted successfully')
+  // Click and wait for "check your email" message (increased timeout for slow internet)
+  await Promise.all([
+    expect(page.getByText(/check your email|confirm/i)).toBeVisible({ timeout: 15000 }),
+    submitButton.click(),
+  ])
+
+  // Check if we got redirected (email verification disabled)
+  const currentUrl = page.url()
+  if (currentUrl.includes('/dashboard') || currentUrl.includes('/setup-church')) {
+    console.log('[signUp] Email verification disabled - user already logged in')
+  } else {
+    console.log('Signup submitted successfully')
+  }
 }
 
 /**
@@ -54,7 +61,8 @@ export async function signUpAndConfirm(
   await signUp(page, mailAccount.address, password)
 
   console.log('Waiting for confirmation email...')
-  const confirmEmail = await waitForEmail(mailAccount, 'confirm', 60000)
+  // Increased timeout for slow internet
+  const confirmEmail = await waitForEmail(mailAccount, 'confirm', 90000)
   const confirmLink = extractConfirmationLink(confirmEmail)
 
   console.log(`Visiting confirmation link: ${confirmLink}`)
@@ -91,15 +99,15 @@ export async function signIn(
   const passwordInput = page.locator('input#password')
   const submitButton = page.locator('button[type="submit"]')
 
-  await emailInput.waitFor({ state: 'visible', timeout: 10000 })
+  await emailInput.waitFor({ state: 'visible', timeout: 15000 })
   await emailInput.fill(email)
   await passwordInput.fill(password)
 
   console.log('Submitting login form...')
 
-  // Click and wait for navigation to start
+  // Click and wait for navigation to start (increased timeout for slow internet)
   await Promise.all([
-    page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 30000 }),
+    page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 45000 }),
     submitButton.click(),
   ])
 

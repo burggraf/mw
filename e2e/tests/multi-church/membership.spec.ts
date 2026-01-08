@@ -65,14 +65,30 @@ test.describe('Multi-Church Membership', () => {
   })
 
   test('user sees correct role for each church', async ({ page }) => {
+    // Increase timeout for this test
+    test.setTimeout(300000) // 5 minutes
+
     // Create admin with Church Admin
     const adminMail = await createTempEmailAccount()
     await signUpAndConfirm(page, adminMail, 'AdminPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input#churchName', 'Admin Church')
-      await page.click('button[type="submit"]')
-      await page.waitForURL(/\/dashboard/, { timeout: 10000 })
+      console.log('[Test] Creating Admin Church')
+      const churchNameInput = page.locator('input#churchName')
+      const submitButton = page.locator('button[type="submit"]')
+
+      await churchNameInput.fill('Admin Church')
+      await submitButton.click()
+
+      try {
+        await page.waitForURL(/\/dashboard/, { timeout: 20000 })
+        console.log('[Test] Admin Church created successfully')
+      } catch (e) {
+        const errorText = await page.locator('.bg-destructive\\/10, .text-destructive').textContent().catch(() => null)
+        const debugText = await page.locator('[data-testid="debug-error"]').textContent().catch(() => null)
+        console.log('[Test] Admin Church error:', { errorText, debugText })
+        throw e
+      }
     }
 
     // Create user with their own church (admin there)
@@ -81,9 +97,22 @@ test.describe('Multi-Church Membership', () => {
     await signUpAndConfirm(page, userMail, 'UserPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input#churchName', 'User Own Church')
-      await page.click('button[type="submit"]')
-      await page.waitForURL(/\/dashboard/, { timeout: 10000 })
+      console.log('[Test] Creating User Own Church')
+      const churchNameInput = page.locator('input#churchName')
+      const submitButton = page.locator('button[type="submit"]')
+
+      await churchNameInput.fill('User Own Church')
+      await submitButton.click()
+
+      try {
+        await page.waitForURL(/\/dashboard/, { timeout: 20000 })
+        console.log('[Test] User Own Church created successfully')
+      } catch (e) {
+        const errorText = await page.locator('.bg-destructive\\/10, .text-destructive').textContent().catch(() => null)
+        const debugText = await page.locator('[data-testid="debug-error"]').textContent().catch(() => null)
+        console.log('[Test] User Own Church error:', { errorText, debugText })
+        throw e
+      }
     }
 
     // Admin invites user as operator
@@ -96,8 +125,19 @@ test.describe('Multi-Church Membership', () => {
     await page.goto('/')
     await signIn(page, userMail.address, 'UserPass123!')
     await page.goto(inviteLink)
+
+    // Wait for page to load and click Accept button
+    await page.waitForLoadState('domcontentloaded')
     await page.click('button:has-text("Accept")')
-    await page.waitForURL(/\/dashboard/, { timeout: 10000 })
+
+    // Wait for redirect with increased timeout for slow internet
+    try {
+      await page.waitForURL(/\/dashboard/, { timeout: 30000 })
+      console.log('[Test] Successfully accepted invitation and redirected to dashboard')
+    } catch (e) {
+      console.log('[Test] Failed to redirect after accepting invitation, current URL:', page.url())
+      throw e
+    }
 
     // Check role display in church selector
     const churchSelector = page.locator('[data-testid="church-selector"]')
@@ -113,6 +153,6 @@ test.describe('Multi-Church Membership', () => {
       await expect(adminChurchItem.locator('..').getByText(/operator/i)).toBeVisible()
     }
 
-    console.log('Role display per church verified!')
+    console.log('[Test] Role display per church verified!')
   })
 })
