@@ -13,6 +13,7 @@ export interface Song {
   audienceBackgroundId: string | null
   stageBackgroundId: string | null
   lobbyBackgroundId: string | null
+  folderId?: string | null
   createdAt: string
   updatedAt: string
 }
