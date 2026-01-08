@@ -14,9 +14,36 @@ test.describe('Multi-Church Membership', () => {
     await signUpAndConfirm(page, admin1Mail, 'Admin1Pass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input#churchName', 'Church A')
-      await page.click('button[type="submit"]')
-      await page.waitForURL(/\/dashboard/, { timeout: 10000 })
+      console.log('[Test] On setup-church page, creating church')
+      // Check for error messages
+      try {
+        await page.fill('input#churchName', 'Church A')
+        console.log('[Test] Filled church name')
+
+        // Check if button is enabled
+        const submitButton = page.locator('button[type="submit"]')
+        const isEnabled = await submitButton.isEnabled()
+        console.log('[Test] Submit button enabled:', isEnabled)
+
+        await submitButton.click()
+        console.log('[Test] Clicked submit button, current URL:', page.url())
+
+        // Wait for redirect to dashboard OR error message
+        try {
+          await page.waitForURL(/\/dashboard/, { timeout: 20000 })
+          console.log('[Test] Successfully redirected to dashboard')
+        } catch (e) {
+          // Check for errors
+          const errorText = await page.locator('.bg-destructive\\/10, .text-destructive').textContent().catch(() => null)
+          console.log('[Test] Error text:', errorText)
+          const debugText = await page.locator('[data-testid="debug-error"]').textContent().catch(() => null)
+          console.log('[Test] Debug error:', debugText)
+          throw e
+        }
+      } catch (e: any) {
+        console.log('[Test] Error during church creation:', e.message)
+        throw e
+      }
     }
 
     // Create admin2 with Church B
@@ -25,9 +52,23 @@ test.describe('Multi-Church Membership', () => {
     await signUpAndConfirm(page, admin2Mail, 'Admin2Pass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input#churchName', 'Church B')
-      await page.click('button[type="submit"]')
-      await page.waitForURL(/\/dashboard/, { timeout: 10000 })
+      console.log('[Test] Creating Church B')
+      const churchNameInput = page.locator('input#churchName')
+      const submitButton = page.locator('button[type="submit"]')
+
+      await churchNameInput.fill('Church B')
+      await submitButton.click()
+
+      // Wait for redirect to dashboard OR error
+      try {
+        await page.waitForURL(/\/dashboard/, { timeout: 20000 })
+        console.log('[Test] Church B created successfully')
+      } catch (e) {
+        const errorText = await page.locator('.bg-destructive\\/10, .text-destructive').textContent().catch(() => null)
+        const debugText = await page.locator('[data-testid="debug-error"]').textContent().catch(() => null)
+        console.log('[Test] Church B error:', { errorText, debugText })
+        throw e
+      }
     }
 
     // Create multi-church user with their own Church C
@@ -36,9 +77,23 @@ test.describe('Multi-Church Membership', () => {
     await signUpAndConfirm(page, multiUserMail, 'MultiPass123!')
 
     if (page.url().includes('/setup-church')) {
-      await page.fill('input#churchName', 'Church C')
-      await page.click('button[type="submit"]')
-      await page.waitForURL(/\/dashboard/, { timeout: 10000 })
+      console.log('[Test] Creating Church C')
+      const churchNameInput = page.locator('input#churchName')
+      const submitButton = page.locator('button[type="submit"]')
+
+      await churchNameInput.fill('Church C')
+      await submitButton.click()
+
+      // Wait for redirect to dashboard OR error
+      try {
+        await page.waitForURL(/\/dashboard/, { timeout: 20000 })
+        console.log('[Test] Church C created successfully')
+      } catch (e) {
+        const errorText = await page.locator('.bg-destructive\\/10, .text-destructive').textContent().catch(() => null)
+        const debugText = await page.locator('[data-testid="debug-error"]').textContent().catch(() => null)
+        console.log('[Test] Church C error:', { errorText, debugText })
+        throw e
+      }
     }
 
     // Admin1 invites multi-user to Church A

@@ -204,6 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string): Promise<SignUpResult> => {
     const supabase = getSupabase()
 
+    console.log('[AuthContext.signUp] Starting signup for:', email)
     // Sign up the user
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -213,13 +214,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     })
 
+    console.log('[AuthContext.signUp] Supabase response:', {
+      hasUser: !!data.user,
+      hasSession: !!data.session,
+      userEmail: data.user?.email,
+      userId: data.user?.id,
+      error: error?.message
+    })
+
     if (error) throw error
     if (!data.user) throw new Error('Signup failed')
 
     // Check if user needs to confirm email
     // If session exists, user is immediately authenticated (auto-confirm enabled)
     // If no session, user needs to confirm email first
-    return { needsEmailConfirmation: !data.session }
+    const needsConfirmation = !data.session
+    console.log('[AuthContext.signUp] needsEmailConfirmation:', needsConfirmation)
+    return { needsEmailConfirmation: needsConfirmation }
   }
 
   // Sign up specifically for invitation acceptance - includes display name
@@ -314,6 +325,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const createChurch = async (churchName: string) => {
     const supabase = getSupabase()
+
+    // Ensure user_profile exists before creating church
+    // This is critical because the RPC function relies on the profile existing
+    if (user) {
+      console.log('[AuthContext] Checking user_profile for:', user.id)
+
+      // Try to create the profile - it will fail if already exists (unique constraint)
+      const { error: insertError } = await supabase
+        .from('user_profiles')
+        .insert({
+          id: user.id,
+          display_name: user.user_metadata?.display_name || user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+          preferred_language: user.user_metadata?.preferred_language || 'en'
+        })
+
+      if (insertError) {
+        // Check if it's a unique violation (profile already exists)
+        if (insertError.code === '23505') {
+          console.log('[AuthContext] User profile already exists, continuing...')
+        } else {
+          // Different error - log but continue
+          console.error('[AuthContext] Warning: Failed to ensure user_profile:', insertError)
+        }
+      } else {
+        console.log('[AuthContext] User profile created successfully')
+      }
+
+      // Verify profile exists before proceeding
+      const { data: profileCheck } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single()
+
+      if (!profileCheck) {
+        throw new Error('Failed to create or find user_profile. Cannot create church.')
+      }
+    }
+
     const { error } = await supabase.rpc('create_church_with_admin', {
       church_name: churchName
     })

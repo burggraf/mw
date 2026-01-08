@@ -73,7 +73,8 @@ export async function signIn(
   password: string
 ): Promise<void> {
   await page.goto('/login')
-  await page.waitForLoadState('networkidle')
+  // Wait for page to be ready (not necessarily networkidle, just DOM loaded)
+  await page.waitForLoadState('domcontentloaded')
 
   // Check if we were redirected away from login (user already logged in)
   const currentUrl = page.url()
@@ -82,7 +83,7 @@ export async function signIn(
     // Sign out first, then sign in as the requested user
     await signOut(page)
     await page.goto('/login')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
   }
 
   // Use locators for better retry behavior when React re-renders
@@ -104,6 +105,28 @@ export async function signIn(
 
   // Wait for redirect away from login
   await waitForAuthRedirect(page)
+}
+
+/**
+ * Create a church on the setup-church page
+ */
+export async function createChurch(page: Page, churchName: string): Promise<void> {
+  const churchNameInput = page.locator('input#churchName')
+  const submitButton = page.locator('button[type="submit"]')
+
+  await churchNameInput.waitFor({ state: 'visible', timeout: 5000 })
+
+  // Fill the input and dispatch change event to trigger React's onChange
+  await churchNameInput.fill(churchName)
+  await churchNameInput.dispatchEvent('input')
+  await churchNameInput.dispatchEvent('change')
+
+  // Click submit button
+  await submitButton.click()
+
+  // Wait for redirect to dashboard
+  await page.waitForURL(/\/dashboard/, { timeout: 15000 })
+  console.log(`Church created: ${churchName}`)
 }
 
 /**

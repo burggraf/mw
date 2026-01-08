@@ -17,25 +17,38 @@ export function SetupChurchPage() {
   const [churchName, setChurchName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [debugError, setDebugError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('[SetupChurch] Form submitted, churchName:', churchName)
     setError(null)
 
     if (!churchName.trim()) {
+      console.error('[SetupChurch] Church name is empty')
       setError('Please enter a church name')
       return
     }
 
     setIsLoading(true)
+    console.log('[SetupChurch] Creating church:', churchName)
 
     try {
       await createChurch(churchName)
+      console.log('[SetupChurch] Church created successfully')
       // Refresh ChurchContext to load the newly created church
       await refreshChurches()
+      console.log('[SetupChurch] Churches refreshed, navigating to dashboard')
       navigate('/dashboard')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create church')
+    } catch (err: any) {
+      console.error('[SetupChurch] Failed to create church:', err)
+      const errorMsg = err?.message || 'Failed to create church'
+      const errorCode = err?.code || 'UNKNOWN'
+      const errorDetails = err?.details || err?.hint || ''
+      console.error('[SetupChurch] Error:', { message: errorMsg, code: errorCode, details: errorDetails })
+
+      setError(errorMsg)
+      setDebugError(`${errorCode}: ${errorMsg}\n${errorDetails}`)
     } finally {
       setIsLoading(false)
     }
@@ -60,6 +73,11 @@ export function SetupChurchPage() {
             {error && (
               <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
                 {error}
+              </div>
+            )}
+            {debugError && (
+              <div className="bg-gray-100 text-gray-800 text-xs p-3 rounded-md font-mono whitespace-pre-wrap" data-testid="debug-error">
+                {debugError}
               </div>
             )}
             <div className="space-y-2">

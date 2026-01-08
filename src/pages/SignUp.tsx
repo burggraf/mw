@@ -45,15 +45,21 @@ export function SignUpPage() {
         sessionStorage.setItem('postAuthRedirect', redirectTo)
       }
 
+      console.log('[SignUp] Calling signUp with email:', email)
       const result = await signUp(email, password)
+      console.log('[SignUp] signUp result:', result)
+
       if (result.needsEmailConfirmation) {
+        console.log('[SignUp] Email confirmation needed')
         setEmailSent(true)
       } else {
+        console.log('[SignUp] No email confirmation needed, redirecting to:', redirectTo)
         // No email confirmation needed - redirect to target
         sessionStorage.removeItem('postAuthRedirect')
         navigate(redirectTo)
       }
     } catch (err) {
+      console.error('[SignUp] Signup error:', err)
       setError(err instanceof Error ? err.message : 'Signup failed')
     } finally {
       setIsLoading(false)
