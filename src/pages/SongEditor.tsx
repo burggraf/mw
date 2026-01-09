@@ -140,7 +140,7 @@ export function SongEditorPage() {
     }
   }
 
-  async function handleSave() {
+  async function handleSave(options?: { navigateAway?: boolean }) {
     if (!currentChurch) return
 
     if (!title.trim()) {
@@ -189,7 +189,9 @@ export function SongEditorPage() {
         toast.success(t('songs.songUpdated'))
       }
 
-      navigate('/songs')
+      if (options?.navigateAway !== false) {
+        navigate('/songs')
+      }
     } catch (error) {
       console.error('Failed to save song:', error)
       toast.error(t('common.error'))
@@ -244,10 +246,14 @@ export function SongEditorPage() {
   }
 
   async function handleSaveAndReformat() {
-    await handleSave()
+    await handleSave({ navigateAway: false })
     setShowUnsavedWarning(false)
     // Reformat will use the newly saved data
-    setTimeout(() => handleReformatWithAI(), 100)
+    // Reload the song to get the saved data
+    if (id) {
+      await loadSong(id)
+    }
+    await handleReformatWithAI()
   }
 
   function handleDiscardAndReformat() {
