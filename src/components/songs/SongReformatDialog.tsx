@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { structureSongLyrics } from '@/services/songStructure'
 import { Button } from '@/components/ui/button'
@@ -36,19 +36,7 @@ export function SongReformatDialog({
   const [formattedMarkdown, setFormattedMarkdown] = useState<string | null>(null)
   const [sectionsDetected, setSectionsDetected] = useState(0)
 
-  // Reset state when dialog opens
-  useEffect(() => {
-    if (open) {
-      setFormattedMarkdown(null)
-      setSectionsDetected(0)
-      setLoading(true)
-
-      // Call AI to structure the lyrics
-      structureWithAI()
-    }
-  }, [open, originalMarkdown])
-
-  async function structureWithAI() {
+  const structureWithAI = useCallback(async () => {
     setStructuring(true)
     try {
       const response = await structureSongLyrics(title, author, originalMarkdown)
@@ -62,7 +50,26 @@ export function SongReformatDialog({
       setLoading(false)
       setStructuring(false)
     }
-  }
+  }, [title, author, originalMarkdown, onOpenChange, t])
+
+  // Reset state when dialog opens
+  useEffect(() => {
+    let mounted = true
+    if (open) {
+      setFormattedMarkdown(null)
+      setSectionsDetected(0)
+      setLoading(true)
+
+      // Call AI to structure the lyrics
+      structureWithAI().then(() => {
+        if (!mounted) return
+      })
+    }
+
+    return () => {
+      mounted = false
+    }
+  }, [open, originalMarkdown, structureWithAI])
 
   function handleRegenerate() {
     setStructuring(true)
@@ -120,7 +127,7 @@ export function SongReformatDialog({
             {t('common.cancel')}
           </Button>
           <Button onClick={handleAccept} disabled={!formattedMarkdown || structuring}>
-            {t('common.accept', 'Accept')}
+            {t('common.accept')}
           </Button>
         </DialogFooter>
       </DialogContent>
