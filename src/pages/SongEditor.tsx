@@ -52,6 +52,13 @@ export function SongEditorPage() {
   const [backgroundPreviewUrl, setBackgroundPreviewUrl] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
 
+  // AI Reformat states
+  const [reformatting, setReformatting] = useState(false)
+  const [reformatDialogOpen, setReformatDialogOpen] = useState(false)
+  const [markdownToReformat, setMarkdownToReformat] = useState('')
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false)
+  const [originalSong, setOriginalSong] = useState<any>(null)
+
   useEffect(() => {
     if (!isNew && id) {
       loadSong(id)
@@ -105,6 +112,9 @@ export function SongEditorPage() {
       setCopyright(song.copyrightInfo || '')
       setCcliNumber(song.ccliNumber || '')
       setLyrics(extractLyricsContent(song.content))
+
+      // Store original song data for unsaved changes detection
+      setOriginalSong(song)
 
       // Load default background from backgrounds.default
       const defaultBgId = song.backgrounds?.default || null
