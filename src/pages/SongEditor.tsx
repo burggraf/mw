@@ -23,6 +23,7 @@ import { BackgroundPicker } from '@/components/songs/BackgroundPicker'
 import { SongReformatDialog } from '@/components/songs/SongReformatDialog'
 import { getMediaWithStyle, getSignedMediaUrl } from '@/services/media'
 import type { Media } from '@/types/media'
+import type { Song } from '@/types/song'
 // TODO: Task 4 - Wand2 icon will be used for Reformat with AI button
 import { ArrowLeft, Save, Eye, Image, Wand2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -57,7 +58,7 @@ export function SongEditorPage() {
   const [reformatDialogOpen, setReformatDialogOpen] = useState(false)
   const [markdownToReformat, setMarkdownToReformat] = useState('')
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false)
-  const [originalSong, setOriginalSong] = useState<any>(null)
+  const [originalSong, setOriginalSong] = useState<Song | null>(null)
 
   useEffect(() => {
     if (!isNew && id) {
@@ -100,6 +101,8 @@ export function SongEditorPage() {
   async function loadSong(songId: string) {
     try {
       setLoading(true)
+      // Clear any previous original song data to prevent stale comparisons
+      setOriginalSong(null)
       const song = await getSong(songId)
       if (!song) {
         toast.error(t('common.error'))
