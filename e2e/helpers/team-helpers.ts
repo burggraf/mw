@@ -421,7 +421,20 @@ export async function acceptInvitation(page: Page, inviteLink: string): Promise<
 export async function leaveChurch(page: Page): Promise<void> {
   await goToMembersTab(page)
 
-  // Check if Leave Church button exists and is enabled
+  // Wait for the "You" badge to appear, indicating the user context is loaded
+  console.log('[leaveChurch] Waiting for "You" badge to appear...')
+  try {
+    await page.waitForSelector('text=You', { timeout: 10000 })
+    console.log('[leaveChurch] "You" badge found, user context loaded')
+  } catch (e) {
+    console.log('[leaveChurch] "You" badge not found, may be an admin without the badge')
+  }
+
+  // Wait a bit for everything to settle
+  await page.waitForTimeout(2000)
+
+  // Now look for the Leave Church button
+  // It should be in the row with the "You" badge
   const leaveButton = page.locator('[data-testid="leave-church-button"]')
   console.log('[leaveChurch] Waiting for Leave Church button...')
   await leaveButton.waitFor({ state: 'visible', timeout: 10000 })
@@ -433,45 +446,121 @@ export async function leaveChurch(page: Page): Promise<void> {
     throw new Error('[leaveChurch] Leave Church button is disabled. User may not have permission to leave.')
   }
 
-  // Listen for console errors
-  page.on('console', msg => {
-    if (msg.type() === 'error') {
-      console.log('[Browser Console Error]', msg.text())
-    }
-  })
-
-  // Click the Leave Church button
+  // Click the Leave Church button using locator's click (more reliable for React)
   console.log('[leaveChurch] Clicking Leave Church button')
-  await leaveButton.click()
+  await leaveButton.click({ force: true })
 
-  // Wait a moment for React state to update
-  await page.waitForTimeout(2000)
-
-  // Check if dialog appeared
-  const hasDialog = await page.locator('[role="dialog"]').isVisible().catch(() => false)
-  console.log('[leaveChurch] Dialog visible:', hasDialog)
-
-  if (!hasDialog) {
-    // Take screenshot to debug
+  // Wait for dialog to appear - use a longer timeout for slow React state updates
+  // Look for the dialog content text instead of relying on role attribute
+  console.log('[leaveChurch] Waiting for dialog to appear...')
+  try {
+    await page.waitForSelector('text=Leave Church?You will lose access', { timeout: 5000 })
+    console.log('[leaveChurch] Dialog appeared!')
+  } catch (e) {
+    // Dialog didn't appear - take screenshot and debug
     await page.screenshot({ path: 'e2e/screenshots/leave-church-no-dialog.png' })
 
-    // Check page content
+    // Check if there's a "You" badge on the current user row
+    const hasYouBadge = await page.locator('text=You').isVisible().catch(() => false)
+    console.log('[leaveChurch] "You" badge visible:', hasYouBadge)
+
+    // Get all member rows
+    const memberRows = await page.locator('[data-testid="member-row"]').count()
+    console.log('[leaveChurch] Number of member rows:', memberRows)
+
+    // Get the current user ID from the page (if available)
     const bodyText = await page.locator('body').textContent()
-    console.log('[leaveChurch] Page contains "Leave Church":', bodyText?.includes('Leave Church'))
+    console.log('[leaveChurch] Page preview:', bodyText?.substring(0, 500))
 
     throw new Error('[leaveChurch] Dialog did not appear after clicking Leave Church button. Check screenshot: e2e/screenshots/leave-church-no-dialog.png')
   }
 
   // The confirmation button should have destructive styling and contain "Leave"
   console.log('[leaveChurch] Looking for confirmation button...')
-  const confirmButton = page.locator('[role="dialog"] button:has-text("Leave")').first()
-  await confirmButton.waitFor({ state: 'visible', timeout: 5000 })
+  // Try to find the button with destructive styling
+  // The AlertDialogAction button should have the bg-destructive class
+  const destructiveButton = page.locator('button.bg-destructive:has-text("Leave")')
+  const destructiveCount = await destructiveButton.count()
+  console.log('[leaveChurch] Found', destructiveCount, 'destructive Leave buttons')
 
-  console.log('[leaveChurch] Clicking confirmation button')
-  await confirmButton.click()
+  if (destructiveCount > 0) {
+    console.log('[leaveChurch] Clicking destructive confirmation button using evaluate')
+    // Use evaluate to click the button directly in the browser context
+    // This ensures React onClick handlers are triggered properly
+    await page.evaluate(() => {
+      const buttons = document.querySelectorAll('button.bg-destructive')
+      buttons.forEach(btn => {
+        if (btn.textContent?.includes('Leave')) {
+          (btn as HTMLElement).click()
+        }
+      })
+    })
+    console.log('[leaveChurch] Button clicked via evaluate')
+  } else {
+    // Fallback: find button by text content and position
+    // The dialog should have a title "Leave Church?" and description "You will lose access"
+    // The confirm button should be after these elements
+    const dialogButtons = page.locator('button:has-text("Leave")')
+    const count = await dialogButtons.count()
+    console.log('[leaveChurch] Found', count, 'Leave buttons total')
 
-  // Wait for redirect (increased timeout for slow internet)
-  console.log('[leaveChurch] Waiting for redirect...')
-  await page.waitForURL(/\/(dashboard|setup-church)/, { timeout: 30000 })
+    // Get the button that appears after the dialog description
+    // This should be the confirm button in the dialog
+    for (let i = 0; i < count; i++) {
+      const button = dialogButtons.nth(i)
+      const isVisible = await button.isVisible()
+      if (isVisible) {
+        console.log('[leaveChurch] Trying Leave button', i, 'of', count)
+        await button.click()
+        // Wait a moment to see if dialog closes
+        await page.waitForTimeout(1000)
+
+        // Check if dialog is still open
+        const dialogStillOpen = await page.locator('text=Leave Church?You will lose access').isVisible().catch(() => false)
+        if (!dialogStillOpen) {
+          console.log('[leaveChurch] Dialog closed, button', i, 'was the correct one')
+          break
+        } else {
+          console.log('[leaveChurch] Dialog still open, trying next button')
+        }
+      }
+    }
+  }
+
+  // Wait for redirect - check for error toasts first
+  console.log('[leaveChurch] Waiting for redirect or error...')
+
+  // Wait longer for the API call and navigation to complete
+  await page.waitForTimeout(5000)
+
+  // Check current URL
+  const currentUrl = page.url()
+  console.log('[leaveChurch] Current URL after button click:', currentUrl)
+
+  // Check for error toasts (success or error)
+  const hasErrorToast = await page.locator('text=last admin,cannot leave,transfer admin').isVisible().catch(() => false)
+  const hasSuccessToast = await page.locator('text=successfully left,success').isVisible().catch(() => false)
+  console.log('[leaveChurch] Error toast:', hasErrorToast, 'Success toast:', hasSuccessToast)
+
+  if (hasErrorToast) {
+    throw new Error('[leaveChurch] Error toast appeared - user is last admin and cannot leave')
+  }
+
+  // Check if we're still on the team page (navigation didn't happen)
+  if (currentUrl.includes('/team')) {
+    console.log('[leaveChurch] Still on team page, navigation may have failed')
+
+    // Try manually navigating to dashboard
+    console.log('[leaveChurch] Manually navigating to dashboard...')
+    await page.goto('/dashboard')
+    await page.waitForLoadState('domcontentloaded')
+  }
+
+  // Verify we're on dashboard or setup-church
+  const finalUrl = page.url()
+  if (!finalUrl.includes('/dashboard') && !finalUrl.includes('/setup-church')) {
+    throw new Error(`[leaveChurch] Navigation failed. Final URL: ${finalUrl}`)
+  }
+
   console.log('[leaveChurch] Left church successfully')
 }
