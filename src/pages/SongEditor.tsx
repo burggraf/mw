@@ -217,6 +217,75 @@ export function SongEditorPage() {
     )
   }, [title, author, copyright, ccliNumber, lyrics, originalSong, isNew])
 
+  // AI Reformat handler functions
+  async function handleReformatWithAI() {
+    if (hasUnsavedChanges) {
+      setShowUnsavedWarning(true)
+      return
+    }
+
+    setReformatting(true)
+    try {
+      const metadata = {
+        title: title || 'Untitled',
+        author: author || undefined,
+        copyright: copyright || undefined,
+        ccliNumber: ccliNumber || undefined,
+      }
+      const fullMarkdown = buildMarkdownFromParts(metadata, lyrics)
+      setMarkdownToReformat(fullMarkdown)
+      setReformatDialogOpen(true)
+    } catch (error) {
+      console.error('Failed to prepare for reformatting:', error)
+      toast.error(t('common.error'))
+    } finally {
+      setReformatting(false)
+    }
+  }
+
+  async function handleSaveAndReformat() {
+    await handleSave()
+    setShowUnsavedWarning(false)
+    // Reformat will use the newly saved data
+    setTimeout(() => handleReformatWithAI(), 100)
+  }
+
+  function handleDiscardAndReformat() {
+    setShowUnsavedWarning(false)
+    // Proceed with reformat using current form state
+    setReformatting(true)
+    const metadata = {
+      title: title || 'Untitled',
+      author: author || undefined,
+      copyright: copyright || undefined,
+      ccliNumber: ccliNumber || undefined,
+    }
+    const fullMarkdown = buildMarkdownFromParts(metadata, lyrics)
+    setMarkdownToReformat(fullMarkdown)
+    setReformatDialogOpen(true)
+    setReformatting(false)
+  }
+
+  function handleAcceptFormatted(formattedMarkdown: string) {
+    const parsed = parseSong(formattedMarkdown)
+
+    if (parsed.metadata.title && parsed.metadata.title !== 'Untitled') {
+      setTitle(parsed.metadata.title)
+    }
+    if (parsed.metadata.author) {
+      setAuthor(parsed.metadata.author)
+    }
+    if (parsed.metadata.copyright) {
+      setCopyright(parsed.metadata.copyright)
+    }
+    if (parsed.metadata.ccliNumber) {
+      setCcliNumber(parsed.metadata.ccliNumber)
+    }
+
+    setLyrics(extractLyricsContent(formattedMarkdown))
+    toast.success(t('songs.reformattedWithAI'))
+  }
+
   // Reset preview index when sections change
   useEffect(() => {
     if (previewIndex >= previewSections.length) {
