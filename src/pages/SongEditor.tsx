@@ -24,7 +24,6 @@ import { SongReformatDialog } from '@/components/songs/SongReformatDialog'
 import { getMediaWithStyle, getSignedMediaUrl } from '@/services/media'
 import type { Media } from '@/types/media'
 import type { Song } from '@/types/song'
-// TODO: Task 4 - Wand2 icon will be used for Reformat with AI button
 import { ArrowLeft, Save, Eye, Image, Wand2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -376,6 +375,7 @@ export function SongEditorPage() {
                 size="sm"
                 onClick={handleReformatWithAI}
                 disabled={!lyrics.trim() || reformatting}
+                aria-label={t('songs.reformatWithAI')}
               >
                 {reformatting ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
