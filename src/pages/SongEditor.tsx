@@ -524,6 +524,42 @@ How sweet the sound`}
           console.log('[SongEditor] State updated - backgroundId:', bgId, 'background:', bg)
         }}
       />
+
+      {/* AI Reformat Dialog */}
+      <SongReformatDialog
+        open={reformatDialogOpen}
+        onOpenChange={setReformatDialogOpen}
+        title={title || 'Untitled'}
+        author={author || ''}
+        originalMarkdown={markdownToReformat}
+        onAccept={handleAcceptFormatted}
+      />
+
+      {/* Unsaved Changes Warning Dialog */}
+      <Dialog open={showUnsavedWarning} onOpenChange={setShowUnsavedWarning}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('songs.unsavedChangesTitle')}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              {t('songs.unsavedChangesReformatWarning')}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowUnsavedWarning(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="outline" onClick={handleSaveAndReformat}>
+              <Save className="h-4 w-4 mr-2" />
+              {t('common.save')}
+            </Button>
+            <Button variant="destructive" onClick={handleDiscardAndReformat}>
+              {t('songs.discardChanges')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
