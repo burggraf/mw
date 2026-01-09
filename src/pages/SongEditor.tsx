@@ -25,7 +25,7 @@ import { getMediaWithStyle, getSignedMediaUrl } from '@/services/media'
 import type { Media } from '@/types/media'
 import type { Song } from '@/types/song'
 // TODO: Task 4 - Wand2 icon will be used for Reformat with AI button
-import { ArrowLeft, Save, Eye, Image, Wand2 } from 'lucide-react'
+import { ArrowLeft, Save, Eye, Image, Wand2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 export function SongEditorPage() {
@@ -369,7 +369,22 @@ export function SongEditorPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="lyrics">{t('songs.form.lyrics')} *</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="lyrics">{t('songs.form.lyrics')} *</Label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReformatWithAI}
+                disabled={!lyrics.trim() || reformatting}
+              >
+                {reformatting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Wand2 className="h-4 w-4 mr-2" />
+                )}
+                {t('songs.reformatWithAI')}
+              </Button>
+            </div>
             <p className="text-sm text-muted-foreground">
               {t('songs.form.lyricsHelp')}
             </p>
