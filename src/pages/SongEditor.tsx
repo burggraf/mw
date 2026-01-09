@@ -10,10 +10,19 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { BackgroundPicker } from '@/components/songs/BackgroundPicker'
+import { SongReformatDialog } from '@/components/songs/SongReformatDialog'
 import { getMediaWithStyle, getSignedMediaUrl } from '@/services/media'
 import type { Media } from '@/types/media'
-import { ArrowLeft, Save, Eye, Image } from 'lucide-react'
+import type { Song } from '@/types/song'
+import { ArrowLeft, Save, Eye, Image, Wand2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 export function SongEditorPage() {
@@ -40,6 +49,13 @@ export function SongEditorPage() {
   const [backgroundId, setBackgroundId] = useState<string | null>(null)
   const [backgroundPreviewUrl, setBackgroundPreviewUrl] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
+
+  // AI Reformat states
+  const [reformatting, setReformatting] = useState(false)
+  const [reformatDialogOpen, setReformatDialogOpen] = useState(false)
+  const [markdownToReformat, setMarkdownToReformat] = useState('')
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false)
+  const [originalSong, setOriginalSong] = useState<Song | null>(null)
 
   useEffect(() => {
     if (!isNew && id) {
@@ -82,6 +98,8 @@ export function SongEditorPage() {
   async function loadSong(songId: string) {
     try {
       setLoading(true)
+      // Clear any previous original song data to prevent stale comparisons
+      setOriginalSong(null)
       const song = await getSong(songId)
       if (!song) {
         toast.error(t('common.error'))
@@ -94,6 +112,9 @@ export function SongEditorPage() {
       setCopyright(song.copyrightInfo || '')
       setCcliNumber(song.ccliNumber || '')
       setLyrics(extractLyricsContent(song.content))
+
+      // Store original song data for unsaved changes detection
+      setOriginalSong(song)
 
       // Load default background from backgrounds.default
       const defaultBgId = song.backgrounds?.default || null
@@ -116,7 +137,7 @@ export function SongEditorPage() {
     }
   }
 
-  async function handleSave() {
+  async function handleSave(options?: { navigateAway?: boolean }) {
     if (!currentChurch) return
 
     if (!title.trim()) {
@@ -165,7 +186,9 @@ export function SongEditorPage() {
         toast.success(t('songs.songUpdated'))
       }
 
-      navigate('/songs')
+      if (options?.navigateAway !== false) {
+        navigate('/songs')
+      }
     } catch (error) {
       console.error('Failed to save song:', error)
       toast.error(t('common.error'))
@@ -180,6 +203,91 @@ export function SongEditorPage() {
     const markdown = buildMarkdownFromParts({ title: title || 'Untitled' }, lyrics)
     return parseSong(markdown).sections
   }, [lyrics, title])
+
+  // Detect unsaved changes
+  const hasUnsavedChanges = useMemo(() => {
+    if (isNew || !originalSong) return false
+    return (
+      title !== originalSong.title ||
+      author !== (originalSong.author || '') ||
+      copyright !== (originalSong.copyrightInfo || '') ||
+      ccliNumber !== (originalSong.ccliNumber || '') ||
+      lyrics !== extractLyricsContent(originalSong.content || '')
+    )
+  }, [title, author, copyright, ccliNumber, lyrics, originalSong, isNew])
+
+  // AI Reformat handler functions
+  async function handleReformatWithAI() {
+    if (hasUnsavedChanges) {
+      setShowUnsavedWarning(true)
+      return
+    }
+
+    setReformatting(true)
+    try {
+      const metadata = {
+        title: title || 'Untitled',
+        author: author || undefined,
+        copyright: copyright || undefined,
+        ccliNumber: ccliNumber || undefined,
+      }
+      const fullMarkdown = buildMarkdownFromParts(metadata, lyrics)
+      setMarkdownToReformat(fullMarkdown)
+      setReformatDialogOpen(true)
+    } catch (error) {
+      console.error('Failed to prepare for reformatting:', error)
+      toast.error(t('common.error'))
+    } finally {
+      setReformatting(false)
+    }
+  }
+
+  async function handleSaveAndReformat() {
+    await handleSave({ navigateAway: false })
+    setShowUnsavedWarning(false)
+    // Reformat will use the newly saved data
+    // Reload the song to get the saved data
+    if (id) {
+      await loadSong(id)
+    }
+    await handleReformatWithAI()
+  }
+
+  function handleDiscardAndReformat() {
+    setShowUnsavedWarning(false)
+    // Proceed with reformat using current form state
+    setReformatting(true)
+    const metadata = {
+      title: title || 'Untitled',
+      author: author || undefined,
+      copyright: copyright || undefined,
+      ccliNumber: ccliNumber || undefined,
+    }
+    const fullMarkdown = buildMarkdownFromParts(metadata, lyrics)
+    setMarkdownToReformat(fullMarkdown)
+    setReformatDialogOpen(true)
+    setReformatting(false)
+  }
+
+  function handleAcceptFormatted(formattedMarkdown: string) {
+    const parsed = parseSong(formattedMarkdown)
+
+    if (parsed.metadata.title && parsed.metadata.title !== 'Untitled') {
+      setTitle(parsed.metadata.title)
+    }
+    if (parsed.metadata.author) {
+      setAuthor(parsed.metadata.author)
+    }
+    if (parsed.metadata.copyright) {
+      setCopyright(parsed.metadata.copyright)
+    }
+    if (parsed.metadata.ccliNumber) {
+      setCcliNumber(parsed.metadata.ccliNumber)
+    }
+
+    setLyrics(extractLyricsContent(formattedMarkdown))
+    toast.success(t('songs.reformattedWithAI'))
+  }
 
   // Reset preview index when sections change
   useEffect(() => {
@@ -258,7 +366,23 @@ export function SongEditorPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="lyrics">{t('songs.form.lyrics')} *</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="lyrics">{t('songs.form.lyrics')} *</Label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReformatWithAI}
+                disabled={!lyrics.trim() || reformatting}
+                aria-label={t('songs.reformatWithAI')}
+              >
+                {reformatting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Wand2 className="h-4 w-4 mr-2" />
+                )}
+                {t('songs.reformatWithAI')}
+              </Button>
+            </div>
             <p className="text-sm text-muted-foreground">
               {t('songs.form.lyricsHelp')}
             </p>
@@ -398,6 +522,42 @@ How sweet the sound`}
           console.log('[SongEditor] State updated - backgroundId:', bgId, 'background:', bg)
         }}
       />
+
+      {/* AI Reformat Dialog */}
+      <SongReformatDialog
+        open={reformatDialogOpen}
+        onOpenChange={setReformatDialogOpen}
+        title={title || 'Untitled'}
+        author={author || ''}
+        originalMarkdown={markdownToReformat}
+        onAccept={handleAcceptFormatted}
+      />
+
+      {/* Unsaved Changes Warning Dialog */}
+      <Dialog open={showUnsavedWarning} onOpenChange={setShowUnsavedWarning}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('songs.unsavedChangesTitle')}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              {t('songs.unsavedChangesReformatWarning')}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowUnsavedWarning(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="outline" onClick={handleSaveAndReformat}>
+              <Save className="h-4 w-4 mr-2" />
+              {t('common.save')}
+            </Button>
+            <Button variant="destructive" onClick={handleDiscardAndReformat}>
+              {t('songs.discardChanges')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
