@@ -134,31 +134,67 @@ async function structureWithGemini(
 
   const prompt = `You are a worship song lyric formatter. Your task is to structure raw song lyrics into slide-ready markdown format.
 
-REQUIREMENTS:
-1. Section Detection: If the lyrics show clear sections (Chorus, Verse, Bridge, Pre-Chorus, Outro, Tag, etc.), use those exact names.
-2. Section Inference: If no clear sections exist, analyze patterns to identify verses, choruses, bridges.
-3. Chunking: Split each section into chunks of 2-4 lines for slide display. Maximum 6 lines per chunk. Count ONLY actual lyric lines (exclude blank lines).
-4. Clean Content: Remove directives like "Repeat", "4x", "(Guitar solo)", "[Ad-lib]", "[x2]", etc.
-5. Output Format: Use markdown headers (# Verse 1, # Chorus, etc.) with content below each header.
-6. Section names should be short: # Verse 1, # Chorus, # Bridge - not verbose descriptions.
+CRITICAL REQUIREMENTS:
+1. MUST identify and label ALL sections: Verse, Chorus, Bridge, Pre-Chorus, Outro, Tag, etc.
+2. MUST split each section into chunks of 2-4 lines. MAXIMUM 6 lines per chunk - NO EXCEPTIONS.
+3. Count ONLY actual lyric lines - exclude blank lines when counting.
+4. Repeated content MUST be labeled as "Chorus" or "Refrain"
+5. Remove ALL directives: "Repeat", "4x", "(Guitar solo)", "[Ad-lib]", "[x2]", "(repeat)", etc.
+6. Each chunk gets its own markdown header: # Chorus, # Chorus (2), # Chorus (3), etc.
 
-OUTPUT FORMAT:
+SECTION IDENTIFICATION RULES:
+- Content that repeats multiple times → Chorus
+- First distinct section → Verse 1
+- Second distinct section → Verse 2
+- Building section → Bridge
+- Opening → Intro
+- Closing → Outro or Tag
+
+OUTPUT FORMAT (FOLLOW THIS EXACTLY):
 ---
 title: Song Title
 author: Artist Name
 ---
 
-# [Section Name]
-[chunk 1 lines]
-[chunk 2 lines]
+# Verse 1
+Line 1
+Line 2
+Line 3
+Line 4
 
-# [Next Section]
-...
+# Verse 2
+Line 1
+Line 2
+Line 3
+
+# Chorus
+Line 1
+Line 2
+Line 3
+Line 4
+
+# Chorus (2)
+Line 1
+Line 2
+Line 3
+Line 4
+
+# Bridge
+Line 1
+Line 2
+Line 3
+
+IMPORTANT RULES:
+- NEVER put more than 6 lines under one header
+- If a section is longer than 6 lines, split it into multiple numbered chunks
+- Always use section headers (Verse, Chorus, Bridge, etc.)
+- Use parentheses for repeated sections: Chorus (2), Chorus (3), etc.
+- Remove any content in parentheses or brackets that are directions not lyrics
 
 Raw lyrics to process:
 ${lyrics}
 
-Remember: Start with YAML frontmatter containing the title and author, then add sections with markdown headers.`;
+Remember: Start with YAML frontmatter, then add ALL sections with proper markdown headers. NEVER put more than 6 lines under one header.`;
 
   try {
     const result = await model.generateContent(prompt);
