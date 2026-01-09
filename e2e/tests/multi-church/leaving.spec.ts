@@ -5,7 +5,7 @@
 import { test, expect } from '@playwright/test'
 import { createTempEmailAccount } from '../../helpers/temp-email'
 import { signUpAndConfirm, signIn } from '../../helpers/auth-helpers'
-import { goToTeamPage, inviteMember, goToMembersTab, leaveChurch } from '../../helpers/team-helpers'
+import { goToTeamPage, inviteMember, goToMembersTab, leaveChurch, acceptInvitation } from '../../helpers/team-helpers'
 
 test.describe('Leaving Churches', () => {
   test('user can leave a church they were invited to', async ({ page }) => {
@@ -39,16 +39,23 @@ test.describe('Leaving Churches', () => {
     // User accepts invitation
     await page.goto('/')
     await signIn(page, userMail.address, 'UserPass123!')
-    await page.goto(inviteLink)
-    await page.click('button:has-text("Accept")')
-    await page.waitForURL(/\/dashboard/, { timeout: 10000 })
+    await acceptInvitation(page, inviteLink)
 
-    // Switch to Leave Test Church
+    // Switch to Leave Test Church - wait for selector to be ready
+    console.log('[Test] Waiting for church selector to be visible...')
     const churchSelector = page.locator('[data-testid="church-selector"]')
-    if (await churchSelector.isVisible()) {
-      await churchSelector.click()
-      await page.click('text=Leave Test Church')
-    }
+    await churchSelector.waitFor({ state: 'visible', timeout: 10000 })
+    console.log('[Test] Church selector visible, clicking to switch churches...')
+
+    await churchSelector.click()
+    await page.waitForTimeout(500) // Wait for dropdown to open
+
+    // Click on "Leave Test Church" option
+    await page.click('text=Leave Test Church')
+    console.log('[Test] Switched to Leave Test Church')
+
+    // Wait a moment for the church context to switch
+    await page.waitForTimeout(2000)
 
     // Go to team page and leave
     await goToTeamPage(page)
@@ -129,23 +136,30 @@ test.describe('Leaving Churches', () => {
     await goToTeamPage(page)
     const { inviteLink } = await inviteMember(page, admin2Mail.address, 'admin')
 
-    // Admin2 accepts
+    // Admin2 accepts invitation
     await page.goto('/')
     await signIn(page, admin2Mail.address, 'Admin2Pass123!')
-    await page.goto(inviteLink)
-    await page.click('button:has-text("Accept")')
-    await page.waitForURL(/\/dashboard/, { timeout: 10000 })
+    await acceptInvitation(page, inviteLink)
 
     // Now admin1 should be able to leave
     await page.goto('/')
     await signIn(page, admin1Mail.address, 'Admin1Pass123!')
 
-    // Switch to Two Admins Church
+    // Switch to Two Admins Church - wait for selector to be ready
+    console.log('[Test] Waiting for church selector to be visible...')
     const churchSelector = page.locator('[data-testid="church-selector"]')
-    if (await churchSelector.isVisible()) {
-      await churchSelector.click()
-      await page.click('text=Two Admins Church')
-    }
+    await churchSelector.waitFor({ state: 'visible', timeout: 10000 })
+    console.log('[Test] Church selector visible, clicking to switch churches...')
+
+    await churchSelector.click()
+    await page.waitForTimeout(500) // Wait for dropdown to open
+
+    // Click on "Two Admins Church" option
+    await page.click('text=Two Admins Church')
+    console.log('[Test] Switched to Two Admins Church')
+
+    // Wait a moment for the church context to switch
+    await page.waitForTimeout(2000)
 
     await goToTeamPage(page)
     await leaveChurch(page)

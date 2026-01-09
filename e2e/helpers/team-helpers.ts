@@ -342,16 +342,136 @@ export async function removeMember(page: Page, email: string): Promise<void> {
 }
 
 /**
+ * Accept a church invitation
+ * Navigates to the invite link and clicks the accept button
+ */
+export async function acceptInvitation(page: Page, inviteLink: string): Promise<void> {
+  console.log('[acceptInvitation] Navigating to invite link:', inviteLink)
+  await page.goto(inviteLink)
+
+  // Wait for page to load completely
+  console.log('[acceptInvitation] Waiting for accept invitation page to load...')
+  await page.waitForLoadState('domcontentloaded')
+
+  // Wait a bit for React to render
+  await page.waitForTimeout(2000)
+
+  // Check if we're on login page (shouldn't be)
+  const currentUrl = page.url()
+  if (currentUrl.includes('/login')) {
+    throw new Error('[acceptInvitation] Redirected to login instead of accept invitation page. Session may have been lost.')
+  }
+
+  // Check if we're in the "not logged in" state
+  // This happens when the user is not authenticated after signIn
+  // Look for the invitation-details card which only appears when user is authenticated
+  const hasInvitationDetails = await page.locator('[data-testid="invitation-details"]').isVisible().catch(() => false)
+  if (!hasInvitationDetails) {
+    // Page doesn't have the invitation details card - likely not authenticated or error
+    // Take a screenshot for debugging
+    await page.screenshot({ path: 'e2e/screenshots/accept-invite-not-authenticated.png' })
+
+    const pageText = await page.locator('body').textContent()
+    console.log('[acceptInvitation] Page text:', pageText?.substring(0, 500))
+
+    // Check for specific error states
+    if (pageText?.includes('Failed to fetch')) {
+      throw new Error('[acceptInvitation] Failed to fetch invitation details. This may be a network issue or the invitation may be invalid.')
+    }
+    if (pageText?.includes('Wrong Account')) {
+      throw new Error('[acceptInvitation] Wrong account - signed in as different user than invitation was sent to. The signIn helper may have failed to switch users.')
+    }
+    if (pageText?.includes('Invite Not Found') || pageText?.includes('Invalid Invitation')) {
+      throw new Error('[acceptInvitation] Invitation not found or invalid. The invitation token may be incorrect or expired.')
+    }
+    if (pageText?.includes('Invite Expired') || pageText?.includes('Expired')) {
+      throw new Error('[acceptInvitation] Invitation has expired.')
+    }
+    if (pageText?.includes('Already Accepted')) {
+      throw new Error('[acceptInvitation] Invitation has already been accepted.')
+    }
+    if (pageText?.includes('You need to login')) {
+      throw new Error('[acceptInvitation] User is not authenticated. The signIn helper may have failed.')
+    }
+
+    throw new Error('[acceptInvitation] Page is in unexpected state. Check screenshot: e2e/screenshots/accept-invite-not-authenticated.png')
+  }
+
+  // Wait for and click the accept button using data-testid for reliability
+  console.log('[acceptInvitation] Waiting for accept button...')
+  await page.waitForSelector('[data-testid="accept-button"]', { timeout: 30000 })
+
+  console.log('[acceptInvitation] Clicking Accept button')
+  await page.click('[data-testid="accept-button"]')
+
+  // Wait for redirect with increased timeout for slow internet
+  console.log('[acceptInvitation] Waiting for redirect to dashboard...')
+  try {
+    await page.waitForURL(/\/dashboard/, { timeout: 30000 })
+    console.log('[acceptInvitation] Successfully accepted invitation and redirected to dashboard')
+  } catch (e) {
+    console.log('[acceptInvitation] Failed to redirect after accepting invitation, current URL:', page.url())
+    throw e
+  }
+}
+
+/**
  * Leave the current church
  */
 export async function leaveChurch(page: Page): Promise<void> {
   await goToMembersTab(page)
 
-  await page.click('button:has-text("Leave Church")')
+  // Check if Leave Church button exists and is enabled
+  const leaveButton = page.locator('[data-testid="leave-church-button"]')
+  console.log('[leaveChurch] Waiting for Leave Church button...')
+  await leaveButton.waitFor({ state: 'visible', timeout: 10000 })
 
-  // Confirm in dialog
-  await page.click('button:has-text("Leave"):visible')
+  const isEnabled = await leaveButton.isEnabled()
+  console.log('[leaveChurch] Leave Church button enabled:', isEnabled)
 
-  // Wait for redirect
-  await page.waitForURL(/\/(dashboard|setup-church)/, { timeout: 10000 })
+  if (!isEnabled) {
+    throw new Error('[leaveChurch] Leave Church button is disabled. User may not have permission to leave.')
+  }
+
+  // Listen for console errors
+  page.on('console', msg => {
+    if (msg.type() === 'error') {
+      console.log('[Browser Console Error]', msg.text())
+    }
+  })
+
+  // Click the Leave Church button
+  console.log('[leaveChurch] Clicking Leave Church button')
+  await leaveButton.click()
+
+  // Wait a moment for React state to update
+  await page.waitForTimeout(2000)
+
+  // Check if dialog appeared
+  const hasDialog = await page.locator('[role="dialog"]').isVisible().catch(() => false)
+  console.log('[leaveChurch] Dialog visible:', hasDialog)
+
+  if (!hasDialog) {
+    // Take screenshot to debug
+    await page.screenshot({ path: 'e2e/screenshots/leave-church-no-dialog.png' })
+
+    // Check page content
+    const bodyText = await page.locator('body').textContent()
+    console.log('[leaveChurch] Page contains "Leave Church":', bodyText?.includes('Leave Church'))
+
+    throw new Error('[leaveChurch] Dialog did not appear after clicking Leave Church button. Check screenshot: e2e/screenshots/leave-church-no-dialog.png')
+  }
+
+  // The confirmation button should have destructive styling and contain "Leave"
+  console.log('[leaveChurch] Looking for confirmation button...')
+  const confirmButton = page.locator('[role="dialog"] button:has-text("Leave")').first()
+  await confirmButton.waitFor({ state: 'visible', timeout: 5000 })
+
+  console.log('[leaveChurch] Clicking confirmation button')
+  await confirmButton.click()
+
+  // Wait for redirect (increased timeout for slow internet)
+  console.log('[leaveChurch] Waiting for redirect...')
+  await page.waitForURL(/\/(dashboard|setup-church)/, { timeout: 30000 })
+  console.log('[leaveChurch] Left church successfully')
 }

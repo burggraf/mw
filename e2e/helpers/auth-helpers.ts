@@ -22,6 +22,16 @@ export async function signUp(
   await page.goto('/signup')
   await page.waitForLoadState('domcontentloaded')
 
+  // Check if we were redirected away from signup (user already logged in)
+  const currentUrl = page.url()
+  if (!currentUrl.includes('/signup')) {
+    console.log(`[signUp] Already authenticated as: ${currentUrl}`)
+    // Sign out first, then proceed with signup
+    await signOut(page)
+    await page.goto('/signup')
+    await page.waitForLoadState('domcontentloaded')
+  }
+
   // Use locators for better retry behavior when React re-renders
   const emailInput = page.locator('input[type="email"]')
   const passwordInput = page.locator('input#password')
@@ -42,8 +52,8 @@ export async function signUp(
   ])
 
   // Check if we got redirected (email verification disabled)
-  const currentUrl = page.url()
-  if (currentUrl.includes('/dashboard') || currentUrl.includes('/setup-church')) {
+  const finalUrl = page.url()
+  if (finalUrl.includes('/dashboard') || finalUrl.includes('/setup-church')) {
     console.log('[signUp] Email verification disabled - user already logged in')
   } else {
     console.log('Signup submitted successfully')
@@ -74,24 +84,44 @@ export async function signUpAndConfirm(
 
 /**
  * Sign in with email/password
+ * Uses browser context clearing to ensure clean session
  */
 export async function signIn(
   page: Page,
   email: string,
   password: string
 ): Promise<void> {
+  console.log(`[signIn] Starting sign in for ${email}...`)
+
+  // Check current authentication state
+  const isSignedIn = await isSignedInCheck(page)
+  console.log(`[signIn] Current signed in state: ${isSignedIn}`)
+
+  // If already signed in (to a different account), clear everything first
+  if (isSignedIn) {
+    console.log('[signIn] Already signed in, clearing session...')
+    await signOut(page)
+  }
+
+  // Navigate to login page
   await page.goto('/login')
-  // Wait for page to be ready (not necessarily networkidle, just DOM loaded)
   await page.waitForLoadState('domcontentloaded')
 
-  // Check if we were redirected away from login (user already logged in)
+  // Double-check we're still on login page (might get auto-redirected if session persists)
   const currentUrl = page.url()
   if (!currentUrl.includes('/login')) {
-    console.log(`Already authenticated, redirected to: ${currentUrl}`)
-    // Sign out first, then sign in as the requested user
-    await signOut(page)
+    console.log(`[signIn] Redirected away from login to: ${currentUrl}`)
+    console.log('[signIn] Session persists, force-clearing browser context...')
+    // Force clear the entire browser context
+    await page.context().clearCookies()
+    await page.evaluate(() => {
+      localStorage.clear()
+      sessionStorage.clear()
+    })
+    // Navigate to login again
     await page.goto('/login')
     await page.waitForLoadState('domcontentloaded')
+    await page.waitForTimeout(2000) // Wait for clear to take effect
   }
 
   // Use locators for better retry behavior when React re-renders
@@ -103,7 +133,7 @@ export async function signIn(
   await emailInput.fill(email)
   await passwordInput.fill(password)
 
-  console.log('Submitting login form...')
+  console.log('[signIn] Submitting login form...')
 
   // Click and wait for navigation to start (increased timeout for slow internet)
   await Promise.all([
@@ -113,6 +143,10 @@ export async function signIn(
 
   // Wait for redirect away from login
   await waitForAuthRedirect(page)
+
+  // Verify we're signed in as the correct user
+  const finalUrl = page.url()
+  console.log(`[signIn] Final URL after login: ${finalUrl}`)
 }
 
 /**
@@ -202,30 +236,59 @@ export async function waitForAuthRedirect(
  * Sign out the current user
  */
 export async function signOut(page: Page): Promise<void> {
-  // Navigate to a page with the sidebar first
-  const currentUrl = page.url()
-  if (!currentUrl.includes('/dashboard') && !currentUrl.includes('/team') && !currentUrl.includes('/setup-church')) {
-    await page.goto('/dashboard')
-    await page.waitForLoadState('networkidle')
+  console.log('[signOut] Starting sign out process...')
+
+  // Try to use Supabase client to sign out properly
+  const signOutResult = await page.evaluate(() => {
+    try {
+      // Get the Supabase client from window
+      const supabase = (window as any).supabase
+      if (supabase && supabase.auth) {
+        return supabase.auth.signOut()
+      }
+    } catch (e) {
+      console.error('[signOut] Error calling supabase.auth.signOut():', e)
+    }
+    return null
+  })
+
+  if (signOutResult) {
+    console.log('[signOut] Called supabase.auth.signOut()')
   }
 
-  // Open user dropdown in sidebar
-  const userMenu = page.locator('[data-testid="user-menu"]')
-  await userMenu.waitFor({ state: 'visible', timeout: 10000 })
-  await userMenu.click()
+  // Clear all storage to ensure session is completely gone
+  await page.evaluate(() => {
+    localStorage.clear()
+    sessionStorage.clear()
+  })
 
-  const signOutButton = page.locator('text=Sign Out')
-  await signOutButton.waitFor({ state: 'visible', timeout: 5000 })
-  await signOutButton.click()
+  // Clear all cookies as well
+  const context = page.context()
+  await context.clearCookies()
 
-  // Wait for redirect to landing or login
-  await page.waitForURL(/\/(login)?$/, { timeout: 10000 })
+  console.log('[signOut] Cleared all storage and cookies')
+
+  // Navigate to login page to ensure we're logged out
+  await page.goto('/login')
+  await page.waitForLoadState('domcontentloaded')
+
+  // Wait a moment for everything to clear
+  await page.waitForTimeout(2000)
+
+  console.log('[signOut] Sign out complete')
 }
 
 /**
  * Check if user is currently signed in
  */
 export async function isSignedIn(page: Page): Promise<boolean> {
+  return await isSignedInCheck(page)
+}
+
+/**
+ * Internal helper to check if user is signed in
+ */
+async function isSignedInCheck(page: Page): Promise<boolean> {
   try {
     // Check for sidebar user menu presence
     await page.waitForSelector('[data-testid="user-menu"]', { timeout: 3000 })

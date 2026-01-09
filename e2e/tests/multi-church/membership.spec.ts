@@ -5,7 +5,7 @@
 import { test, expect } from '@playwright/test'
 import { createTempEmailAccount } from '../../helpers/temp-email'
 import { signUpAndConfirm, signIn } from '../../helpers/auth-helpers'
-import { goToTeamPage, inviteMember } from '../../helpers/team-helpers'
+import { goToTeamPage, inviteMember, acceptInvitation } from '../../helpers/team-helpers'
 
 test.describe('Multi-Church Membership', () => {
   test('user can belong to multiple churches and switch between them', async ({ page }) => {
@@ -121,34 +121,10 @@ test.describe('Multi-Church Membership', () => {
     await goToTeamPage(page)
     const { inviteLink } = await inviteMember(page, userMail.address, 'operator')
 
-    // User accepts
+    // User accepts invitation using helper
     console.log('[Test] Signing in as user to accept invitation')
     await signIn(page, userMail.address, 'UserPass123!')
-
-    console.log('[Test] Navigating to invite link:', inviteLink)
-    await page.goto(inviteLink)
-
-    // Wait for page to load and click Accept button
-    console.log('[Test] Waiting for accept invitation page to load...')
-    await page.waitForLoadState('domcontentloaded')
-
-    // Check if we're on login page (shouldn't be)
-    const currentUrl = page.url()
-    if (currentUrl.includes('/login')) {
-      throw new Error('[Test] Redirected to login instead of accept invitation page. Session may have been lost.')
-    }
-
-    console.log('[Test] Clicking Accept button')
-    await page.click('button:has-text("Accept")')
-
-    // Wait for redirect with increased timeout for slow internet
-    try {
-      await page.waitForURL(/\/dashboard/, { timeout: 30000 })
-      console.log('[Test] Successfully accepted invitation and redirected to dashboard')
-    } catch (e) {
-      console.log('[Test] Failed to redirect after accepting invitation, current URL:', page.url())
-      throw e
-    }
+    await acceptInvitation(page, inviteLink)
 
     // Check role display in church selector
     const churchSelector = page.locator('[data-testid="church-selector"]')
