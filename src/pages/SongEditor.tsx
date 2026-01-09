@@ -212,9 +212,10 @@ export function SongEditorPage() {
       title !== originalSong.title ||
       author !== (originalSong.author || '') ||
       copyright !== (originalSong.copyrightInfo || '') ||
+      ccliNumber !== (originalSong.ccliNumber || '') ||
       lyrics !== extractLyricsContent(originalSong.content || '')
     )
-  }, [title, author, copyright, lyrics, originalSong, isNew])
+  }, [title, author, copyright, ccliNumber, lyrics, originalSong, isNew])
 
   // Reset preview index when sections change
   useEffect(() => {
