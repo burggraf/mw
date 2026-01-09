@@ -130,7 +130,7 @@ async function structureWithGemini(
   apiKey: string
 ): Promise<StructureResponse> {
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const prompt = `You are a worship song lyric formatter. Your task is to structure raw song lyrics into slide-ready markdown format.
 
