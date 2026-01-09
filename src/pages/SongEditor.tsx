@@ -205,6 +205,17 @@ export function SongEditorPage() {
     return parseSong(markdown).sections
   }, [lyrics, title])
 
+  // Detect unsaved changes
+  const hasUnsavedChanges = useMemo(() => {
+    if (isNew || !originalSong) return false
+    return (
+      title !== originalSong.title ||
+      author !== (originalSong.author || '') ||
+      copyright !== (originalSong.copyrightInfo || '') ||
+      lyrics !== extractLyricsContent(originalSong.content || '')
+    )
+  }, [title, author, copyright, lyrics, originalSong, isNew])
+
   // Reset preview index when sections change
   useEffect(() => {
     if (previewIndex >= previewSections.length) {
