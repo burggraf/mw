@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-// TODO: Task 5 - Dialog components will be used for unsaved changes warning dialog
 import {
   Dialog,
   DialogContent,
@@ -19,7 +18,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { BackgroundPicker } from '@/components/songs/BackgroundPicker'
-// TODO: Task 5 - SongReformatDialog will be integrated into the page
 import { SongReformatDialog } from '@/components/songs/SongReformatDialog'
 import { getMediaWithStyle, getSignedMediaUrl } from '@/services/media'
 import type { Media } from '@/types/media'
