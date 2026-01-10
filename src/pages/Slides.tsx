@@ -81,6 +81,7 @@ export function SlidesPage() {
   const [editingFolder, setEditingFolder] = useState<SlideFolder | null>(null)
   const [deleteFolderTarget, setDeleteFolderTarget] = useState<SlideFolder | null>(null)
   const [deletingFolder, setDeletingFolder] = useState(false)
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false)
 
   // View mode and selection
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
@@ -226,6 +227,7 @@ export function SlidesPage() {
   function handleFolderSelect(folderId: string | null) {
     setSelectedFolderId(folderId)
     setSelectedIds(new Set()) // Clear selection when changing folders
+    setFilterSheetOpen(false) // Close mobile filter sheet
     // Reset smart collection when selecting a specific folder
     if (folderId !== null) {
       setActiveCollection('all')
@@ -455,7 +457,7 @@ export function SlidesPage() {
         </ToggleGroup>
 
         {/* Mobile filter button */}
-        <Sheet>
+        <Sheet open={filterSheetOpen} onOpenChange={setFilterSheetOpen}>
           <SheetTrigger asChild>
             <Button variant="outline" size="icon" className="md:hidden shrink-0">
               <Filter className="h-4 w-4" />

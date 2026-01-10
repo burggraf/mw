@@ -66,6 +66,7 @@ export function SongsPage() {
   const [editingFolder, setEditingFolder] = useState<SongFolder | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [moveSongIdsOnCreate, setMoveSongIdsOnCreate] = useState<string[]>([])
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false)
 
   const loadSongs = useCallback(async () => {
     if (!currentChurch) return
@@ -295,7 +296,7 @@ export function SongsPage() {
         </div>
 
         {/* Mobile filter button */}
-        <Sheet>
+        <Sheet open={filterSheetOpen} onOpenChange={setFilterSheetOpen}>
           <SheetTrigger asChild>
             <Button variant="outline" size="icon" className="md:hidden shrink-0">
               <Filter className="h-4 w-4" />
@@ -309,7 +310,10 @@ export function SongsPage() {
               <div className="flex flex-col gap-1">
                 {/* All Songs button */}
                 <button
-                  onClick={() => setSelectedFolderId(null)}
+                  onClick={() => {
+                    setSelectedFolderId(null)
+                    setFilterSheetOpen(false)
+                  }}
                   className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                     selectedFolderId === null
                       ? 'bg-primary text-primary-foreground'
@@ -321,7 +325,10 @@ export function SongsPage() {
                 </button>
                 {/* Unclassified button */}
                 <button
-                  onClick={() => setSelectedFolderId('')}
+                  onClick={() => {
+                    setSelectedFolderId('')
+                    setFilterSheetOpen(false)
+                  }}
                   className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                     selectedFolderId === ''
                       ? 'bg-primary text-primary-foreground'
@@ -364,7 +371,10 @@ export function SongsPage() {
                     }`}
                   >
                     <button
-                      onClick={() => setSelectedFolderId(folder.id)}
+                      onClick={() => {
+                        setSelectedFolderId(folder.id)
+                        setFilterSheetOpen(false)
+                      }}
                       className="flex flex-1 items-start gap-3 text-left min-w-0"
                     >
                       <Music className="h-4 w-4 mt-0.5 shrink-0" />
