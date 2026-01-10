@@ -24,7 +24,8 @@
     "optional": "optional",
     "actions": "Actions",
     "backToHome": "Back to Home",
-    "backToDashboard": "Back to Dashboard"
+    "backToDashboard": "Back to Dashboard",
+    "viewAll": "View All"
   },
   "nav": {
     "dashboard": "Dashboard",

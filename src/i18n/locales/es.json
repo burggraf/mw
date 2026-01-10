@@ -24,7 +24,8 @@
     "optional": "opcional",
     "actions": "Acciones",
     "backToHome": "Volver al inicio",
-    "backToDashboard": "Volver al panel"
+    "backToDashboard": "Volver al panel",
+    "viewAll": "Ver todos"
   },
   "nav": {
     "dashboard": "Panel",
