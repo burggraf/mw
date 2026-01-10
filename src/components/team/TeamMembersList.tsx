@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
@@ -63,6 +63,7 @@ export function TeamMembersList({
   const [changingRole, setChangingRole] = useState<string | null>(null)
   const [removing, setRemoving] = useState(false)
   const [leaving, setLeaving] = useState(false)
+  const [canLeaveChurch, setCanLeaveChurch] = useState(true)
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return '?'
@@ -73,6 +74,39 @@ export function TeamMembersList({
       .toUpperCase()
       .slice(0, 2)
   }
+
+  // Check if current user is the last admin (cannot leave)
+  useEffect(() => {
+    const checkCanLeave = async () => {
+      if (!currentChurch || !user) {
+        setCanLeaveChurch(true)
+        return
+      }
+
+      const currentUserMembership = members.find(m => m.userId === user.id)
+      if (!currentUserMembership) {
+        setCanLeaveChurch(true)
+        return
+      }
+
+      // Only check for admins
+      if (currentUserMembership.role !== 'admin') {
+        setCanLeaveChurch(true)
+        return
+      }
+
+      // Check admin count
+      try {
+        const adminCount = await getAdminCount(currentChurch.id)
+        setCanLeaveChurch(adminCount > 1)
+      } catch (error) {
+        console.error('Failed to check admin count:', error)
+        setCanLeaveChurch(true) // Default to allowing leave on error
+      }
+    }
+
+    checkCanLeave()
+  }, [currentChurch, user, members])
 
   const handleRoleChange = async (membership: Membership, newRole: UserRole) => {
     if (!currentChurch) return
@@ -272,7 +306,13 @@ export function TeamMembersList({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setShowLeaveChurchDialog(true)}
+                      onClick={() => {
+                        if (!canLeaveChurch) {
+                          toast.error(t('team.leaveLastAdminError'))
+                          return
+                        }
+                        setShowLeaveChurchDialog(true)
+                      }}
                       data-testid="leave-church-button"
                     >
                       <LogOut className="h-4 w-4 mr-2" />

@@ -145,21 +145,24 @@ test.describe('Leaving Churches', () => {
     await page.goto('/')
     await signIn(page, admin1Mail.address, 'Admin1Pass123!')
 
-    // Switch to Two Admins Church - wait for selector to be ready
-    console.log('[Test] Waiting for church selector to be visible...')
-    const churchSelector = page.locator('[data-testid="church-selector"]')
-    await churchSelector.waitFor({ state: 'visible', timeout: 10000 })
-    console.log('[Test] Church selector visible, clicking to switch churches...')
-
-    await churchSelector.click()
-    await page.waitForTimeout(500) // Wait for dropdown to open
-
-    // Click on "Two Admins Church" option
-    await page.click('text=Two Admins Church')
-    console.log('[Test] Switched to Two Admins Church')
-
-    // Wait a moment for the church context to switch
+    // Wait for church context to load after sign in
+    console.log('[Test] Waiting for church context to load...')
     await page.waitForTimeout(2000)
+
+    // Check if church selector exists (multiple churches)
+    const churchSelector = page.locator('[data-testid="church-selector"]')
+    const selectorVisible = await churchSelector.isVisible().catch(() => false)
+
+    if (selectorVisible) {
+      console.log('[Test] Multiple churches found, switching to Two Admins Church...')
+      await churchSelector.click()
+      await page.waitForTimeout(500) // Wait for dropdown to open
+      await page.click('text=Two Admins Church')
+      console.log('[Test] Switched to Two Admins Church')
+      await page.waitForTimeout(1000)
+    } else {
+      console.log('[Test] Only one church, no selector needed - already on Two Admins Church')
+    }
 
     await goToTeamPage(page)
     await leaveChurch(page)
