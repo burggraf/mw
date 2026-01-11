@@ -159,20 +159,44 @@ test.describe('New User Invitation Flow', () => {
 
     await page.goto(confirmLink)
 
+    console.log('[Test] After confirmation link, current URL:', page.url())
+
     // Step 7: Should redirect to accept-invite page after confirmation
     await page.waitForURL(/\/(accept-invite|dashboard)/, { timeout: 30000 })
+    console.log('[Test] After waitForURL, current URL:', page.url())
 
     // If on accept-invite, click accept
     if (page.url().includes('accept-invite')) {
-      await page.waitForSelector('button:has-text("Accept")', { timeout: 10000 })
-      await page.click('button:has-text("Accept")')
+      console.log('[Test] On accept-invite page, clicking Accept button...')
+      await page.waitForSelector('[data-testid="accept-button"]', { timeout: 10000 })
+      // Use evaluate for React onClick compatibility
+      await page.locator('[data-testid="accept-button"]').evaluate((el: HTMLElement) => {
+        el.click()
+      })
+
+      // Wait for navigation or error
+      await page.waitForTimeout(3000)
+      console.log('[Test] Accept button clicked, current URL:', page.url())
+
+      // Check for error toast
+      const errorToast = page.locator('[data-sonner-toast][data-type="error"]')
+      const hasError = await errorToast.isVisible().catch(() => false)
+      if (hasError) {
+        const errorText = await errorToast.textContent()
+        console.log('[Test] Error toast:', errorText)
+        throw new Error(`Accept failed: ${errorText}`)
+      }
+    } else {
+      console.log('[Test] Not on accept-invite page, assuming already on dashboard')
     }
 
     // Step 8: Verify user is now on dashboard as member of the church
+    console.log('[Test] Waiting for dashboard URL...')
     await page.waitForURL(/\/dashboard/, { timeout: 10000 })
+    console.log('[Test] Dashboard URL confirmed:', page.url())
 
     // Verify church name is visible
-    await expect(page.getByText('Test Church')).toBeVisible()
+    await expect(page.getByText('Test Church').first()).toBeVisible()
 
     console.log('\n=== New user invitation flow completed successfully! ===\n')
   })

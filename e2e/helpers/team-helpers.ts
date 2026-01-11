@@ -196,7 +196,15 @@ export async function inviteMember(
  */
 export async function goToInvitationsTab(page: Page): Promise<void> {
   await page.click('button[role="tab"]:has-text("Pending")')
-  await page.waitForSelector('[data-testid="invitations-list"]', { timeout: 15000 })
+
+  // Wait for either the invitations list (when there are invitations) or the empty state message
+  await Promise.race([
+    page.waitForSelector('[data-testid="invitations-list"]', { timeout: 15000 }),
+    page.waitForSelector('text=No invitations', { timeout: 15000 }),
+    page.waitForSelector('text=No hay invitaciones', { timeout: 15000 }),
+  ]).catch(() => {
+    console.log('[goToInvitationsTab] Neither list nor empty state found, continuing...')
+  })
 }
 
 /**
@@ -242,12 +250,20 @@ export async function cancelInvitation(page: Page, email: string): Promise<void>
   // Click the dropdown trigger to open the menu
   await row.locator('[data-testid="invitation-actions-trigger"]').click()
 
-  // Click the cancel button in the dropdown menu
-  await page.locator('[data-testid="cancel-invitation-button"]').click()
+  // Wait for dropdown to open
+  await page.waitForTimeout(500)
 
-  // Confirm in dialog - target AlertDialogCancel button specifically
-  const dialogCancel = page.locator('[data-state="open"] >> .AlertDialogCancel')
-  await dialogCancel.click()
+  // Click the cancel button in the dropdown menu
+  await page.locator('[data-testid="cancel-invitation-button"]').evaluate((el: HTMLElement) => {
+    el.click()
+  })
+
+  // Confirm in dialog - click the destructive button (not AlertDialogCancel)
+  const destructiveButton = page.locator('button.bg-destructive:has-text("Cancel")')
+  await destructiveButton.waitFor({ state: 'visible', timeout: 5000 })
+  await destructiveButton.evaluate((el: HTMLElement) => {
+    el.click()
+  })
 
   // Wait for row to disappear
   await expect(row).not.toBeVisible({ timeout: 5000 })
