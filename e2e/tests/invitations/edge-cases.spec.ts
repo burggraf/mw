@@ -66,8 +66,10 @@ test.describe('Invitation Edge Cases', () => {
     // Click the resend button in the dropdown menu
     await page.locator('[data-testid="resend-invitation-button"]').click()
 
-    // Wait for success message
-    await expect(page.getByText(/sent|resent/i)).toBeVisible({ timeout: 5000 })
+    // Wait for success toast
+    const successToast = page.locator('[data-sonner-toast][data-type="success"]')
+    await expect(successToast).toBeVisible({ timeout: 10000 })
+    await expect(successToast).toContainText(/resent/i, { timeout: 5000 })
 
     console.log('Resend invitation UI action successful')
   })

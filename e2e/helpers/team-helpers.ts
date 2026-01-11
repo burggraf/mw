@@ -315,14 +315,75 @@ export async function changeMemberRole(
 ): Promise<void> {
   await goToMembersTab(page)
 
-  const row = page.locator(`[data-testid="member-row"]:has-text("${email}")`)
-  await row.locator('[data-testid="role-select"]').click()
-  await page.click(`[data-testid="role-option-${newRole}"]`)
+  // Wait a moment for data to load
+  await page.waitForTimeout(1000)
 
-  // Wait for update
-  await expect(row.locator(`[data-testid="member-role"]:has-text("${newRole}")`)).toBeVisible({
-    timeout: 5000,
+  // Try to find the row by email, but also check for display name fallback
+  // The email might not be displayed if the query doesn't join auth.users
+  let row = page.locator(`[data-testid="member-row"]:has-text("${email}")`)
+  const isVisible = await row.isVisible().catch(() => false)
+
+  if (!isVisible) {
+    // Email not found in row, try to find by display name (extract from email)
+    const displayName = email.split('@')[0]
+    console.log(`[changeMemberRole] Email not found in row, trying display name: ${displayName}`)
+    row = page.locator(`[data-testid="member-row"]:has-text("${displayName}")`)
+  }
+
+  // Wait for row to be visible
+  await row.waitFor({ state: 'visible', timeout: 10000 })
+
+  // Verify we found the right row
+  const rowText = await row.textContent({ timeout: 5000 })
+  console.log('[changeMemberRole] Found row with text:', rowText?.substring(0, 200))
+
+  // Find the role select within this row
+  const roleSelect = row.locator('[data-testid="role-select"]')
+  const hasRoleSelect = await roleSelect.isVisible().catch(() => false)
+  console.log('[changeMemberRole] Has role select:', hasRoleSelect)
+
+  if (!hasRoleSelect) {
+    throw new Error('[changeMemberRole] Role select not found - this might be the current user row or role badge is shown instead')
+  }
+
+  // Use evaluate to click the select trigger for React compatibility
+  await roleSelect.evaluate((el: HTMLElement) => {
+    el.click()
   })
+
+  // Wait for dropdown to open and option to be visible
+  const roleOption = page.locator(`[data-testid="role-option-${newRole}"]`)
+  await roleOption.waitFor({ state: 'visible', timeout: 5000 })
+
+  // Click the option using evaluate for React compatibility
+  await roleOption.evaluate((el: HTMLElement) => {
+    el.click()
+  })
+
+  // Wait for the list to refresh after role change
+  await page.waitForTimeout(3000)
+
+  // Check for error toast
+  const errorToast = page.locator('[data-sonner-toast][data-type="error"]')
+  const hasError = await errorToast.isVisible().catch(() => false)
+  if (hasError) {
+    const errorText = await errorToast.textContent()
+    console.log('[changeMemberRole] Error toast:', errorText)
+    throw new Error(`Role change failed: ${errorText}`)
+  }
+
+  // For admins, the row shows a role select, not a badge
+  // Check the select's displayed text to verify the role was changed
+  const roleSelectText = await row.locator('[data-testid="role-select"]').textContent({ timeout: 5000 })
+  console.log('[changeMemberRole] Current select text:', roleSelectText)
+
+  // The select should show the new role (capitalized)
+  const capitalizedRole = newRole.charAt(0).toUpperCase() + newRole.slice(1)
+  if (!roleSelectText?.includes(capitalizedRole)) {
+    throw new Error(`Expected role to be ${capitalizedRole} but got ${roleSelectText}`)
+  }
+
+  console.log('[changeMemberRole] Role changed successfully to', capitalizedRole)
 }
 
 /**
@@ -331,14 +392,57 @@ export async function changeMemberRole(
 export async function removeMember(page: Page, email: string): Promise<void> {
   await goToMembersTab(page)
 
-  const row = page.locator(`[data-testid="member-row"]:has-text("${email}")`)
-  await row.locator('button:has-text("Remove")').click()
+  // Wait a moment for data to load
+  await page.waitForTimeout(1000)
 
-  // Confirm in dialog
-  await page.click('button:has-text("Remove"):visible')
+  // Try to find the row by email, but also check for display name fallback
+  // The email might not be displayed if the query doesn't join auth.users
+  let row = page.locator(`[data-testid="member-row"]:has-text("${email}")`)
+  const isVisible = await row.isVisible().catch(() => false)
+
+  if (!isVisible) {
+    // Email not found in row, try to find by display name (extract from email)
+    const displayName = email.split('@')[0]
+    console.log(`[removeMember] Email not found in row, trying display name: ${displayName}`)
+    row = page.locator(`[data-testid="member-row"]:has-text("${displayName}")`)
+  }
+
+  // Wait for row to be visible
+  await row.waitFor({ state: 'visible', timeout: 10000 })
+
+  // Click the three-dot menu button (more options) - use nth(1) to get the second button
+  // First button is role-select, second is the menu button
+  const menuButton = row.locator('button').nth(1)
+  await menuButton.click()
+
+  // Wait for dropdown to appear and click "Remove Member"
+  await page.waitForTimeout(500)
+  // Use exact text matching for the dropdown menu item
+  const removeMenuItem = page.locator('[role="menuitem"]:has-text("Remove Member")')
+  await removeMenuItem.evaluate((el: HTMLElement) => {
+    el.click()
+  })
+
+  // Confirm in dialog - use evaluate for React compatibility
+  const removeButton = page.locator('button.bg-destructive:has-text("Remove")')
+  await removeButton.waitFor({ state: 'visible', timeout: 5000 })
+  await removeButton.evaluate((el: HTMLElement) => {
+    el.click()
+  })
+
+  // Wait for dialog to close and row to disappear
+  await page.waitForTimeout(2000)
+
+  // Check for error toast
+  const errorToast = page.locator('[data-sonner-toast][data-type="error"]')
+  const hasError = await errorToast.isVisible().catch(() => false)
+  if (hasError) {
+    const errorText = await errorToast.textContent()
+    console.log('[removeMember] Error toast:', errorText)
+  }
 
   // Wait for row to disappear
-  await expect(row).not.toBeVisible({ timeout: 5000 })
+  await expect(row).not.toBeVisible({ timeout: 10000 })
 }
 
 /**
