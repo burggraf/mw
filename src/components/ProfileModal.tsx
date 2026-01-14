@@ -1,8 +1,9 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
-import { Camera } from 'lucide-react'
+import { AlertTriangle, Camera, ExternalLink, Loader2 } from 'lucide-react'
 
 import { useAuth } from '@/contexts/AuthContext'
 import { getSupabase } from '@/lib/supabase'
@@ -13,10 +14,18 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
+import {
+  checkCanDeleteAccount,
+  deleteUserAccount,
+  type BlockingChurch,
+  type AccountDeletionProgress,
+} from '@/services/account'
 
 const ACCEPTED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
@@ -56,6 +65,35 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
   const [isCropping, setIsCropping] = useState(false)
   const imgRef = useRef<HTMLImageElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Account deletion state
+  const [canDelete, setCanDelete] = useState<boolean | null>(null)
+  const [blockingChurches, setBlockingChurches] = useState<BlockingChurch[]>([])
+  const [isCheckingDelete, setIsCheckingDelete] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deletionProgress, setDeletionProgress] = useState<AccountDeletionProgress | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  // Check if user can delete their account when modal opens
+  useEffect(() => {
+    if (open) {
+      setIsCheckingDelete(true)
+      checkCanDeleteAccount()
+        .then((result) => {
+          setCanDelete(result.canDelete)
+          setBlockingChurches(result.blockingChurches)
+        })
+        .catch((err) => {
+          console.error('Error checking delete status:', err)
+          setCanDelete(false)
+        })
+        .finally(() => {
+          setIsCheckingDelete(false)
+        })
+    }
+  }, [open])
 
   // Generate initials from display name or email
   const getInitials = () => {
@@ -239,6 +277,25 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
     }
   }
 
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true)
+    setDeleteError(null)
+
+    try {
+      await deleteUserAccount((progress) => {
+        setDeletionProgress(progress)
+      })
+      // Account deleted - user will be signed out automatically
+      // Redirect to home page
+      window.location.href = '/'
+    } catch (err) {
+      console.error('Error deleting account:', err)
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete account')
+      setIsDeleting(false)
+      setDeletionProgress(null)
+    }
+  }
+
   // Reset state when modal opens
   const handleOpenChange = (newOpen: boolean) => {
     if (newOpen) {
@@ -246,6 +303,11 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
       setError(null)
       setIsCropping(false)
       setImageSrc(null)
+      // Reset delete state
+      setShowDeleteConfirm(false)
+      setDeleteConfirmText('')
+      setDeleteError(null)
+      setDeletionProgress(null)
     }
     onOpenChange(newOpen)
   }
@@ -361,6 +423,116 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
                 {isSaving ? t('profile.saving') : t('profile.save')}
               </Button>
             </DialogFooter>
+
+            {/* Danger Zone */}
+            <Separator className="my-6" />
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium text-destructive flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                {t('churchProfile.dangerZone')}
+              </h3>
+
+              {isCheckingDelete ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {t('common.loading')}
+                </div>
+              ) : canDelete === false ? (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription className="space-y-2">
+                    <p className="font-medium">{t('profile.cannotDeleteAccount')}</p>
+                    <p className="text-sm">{t('profile.soleAdminWarning')}</p>
+                    <ul className="list-disc list-inside space-y-1 mt-2">
+                      {blockingChurches.map((church) => (
+                        <li key={church.id} className="text-sm">
+                          <span className="font-medium">{church.name}</span>
+                          {' - '}
+                          <Link
+                            to="/team"
+                            onClick={() => onOpenChange(false)}
+                            className="inline-flex items-center gap-1 text-primary hover:underline"
+                          >
+                            {t('profile.goToTeam')}
+                            <ExternalLink className="h-3 w-3" />
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              ) : !showDeleteConfirm ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    {t('profile.deleteAccountWarning')}
+                  </p>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={isSaving}
+                  >
+                    {t('profile.deleteAccount')}
+                  </Button>
+                </div>
+              ) : isDeleting ? (
+                <div className="space-y-2" aria-live="polite" role="status">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    <span className="text-sm">
+                      {deletionProgress?.message || t('profile.deletingAccount')}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      <p className="font-medium">{t('profile.deleteAccountTitle')}</p>
+                      <p className="text-sm mt-1">{t('profile.deleteAccountWarning')}</p>
+                    </AlertDescription>
+                  </Alert>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="deleteConfirm" className="text-sm">
+                      {t('profile.typeDeleteToConfirm')}
+                    </Label>
+                    <Input
+                      id="deleteConfirm"
+                      value={deleteConfirmText}
+                      onChange={(e) => setDeleteConfirmText(e.target.value)}
+                      placeholder="DELETE"
+                      className="font-mono"
+                      autoComplete="off"
+                    />
+                  </div>
+
+                  {deleteError && (
+                    <p className="text-sm text-destructive">{deleteError}</p>
+                  )}
+
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowDeleteConfirm(false)
+                        setDeleteConfirmText('')
+                        setDeleteError(null)
+                      }}
+                    >
+                      {t('profile.cancel')}
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={handleDeleteAccount}
+                      disabled={deleteConfirmText !== 'DELETE' || isDeleting}
+                    >
+                      {t('profile.deleteAccountButton')}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </DialogContent>
