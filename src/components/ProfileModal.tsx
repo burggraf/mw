@@ -53,7 +53,7 @@ function centerAspectCrop(mediaWidth: number, mediaHeight: number, aspect: numbe
 
 export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
   const { t } = useTranslation()
-  const { user, userProfile, updateProfile } = useAuth()
+  const { user, userProfile, updateProfile, signOut } = useAuth()
 
   const [displayName, setDisplayName] = useState(userProfile?.display_name || '')
   const [isSaving, setIsSaving] = useState(false)
@@ -285,8 +285,8 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
       await deleteUserAccount((progress) => {
         setDeletionProgress(progress)
       })
-      // Account deleted - user will be signed out automatically
-      // Redirect to home page
+      // Account deleted - sign out locally and redirect
+      await signOut()
       window.location.href = '/'
     } catch (err) {
       console.error('Error deleting account:', err)
