@@ -693,7 +693,22 @@
     "cropTitle": "Recortar avatar",
     "cropConfirm": "Aplicar",
     "fileTooLarge": "El archivo debe ser menor a 5MB",
-    "invalidFileType": "Solo se permiten JPEG, PNG, WebP y GIF"
+    "invalidFileType": "Solo se permiten JPEG, PNG, WebP y GIF",
+    "deleteAccount": "Eliminar Cuenta",
+    "deleteAccountTitle": "¿Eliminar tu cuenta?",
+    "deleteAccountWarning": "Esto eliminará permanentemente tu cuenta y te removerá de todas las iglesias. Esta acción no se puede deshacer.",
+    "cannotDeleteAccount": "No puedes eliminar tu cuenta",
+    "soleAdminWarning": "Eres el único administrador de estas iglesias. Agrega otro administrador o elimina la iglesia primero:",
+    "typeDeleteToConfirm": "Escribe DELETE para confirmar",
+    "deleteAccountButton": "Eliminar Mi Cuenta",
+    "deletingAccount": "Eliminando cuenta...",
+    "deleteStep": {
+      "avatar": "Eliminando tu avatar...",
+      "memberships": "Eliminando membresías de iglesias...",
+      "account": "Eliminando cuenta..."
+    },
+    "accountDeleted": "Tu cuenta ha sido eliminada",
+    "goToTeam": "Ir al Equipo"
   },
   "churchProfile": {
     "title": "Perfil de la Iglesia",

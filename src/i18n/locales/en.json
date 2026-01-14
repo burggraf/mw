@@ -693,7 +693,22 @@
     "cropTitle": "Crop Avatar",
     "cropConfirm": "Apply",
     "fileTooLarge": "File must be under 5MB",
-    "invalidFileType": "Only JPEG, PNG, WebP, and GIF are allowed"
+    "invalidFileType": "Only JPEG, PNG, WebP, and GIF are allowed",
+    "deleteAccount": "Delete Account",
+    "deleteAccountTitle": "Delete Your Account?",
+    "deleteAccountWarning": "This will permanently delete your account and remove you from all churches. This action cannot be undone.",
+    "cannotDeleteAccount": "You cannot delete your account",
+    "soleAdminWarning": "You are the only admin for these churches. Add another admin or delete the church first:",
+    "typeDeleteToConfirm": "Type DELETE to confirm",
+    "deleteAccountButton": "Delete My Account",
+    "deletingAccount": "Deleting account...",
+    "deleteStep": {
+      "avatar": "Removing your avatar...",
+      "memberships": "Removing church memberships...",
+      "account": "Deleting account..."
+    },
+    "accountDeleted": "Your account has been deleted",
+    "goToTeam": "Go to Team"
   },
   "churchProfile": {
     "title": "Church Profile",
