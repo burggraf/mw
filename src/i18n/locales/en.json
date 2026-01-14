@@ -88,6 +88,14 @@
     "appearance": "Appearance",
     "account": "Account"
   },
+  "media": {
+    "stockMedia": "Stock Media",
+    "stockMediaDescription": "Search and import free stock images from Pexels, Unsplash, or Pixabay",
+    "searchStockPlaceholder": "Search for images...",
+    "preview": "Preview",
+    "imageResized": "Image resized from {{originalW}}×{{originalH}} to {{newW}}×{{newH}} to fit 4K limit",
+    "slidesResized": "{{count}} slide(s) resized to fit 4K limit"
+  },
   "songs": {
     "title": "Songs",
     "newSong": "New Song",

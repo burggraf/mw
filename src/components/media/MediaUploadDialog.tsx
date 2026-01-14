@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Upload, X, CheckCircle2, AlertCircle, File } from 'lucide-react'
 import { toast } from 'sonner'
 import { useChurch } from '@/contexts/ChurchContext'
@@ -12,6 +13,7 @@ import {
   getImageDimensions,
   getVideoDimensions,
   generateStoragePath,
+  resizeImageIfNeeded,
 } from '@/lib/media-utils'
 import {
   Dialog,
@@ -48,6 +50,7 @@ export function MediaUploadDialog({
   category = 'background',
   folderId,
 }: MediaUploadDialogProps) {
+  const { t } = useTranslation()
   const { currentChurch } = useChurch()
   const [isDragging, setIsDragging] = useState(false)
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([])
@@ -80,12 +83,32 @@ export function MediaUploadDialog({
 
         const fileType = validation.fileType!
 
-        // Step 2: Get dimensions (20%)
+        // Step 2: Resize image if needed, get dimensions (20%)
         updateFileProgress(id, { progress: 20 })
+        let fileToUpload = file
         let dimensions: { width: number; height: number; duration?: number }
 
         if (fileType === 'image') {
           dimensions = await getImageDimensions(file)
+
+          // Resize if image exceeds 4K
+          const resizeResult = await resizeImageIfNeeded(file)
+          if (resizeResult.wasResized) {
+            fileToUpload = new File([resizeResult.blob], file.name, { type: file.type })
+            dimensions = {
+              width: resizeResult.newDimensions.width,
+              height: resizeResult.newDimensions.height,
+            }
+            // Show warning toast
+            toast.warning(
+              t('media.imageResized', {
+                originalW: resizeResult.originalDimensions.width,
+                originalH: resizeResult.originalDimensions.height,
+                newW: resizeResult.newDimensions.width,
+                newH: resizeResult.newDimensions.height,
+              })
+            )
+          }
         } else {
           dimensions = await getVideoDimensions(file)
         }
@@ -104,14 +127,14 @@ export function MediaUploadDialog({
         updateFileProgress(id, { progress: 60 })
         const storagePath = generateStoragePath(
           currentChurch.id,
-          file.name,
+          fileToUpload.name,
           false,
-          file.type
+          fileToUpload.type
         )
 
         const { error: uploadError } = await supabase.storage
           .from('media')
-          .upload(storagePath, file)
+          .upload(storagePath, fileToUpload)
 
         if (uploadError) {
           throw new Error(`Failed to upload file: ${uploadError.message}`)
@@ -143,7 +166,7 @@ export function MediaUploadDialog({
           mimeType: file.type,
           storagePath,
           thumbnailPath: thumbError ? undefined : thumbnailPath,
-          fileSize: file.size,
+          fileSize: fileToUpload.size,
           width: dimensions.width,
           height: dimensions.height,
           duration: 'duration' in dimensions ? dimensions.duration : undefined,

@@ -251,6 +251,123 @@ export function getFileExtension(mimeType: string): string {
   return mimeToExtension[mimeType] || 'bin';
 }
 
+export interface ImageResizeResult {
+  blob: Blob;
+  wasResized: boolean;
+  originalDimensions: { width: number; height: number };
+  newDimensions: { width: number; height: number };
+}
+
+/**
+ * Resizes an image if either dimension exceeds the maximum
+ * Maintains aspect ratio by fitting the longer edge to maxDimension
+ * @param file - The image file to check and potentially resize
+ * @param maxDimension - Maximum allowed width or height (default: 3840 for 4K)
+ * @returns A promise resolving to the (possibly resized) blob and metadata
+ */
+export function resizeImageIfNeeded(
+  file: File | Blob,
+  maxDimension: number = 3840
+): Promise<ImageResizeResult> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+
+      const originalWidth = img.naturalWidth;
+      const originalHeight = img.naturalHeight;
+
+      // Check if resize is needed
+      if (originalWidth <= maxDimension && originalHeight <= maxDimension) {
+        // No resize needed
+        resolve({
+          blob: file instanceof File ? file : new File([file], 'image', { type: file.type }),
+          wasResized: false,
+          originalDimensions: { width: originalWidth, height: originalHeight },
+          newDimensions: { width: originalWidth, height: originalHeight },
+        });
+        return;
+      }
+
+      // Calculate new dimensions maintaining aspect ratio
+      let newWidth = originalWidth;
+      let newHeight = originalHeight;
+
+      if (originalWidth > originalHeight) {
+        // Landscape or square: constrain width
+        newWidth = maxDimension;
+        newHeight = Math.round((originalHeight * maxDimension) / originalWidth);
+      } else {
+        // Portrait: constrain height
+        newHeight = maxDimension;
+        newWidth = Math.round((originalWidth * maxDimension) / originalHeight);
+      }
+
+      // Create canvas and draw resized image
+      const canvas = document.createElement('canvas');
+      canvas.width = newWidth;
+      canvas.height = newHeight;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        // If we can't get a context, return original (shouldn't happen)
+        resolve({
+          blob: file instanceof File ? file : new File([file], 'image', { type: file.type }),
+          wasResized: false,
+          originalDimensions: { width: originalWidth, height: originalHeight },
+          newDimensions: { width: originalWidth, height: originalHeight },
+        });
+        return;
+      }
+
+      // Use high-quality image smoothing
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, newWidth, newHeight);
+
+      // Convert back to blob, preserving original MIME type
+      const mimeType = file.type || 'image/jpeg';
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolve({
+              blob,
+              wasResized: true,
+              originalDimensions: { width: originalWidth, height: originalHeight },
+              newDimensions: { width: newWidth, height: newHeight },
+            });
+          } else {
+            // Blob conversion failed, return original
+            resolve({
+              blob: file instanceof File ? file : new File([file], 'image', { type: file.type }),
+              wasResized: false,
+              originalDimensions: { width: originalWidth, height: originalHeight },
+              newDimensions: { width: originalWidth, height: originalHeight },
+            });
+          }
+        },
+        mimeType,
+        0.92 // High quality for resized images
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      // On error, return original without resizing
+      resolve({
+        blob: file instanceof File ? file : new File([file], 'image', { type: file.type }),
+        wasResized: false,
+        originalDimensions: { width: 0, height: 0 },
+        newDimensions: { width: 0, height: 0 },
+      });
+    };
+
+    img.src = url;
+  });
+}
+
 /**
  * Generates a storage path for a file
  * @param churchId - The church's unique identifier

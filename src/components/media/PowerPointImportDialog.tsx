@@ -11,7 +11,7 @@ import {
   renderSlidesToImages,
   type PowerPointMetadata,
 } from '@/lib/powerpoint'
-import { generateStoragePath, generateImageThumbnail } from '@/lib/media-utils'
+import { generateStoragePath, generateImageThumbnail, resizeImageIfNeeded } from '@/lib/media-utils'
 import {
   Dialog,
   DialogContent,
@@ -124,6 +124,7 @@ export function PowerPointImportDialog({
     setError(null)
 
     const supabase = getSupabase()
+    let resizedCount = 0
 
     try {
       // Create folder for the slides
@@ -143,15 +144,27 @@ export function PowerPointImportDialog({
         const slideImage = images[i]
 
         try {
+          // Resize if exceeds 4K
+          const resizeResult = await resizeImageIfNeeded(slideImage.blob)
+          let imageFile = new File([slideImage.blob], `slide-${i + 1}.png`, { type: 'image/png' })
+          let imageWidth = slideImage.width
+          let imageHeight = slideImage.height
+
+          if (resizeResult.wasResized) {
+            resizedCount++
+            imageFile = new File([resizeResult.blob], `slide-${i + 1}.png`, { type: 'image/png' })
+            imageWidth = resizeResult.newDimensions.width
+            imageHeight = resizeResult.newDimensions.height
+          }
+
           // Generate thumbnail
-          const imageFile = new File([slideImage.blob], `slide-${i + 1}.png`, { type: 'image/png' })
           const thumbBlob = await generateImageThumbnail(imageFile)
 
           // Upload original to Supabase
           const storagePath = generateStoragePath(currentChurch.id, imageFile.name, false, 'image/png')
           const { error: uploadError } = await supabase.storage
             .from('media')
-            .upload(storagePath, slideImage.blob)
+            .upload(storagePath, imageFile)
 
           if (uploadError) throw uploadError
 
@@ -166,9 +179,9 @@ export function PowerPointImportDialog({
             mimeType: 'image/png',
             storagePath,
             thumbnailPath,
-            fileSize: slideImage.blob.size,
-            width: slideImage.width,
-            height: slideImage.height,
+            fileSize: imageFile.size,
+            width: imageWidth,
+            height: imageHeight,
             source: 'upload',
             category: 'slide',
             folderId: folder.id,
@@ -182,6 +195,11 @@ export function PowerPointImportDialog({
 
       setStep('complete')
       toast.success(t('slides.powerpoint.importComplete'))
+
+      // Show resize warning if any slides were resized
+      if (resizedCount > 0) {
+        toast.warning(t('media.slidesResized', { count: resizedCount }))
+      }
     } catch (err) {
       console.error('Import failed:', err)
       setError(err instanceof Error ? err.message : t('slides.powerpoint.errors.importFailed'))

@@ -88,6 +88,14 @@
     "appearance": "Apariencia",
     "account": "Cuenta"
   },
+  "media": {
+    "stockMedia": "Medios de Stock",
+    "stockMediaDescription": "Busca e importa imágenes gratuitas de Pexels, Unsplash o Pixabay",
+    "searchStockPlaceholder": "Buscar imágenes...",
+    "preview": "Vista previa",
+    "imageResized": "Imagen redimensionada de {{originalW}}×{{originalH}} a {{newW}}×{{newH}} para ajustarse al límite de 4K",
+    "slidesResized": "{{count}} diapositiva(s) redimensionada(s) para ajustarse al límite de 4K"
+  },
   "songs": {
     "title": "Canciones",
     "newSong": "Nueva Cancion",

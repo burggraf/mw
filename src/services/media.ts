@@ -1,6 +1,6 @@
 import { getSupabase } from '@/lib/supabase'
 import type { Media, MediaInput, MediaFilters, StockMediaItem, StockSearchResult, MediaCategory, SlideFolder, SlideFolderInput } from '@/types/media'
-import { generateStoragePath, generateImageThumbnail } from '@/lib/media-utils'
+import { generateStoragePath, generateImageThumbnail, resizeImageIfNeeded } from '@/lib/media-utils'
 import { rowToStyle } from './styles'
 import type { Style } from '@/types/style'
 
@@ -407,8 +407,22 @@ export async function importStockMedia(
   const extension = isVideo ? 'mp4' : 'jpg'
   const file = new File([blob], `${item.id}.${extension}`, { type: blob.type })
 
+  // For images, resize if exceeds 4K
+  let fileToUpload = file
+  let finalWidth = item.width
+  let finalHeight = item.height
+
+  if (!isVideo) {
+    const resizeResult = await resizeImageIfNeeded(file)
+    if (resizeResult.wasResized) {
+      fileToUpload = new File([resizeResult.blob], file.name, { type: file.type })
+      finalWidth = resizeResult.newDimensions.width
+      finalHeight = resizeResult.newDimensions.height
+    }
+  }
+
   // Generate storage paths
-  const storagePath = generateStoragePath(churchId, file.name)
+  const storagePath = generateStoragePath(churchId, fileToUpload.name)
   const thumbnailPath = generateStoragePath(churchId, `${item.id}.jpg`, true)
 
   let thumbnailBlob: Blob | null = null
@@ -438,7 +452,7 @@ export async function importStockMedia(
   // Upload original
   const { error: uploadError } = await supabase.storage
     .from('media')
-    .upload(storagePath, blob)
+    .upload(storagePath, fileToUpload)
 
   if (uploadError) throw uploadError
 
@@ -461,9 +475,9 @@ export async function importStockMedia(
     mimeType: blob.type || (isVideo ? 'video/mp4' : 'image/jpeg'),
     storagePath,
     thumbnailPath: thumbError || !thumbnailBlob ? undefined : thumbnailPath,
-    fileSize: blob.size,
-    width: item.width,
-    height: item.height,
+    fileSize: fileToUpload.size,
+    width: finalWidth,
+    height: finalHeight,
     source: item.provider as 'pexels' | 'unsplash' | 'pixabay',
     sourceId: item.id,
     sourceUrl: item.downloadUrl,

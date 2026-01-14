@@ -12,7 +12,7 @@ import {
   getSlideThumbnail,
   downloadImage,
 } from '@/lib/google-slides'
-import { generateStoragePath, generateImageThumbnail } from '@/lib/media-utils'
+import { generateStoragePath, generateImageThumbnail, resizeImageIfNeeded } from '@/lib/media-utils'
 import {
   Dialog,
   DialogContent,
@@ -120,6 +120,7 @@ export function GoogleSlidesImportDialog({
     setError(null)
 
     const supabase = getSupabase()
+    let resizedCount = 0
 
     try {
       // Create folder for the slides
@@ -144,15 +145,27 @@ export function GoogleSlidesImportDialog({
           // Download the image
           const imageBlob = await downloadImage(thumbnail.contentUrl)
 
+          // Resize if exceeds 4K
+          const resizeResult = await resizeImageIfNeeded(imageBlob)
+          let file = new File([imageBlob], `slide-${i + 1}.png`, { type: 'image/png' })
+          let fileWidth = thumbnail.width
+          let fileHeight = thumbnail.height
+
+          if (resizeResult.wasResized) {
+            resizedCount++
+            file = new File([resizeResult.blob], `slide-${i + 1}.png`, { type: 'image/png' })
+            fileWidth = resizeResult.newDimensions.width
+            fileHeight = resizeResult.newDimensions.height
+          }
+
           // Generate thumbnail for our app
-          const file = new File([imageBlob], `slide-${i + 1}.png`, { type: 'image/png' })
           const thumbBlob = await generateImageThumbnail(file)
 
           // Upload original to Supabase
           const storagePath = generateStoragePath(currentChurch.id, file.name, false, 'image/png')
           const { error: uploadError } = await supabase.storage
             .from('media')
-            .upload(storagePath, imageBlob)
+            .upload(storagePath, file)
 
           if (uploadError) throw uploadError
 
@@ -167,9 +180,9 @@ export function GoogleSlidesImportDialog({
             mimeType: 'image/png',
             storagePath,
             thumbnailPath,
-            fileSize: imageBlob.size,
-            width: thumbnail.width,
-            height: thumbnail.height,
+            fileSize: file.size,
+            width: fileWidth,
+            height: fileHeight,
             source: 'upload',
             category: 'slide',
             folderId: folder.id,
@@ -186,6 +199,11 @@ export function GoogleSlidesImportDialog({
 
       setStep('complete')
       toast.success(t('slides.googleSlides.importComplete'))
+
+      // Show resize warning if any slides were resized
+      if (resizedCount > 0) {
+        toast.warning(t('media.slidesResized', { count: resizedCount }))
+      }
     } catch (err) {
       console.error('Import failed:', err)
       setError(err instanceof Error ? err.message : t('slides.googleSlides.errors.networkError'))
