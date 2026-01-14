@@ -426,7 +426,7 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
             {/* Danger Zone */}
             <Separator className="my-6" />
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-destructive flex items-center gap-2">
+              <h3 className="text-sm font-medium text-amber-500 flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4" />
                 {t('churchProfile.dangerZone')}
               </h3>
