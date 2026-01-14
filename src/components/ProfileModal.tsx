@@ -14,7 +14,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -438,29 +437,28 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
                   {t('common.loading')}
                 </div>
               ) : canDelete === false ? (
-                <Alert variant="destructive">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription className="space-y-2">
+                <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-destructive">
+                    <AlertTriangle className="h-4 w-4 flex-shrink-0" />
                     <p className="font-medium">{t('profile.cannotDeleteAccount')}</p>
-                    <p className="text-sm">{t('profile.soleAdminWarning')}</p>
-                    <ul className="list-disc list-inside space-y-1 mt-2">
-                      {blockingChurches.map((church) => (
-                        <li key={church.id} className="text-sm">
-                          <span className="font-medium">{church.name}</span>
-                          {' - '}
-                          <Link
-                            to="/team"
-                            onClick={() => onOpenChange(false)}
-                            className="inline-flex items-center gap-1 text-primary hover:underline"
-                          >
-                            {t('profile.goToTeam')}
-                            <ExternalLink className="h-3 w-3" />
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </AlertDescription>
-                </Alert>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{t('profile.soleAdminWarning')}</p>
+                  <ul className="space-y-2 mt-2">
+                    {blockingChurches.map((church) => (
+                      <li key={church.id} className="flex items-center justify-between gap-2 text-sm">
+                        <span className="font-medium truncate">{church.name}</span>
+                        <Link
+                          to="/team"
+                          onClick={() => onOpenChange(false)}
+                          className="inline-flex items-center gap-1 text-primary hover:underline flex-shrink-0"
+                        >
+                          {t('profile.goToTeam')}
+                          <ExternalLink className="h-3 w-3" />
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ) : !showDeleteConfirm ? (
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">
@@ -485,13 +483,13 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <Alert variant="destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
+                  <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 space-y-2">
+                    <div className="flex items-center gap-2 text-destructive">
+                      <AlertTriangle className="h-4 w-4 flex-shrink-0" />
                       <p className="font-medium">{t('profile.deleteAccountTitle')}</p>
-                      <p className="text-sm mt-1">{t('profile.deleteAccountWarning')}</p>
-                    </AlertDescription>
-                  </Alert>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{t('profile.deleteAccountWarning')}</p>
+                  </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="deleteConfirm" className="text-sm">
