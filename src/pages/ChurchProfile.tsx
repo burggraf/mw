@@ -5,11 +5,13 @@ import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from 'react-image-cr
 import 'react-image-crop/dist/ReactCrop.css'
 import { toast } from 'sonner'
 import { useChurch } from '@/contexts/ChurchContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { getSupabase } from '@/lib/supabase'
 import { getSongs } from '@/services/songs'
 import { getEvents } from '@/services/events'
 import { getDisplaysForChurch } from '@/services/displays'
 import { deleteChurch, type DeletionProgress } from '@/services/memberships'
+import { deleteUserAccount, type AccountDeletionProgress } from '@/services/account'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Progress } from '@/components/ui/progress'
@@ -17,7 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { AlertCircle, Database, CreditCard, Image, Presentation, FileImage, FolderOpen, Music, Calendar, Monitor, BarChart3, Camera, AlertTriangle, Trash2, Loader2 } from 'lucide-react'
+import { AlertCircle, Database, CreditCard, Image, Presentation, FileImage, FolderOpen, Music, Calendar, Monitor, BarChart3, Camera, AlertTriangle, Trash2, Loader2, LogOut, UserX, PlusCircle } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -75,6 +77,7 @@ export function ChurchProfilePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { currentChurch, churches, setCurrentChurch, refreshChurches, isAdmin, updateChurchAvatar } = useChurch()
+  const { signOut } = useAuth()
 
   const [storageStats, setStorageStats] = useState<StorageStats | null>(null)
   const [churchStats, setChurchStats] = useState<ChurchStats | null>(null)
@@ -95,6 +98,13 @@ export function ChurchProfilePage() {
   const [confirmName, setConfirmName] = useState('')
   const [deletionState, setDeletionState] = useState<'idle' | 'deleting' | 'error'>('idle')
   const [deletionProgress, setDeletionProgress] = useState<DeletionProgress | null>(null)
+
+  // "What's next" dialog state (shown after deleting last church)
+  const [showWhatsNextDialog, setShowWhatsNextDialog] = useState(false)
+  const [whatsNextStep, setWhatsNextStep] = useState<'choose' | 'confirm-delete' | 'deleting-account'>('choose')
+  const [deleteAccountConfirmText, setDeleteAccountConfirmText] = useState('')
+  const [accountDeletionProgress, setAccountDeletionProgress] = useState<AccountDeletionProgress | null>(null)
+  const [accountDeletionError, setAccountDeletionError] = useState<string | null>(null)
 
   // Redirect non-admins
   useEffect(() => {
@@ -340,6 +350,7 @@ export function ChurchProfilePage() {
       })
 
       toast.success(t('churchProfile.churchDeleted'))
+      setDeletionState('idle')
 
       // Update context and navigate
       if (remainingChurches.length > 0) {
@@ -347,8 +358,9 @@ export function ChurchProfilePage() {
         await refreshChurches()
         navigate('/dashboard')
       } else {
+        // No churches left - show options dialog
         await refreshChurches()
-        navigate('/setup-church')
+        setShowWhatsNextDialog(true)
       }
     } catch (err) {
       console.error('Failed to delete church:', err)
@@ -358,6 +370,32 @@ export function ChurchProfilePage() {
         message: err instanceof Error ? err.message : t('common.error'),
       })
     }
+  }
+
+  // Handle account deletion from "what's next" dialog
+  const handleDeleteAccountFromDialog = async () => {
+    if (deleteAccountConfirmText !== 'DELETE') return
+
+    setWhatsNextStep('deleting-account')
+    setAccountDeletionError(null)
+
+    try {
+      await deleteUserAccount((progress) => {
+        setAccountDeletionProgress(progress)
+      })
+      await signOut()
+      window.location.href = '/'
+    } catch (err) {
+      console.error('Error deleting account:', err)
+      setAccountDeletionError(err instanceof Error ? err.message : 'Failed to delete account')
+      setWhatsNextStep('confirm-delete')
+    }
+  }
+
+  // Handle sign out from "what's next" dialog
+  const handleSignOutFromDialog = async () => {
+    await signOut()
+    navigate('/')
   }
 
   if (!isAdmin) {
@@ -741,6 +779,112 @@ export function ChurchProfilePage() {
                 {t('common.ok')}
               </Button>
             </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* What's Next Dialog - shown after deleting last church */}
+      <Dialog open={showWhatsNextDialog} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>
+              {whatsNextStep === 'choose' && t('churchProfile.whatsNext')}
+              {whatsNextStep === 'confirm-delete' && t('profile.deleteAccountTitle')}
+              {whatsNextStep === 'deleting-account' && t('profile.deletingAccount')}
+            </DialogTitle>
+            {whatsNextStep === 'choose' && (
+              <DialogDescription>
+                {t('churchProfile.noChurchesLeft')}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+
+          {whatsNextStep === 'choose' && (
+            <div className="space-y-3 py-4">
+              <Button
+                variant="default"
+                className="w-full justify-start gap-3"
+                onClick={() => navigate('/setup-church')}
+              >
+                <PlusCircle className="h-5 w-5" />
+                {t('churchProfile.createNewChurch')}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-3"
+                onClick={() => setWhatsNextStep('confirm-delete')}
+              >
+                <UserX className="h-5 w-5" />
+                {t('profile.deleteAccount')}
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3"
+                onClick={handleSignOutFromDialog}
+              >
+                <LogOut className="h-5 w-5" />
+                {t('auth.signOut')}
+              </Button>
+            </div>
+          )}
+
+          {whatsNextStep === 'confirm-delete' && (
+            <div className="space-y-4 py-4">
+              <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-4 space-y-2">
+                <div className="flex items-center gap-2 text-amber-500">
+                  <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                  <p className="font-medium">{t('profile.deleteAccountTitle')}</p>
+                </div>
+                <p className="text-sm text-muted-foreground">{t('profile.deleteAccountWarning')}</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="deleteAccountConfirm" className="text-sm">
+                  {t('profile.typeDeleteToConfirm')}
+                </Label>
+                <Input
+                  id="deleteAccountConfirm"
+                  value={deleteAccountConfirmText}
+                  onChange={(e) => setDeleteAccountConfirmText(e.target.value)}
+                  placeholder="DELETE"
+                  className="font-mono"
+                  autoComplete="off"
+                />
+              </div>
+
+              {accountDeletionError && (
+                <p className="text-sm text-destructive">{accountDeletionError}</p>
+              )}
+
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setWhatsNextStep('choose')
+                    setDeleteAccountConfirmText('')
+                    setAccountDeletionError(null)
+                  }}
+                >
+                  {t('common.back')}
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteAccountFromDialog}
+                  disabled={deleteAccountConfirmText !== 'DELETE'}
+                >
+                  {t('profile.deleteAccountButton')}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+
+          {whatsNextStep === 'deleting-account' && (
+            <div className="py-8 flex flex-col items-center gap-4" aria-live="polite" role="status">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden="true" />
+              <p className="text-sm text-muted-foreground">
+                {accountDeletionProgress?.message || t('profile.deletingAccount')}
+              </p>
+            </div>
           )}
         </DialogContent>
       </Dialog>

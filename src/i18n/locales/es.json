@@ -751,7 +751,10 @@
     "deleteChurchConfirm": "Eliminar Para Siempre",
     "deletingChurch": "Eliminando Iglesia...",
     "churchDeleted": "Iglesia eliminada exitosamente",
-    "deleteError": "Error al Eliminar"
+    "deleteError": "Error al Eliminar",
+    "whatsNext": "¿Qué te gustaría hacer?",
+    "noChurchesLeft": "Has eliminado tu última iglesia.",
+    "createNewChurch": "Crear una nueva iglesia"
   },
   "team": {
     "title": "Equipo",
