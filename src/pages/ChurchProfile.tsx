@@ -3,18 +3,24 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
+import { toast } from 'sonner'
 import { useChurch } from '@/contexts/ChurchContext'
 import { getSupabase } from '@/lib/supabase'
 import { getSongs } from '@/services/songs'
 import { getEvents } from '@/services/events'
 import { getDisplaysForChurch } from '@/services/displays'
+import { deleteChurch, type DeletionProgress } from '@/services/memberships'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
-import { AlertCircle, Database, CreditCard, Image, Presentation, FileImage, FolderOpen, Music, Calendar, Monitor, BarChart3, Camera } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { AlertCircle, Database, CreditCard, Image, Presentation, FileImage, FolderOpen, Music, Calendar, Monitor, BarChart3, Camera, AlertTriangle, Trash2, Loader2 } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ChurchAvatar } from '@/components/ChurchAvatar'
 
 const ACCEPTED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
@@ -68,7 +74,7 @@ function formatBytes(bytes: number): string {
 export function ChurchProfilePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { currentChurch, isAdmin, updateChurchAvatar } = useChurch()
+  const { currentChurch, churches, setCurrentChurch, refreshChurches, isAdmin, updateChurchAvatar } = useChurch()
 
   const [storageStats, setStorageStats] = useState<StorageStats | null>(null)
   const [churchStats, setChurchStats] = useState<ChurchStats | null>(null)
@@ -83,6 +89,12 @@ export function ChurchProfilePage() {
   const [avatarError, setAvatarError] = useState<string | null>(null)
   const imgRef = useRef<HTMLImageElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Delete church state
+  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false)
+  const [confirmName, setConfirmName] = useState('')
+  const [deletionState, setDeletionState] = useState<'idle' | 'deleting' | 'error'>('idle')
+  const [deletionProgress, setDeletionProgress] = useState<DeletionProgress | null>(null)
 
   // Redirect non-admins
   useEffect(() => {
@@ -308,6 +320,43 @@ export function ChurchProfilePage() {
       setAvatarError(err instanceof Error ? err.message : 'Failed to remove avatar')
     } finally {
       setIsSavingAvatar(false)
+    }
+  }
+
+  // Delete church handler
+  const handleDeleteChurch = async () => {
+    if (!currentChurch || confirmName !== currentChurch.name) return
+
+    // Calculate remaining churches BEFORE deletion (closure would have stale value after refresh)
+    const remainingChurches = churches.filter(c => c.id !== currentChurch.id)
+
+    setShowDeleteConfirmDialog(false)
+    setConfirmName('')
+    setDeletionState('deleting')
+
+    try {
+      await deleteChurch(currentChurch.id, (progress) => {
+        setDeletionProgress(progress)
+      })
+
+      toast.success(t('churchProfile.churchDeleted'))
+
+      // Update context and navigate
+      if (remainingChurches.length > 0) {
+        setCurrentChurch(remainingChurches[0])
+        await refreshChurches()
+        navigate('/dashboard')
+      } else {
+        await refreshChurches()
+        navigate('/setup-church')
+      }
+    } catch (err) {
+      console.error('Failed to delete church:', err)
+      setDeletionState('error')
+      setDeletionProgress({
+        step: 'complete',
+        message: err instanceof Error ? err.message : t('common.error'),
+      })
     }
   }
 
@@ -572,7 +621,129 @@ export function ChurchProfilePage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Danger Zone Card */}
+        <Card className="border-destructive/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              {t('churchProfile.dangerZone')}
+            </CardTitle>
+            <CardDescription>
+              {t('churchProfile.dangerZoneDescription')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="destructive"
+              onClick={() => setShowDeleteConfirmDialog(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {t('churchProfile.deleteChurch')}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              {t('churchProfile.deleteChurchTitle')}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <p>{t('churchProfile.deleteChurchWarning')}</p>
+                <div className="bg-destructive/10 p-3 rounded-md text-sm">
+                  <p className="font-medium mb-2">{t('churchProfile.deleteChurchWillDelete')}:</p>
+                  <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                    <li>{t('churchProfile.deleteItem.songs', { count: churchStats?.songs || 0 })}</li>
+                    <li>{t('churchProfile.deleteItem.events', { count: churchStats?.totalEvents || 0 })}</li>
+                    <li>{t('churchProfile.deleteItem.media')}</li>
+                    <li>{t('churchProfile.deleteItem.members')}</li>
+                    <li>{t('churchProfile.deleteItem.displays', { count: churchStats?.displays || 0 })}</li>
+                    <li>{t('churchProfile.deleteItem.invitations')}</li>
+                  </ul>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-name">
+                    {t('churchProfile.typeToConfirm', { name: currentChurch?.name })}
+                  </Label>
+                  <Input
+                    id="confirm-name"
+                    value={confirmName}
+                    onChange={(e) => setConfirmName(e.target.value)}
+                    placeholder={currentChurch?.name}
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmName('')}>
+              {t('common.cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteChurch}
+              disabled={confirmName !== currentChurch?.name}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t('churchProfile.deleteChurchConfirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Deletion Progress Dialog */}
+      <Dialog open={deletionState !== 'idle'}>
+        <DialogContent
+          className="sm:max-w-md"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {deletionState === 'deleting' && (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  {t('churchProfile.deletingChurch')}
+                </>
+              )}
+              {deletionState === 'error' && (
+                <>
+                  <AlertCircle className="h-5 w-5 text-destructive" />
+                  {t('churchProfile.deleteError')}
+                </>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {deletionProgress?.message}
+            </DialogDescription>
+          </DialogHeader>
+
+          {deletionState === 'deleting' && deletionProgress?.totalFiles && (
+            <div className="space-y-2">
+              <Progress
+                value={(deletionProgress.currentFile || 0) / deletionProgress.totalFiles * 100}
+              />
+              <p className="text-xs text-muted-foreground text-center">
+                {deletionProgress.currentFile} / {deletionProgress.totalFiles} files
+              </p>
+            </div>
+          )}
+
+          {deletionState === 'error' && (
+            <DialogFooter>
+              <Button onClick={() => setDeletionState('idle')}>
+                {t('common.ok')}
+              </Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -220,3 +220,138 @@ export async function getUserChurches(): Promise<Array<{ id: string; name: strin
     role: row.role as UserRole,
   }))
 }
+
+// ============ Delete Church ============
+
+export type DeletionStep =
+  | 'preparing'
+  | 'deleting-media-files'
+  | 'deleting-avatar'
+  | 'deleting-church-record'
+  | 'complete'
+
+export interface DeletionProgress {
+  step: DeletionStep
+  currentFile?: number
+  totalFiles?: number
+  message: string
+}
+
+export type ProgressCallback = (progress: DeletionProgress) => void
+
+// Helper to chunk arrays for batch operations
+function chunkArray<T>(array: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size))
+  }
+  return chunks
+}
+
+/**
+ * Delete a church and all associated data.
+ *
+ * This function:
+ * 1. Deletes all media storage files (originals + thumbnails)
+ * 2. Deletes the church avatar
+ * 3. Deletes the church record (cascades to all related tables)
+ *
+ * @param churchId - The ID of the church to delete
+ * @param onProgress - Optional callback for progress updates
+ */
+export async function deleteChurch(
+  churchId: string,
+  onProgress?: ProgressCallback
+): Promise<void> {
+  const supabase = getSupabase()
+
+  // Step 1: Get all media files to delete
+  onProgress?.({
+    step: 'preparing',
+    message: 'Preparing to delete church data...',
+  })
+
+  const { data: mediaFiles, error: mediaError } = await supabase
+    .from('media')
+    .select('storage_path, thumbnail_path')
+    .eq('church_id', churchId)
+
+  if (mediaError) {
+    console.warn('Failed to fetch media files:', mediaError)
+    // Continue anyway - we can still delete the church record
+  }
+
+  // Step 2: Delete media storage files (originals + thumbnails)
+  const filesToDelete: string[] = []
+  for (const media of mediaFiles || []) {
+    if (media.storage_path) filesToDelete.push(media.storage_path)
+    if (media.thumbnail_path) filesToDelete.push(media.thumbnail_path)
+  }
+
+  if (filesToDelete.length > 0) {
+    // Supabase storage.remove() accepts up to 100 files at a time
+    const batches = chunkArray(filesToDelete, 100)
+    let deletedCount = 0
+
+    for (const batch of batches) {
+      onProgress?.({
+        step: 'deleting-media-files',
+        currentFile: deletedCount,
+        totalFiles: filesToDelete.length,
+        message: `Deleting media files (${deletedCount}/${filesToDelete.length})...`,
+      })
+
+      const { error } = await supabase.storage.from('media').remove(batch)
+
+      if (error) {
+        console.warn('Failed to delete some media files:', error)
+        // Continue anyway - database cascade will clean up records
+      }
+
+      deletedCount += batch.length
+    }
+
+    // Final progress update for media deletion
+    onProgress?.({
+      step: 'deleting-media-files',
+      currentFile: filesToDelete.length,
+      totalFiles: filesToDelete.length,
+      message: `Deleted ${filesToDelete.length} media files`,
+    })
+  }
+
+  // Step 3: Delete church avatar
+  onProgress?.({
+    step: 'deleting-avatar',
+    message: 'Deleting church avatar...',
+  })
+
+  const { error: avatarError } = await supabase.storage
+    .from('avatars')
+    .remove([`church/${churchId}/avatar.png`])
+
+  if (avatarError) {
+    console.warn('Failed to delete church avatar:', avatarError)
+    // Continue anyway - avatar might not exist
+  }
+
+  // Step 4: Delete church record (cascades to all related tables)
+  onProgress?.({
+    step: 'deleting-church-record',
+    message: 'Deleting church and all associated data...',
+  })
+
+  const { error: deleteError } = await supabase
+    .from('churches')
+    .delete()
+    .eq('id', churchId)
+
+  if (deleteError) {
+    throw new Error(`Failed to delete church: ${deleteError.message}`)
+  }
+
+  onProgress?.({
+    step: 'complete',
+    message: 'Church deleted successfully',
+  })
+}

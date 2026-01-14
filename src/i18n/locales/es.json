@@ -717,7 +717,26 @@
     "files_plural": "{{count}} archivos",
     "totalEvents": "Total de Eventos",
     "accessDenied": "Acceso Denegado",
-    "adminOnly": "Solo los administradores pueden acceder al perfil de la iglesia"
+    "adminOnly": "Solo los administradores pueden acceder al perfil de la iglesia",
+    "dangerZone": "Zona de Peligro",
+    "dangerZoneDescription": "Acciones irreversibles y destructivas",
+    "deleteChurch": "Eliminar Iglesia",
+    "deleteChurchTitle": "¿Eliminar Iglesia Permanentemente?",
+    "deleteChurchWarning": "Esta acción no se puede deshacer. Esto eliminará permanentemente tu iglesia y todos los datos asociados.",
+    "deleteChurchWillDelete": "Esto eliminará permanentemente",
+    "deleteItem": {
+      "songs": "{{count}} canciones y sus configuraciones",
+      "events": "{{count}} eventos y sus listas",
+      "media": "Todos los fondos, diapositivas y miniaturas",
+      "members": "Todos los miembros del equipo y su acceso",
+      "displays": "{{count}} pantallas registradas",
+      "invitations": "Todas las invitaciones pendientes"
+    },
+    "typeToConfirm": "Escribe \"{{name}}\" para confirmar:",
+    "deleteChurchConfirm": "Eliminar Para Siempre",
+    "deletingChurch": "Eliminando Iglesia...",
+    "churchDeleted": "Iglesia eliminada exitosamente",
+    "deleteError": "Error al Eliminar"
   },
   "team": {
     "title": "Equipo",

@@ -717,7 +717,26 @@
     "files_plural": "{{count}} files",
     "totalEvents": "Total Events",
     "accessDenied": "Access Denied",
-    "adminOnly": "Only administrators can access the church profile"
+    "adminOnly": "Only administrators can access the church profile",
+    "dangerZone": "Danger Zone",
+    "dangerZoneDescription": "Irreversible and destructive actions",
+    "deleteChurch": "Delete Church",
+    "deleteChurchTitle": "Delete Church Permanently?",
+    "deleteChurchWarning": "This action cannot be undone. This will permanently delete your church and all associated data.",
+    "deleteChurchWillDelete": "This will permanently delete",
+    "deleteItem": {
+      "songs": "{{count}} songs and their configurations",
+      "events": "{{count}} events and their setlists",
+      "media": "All backgrounds, slides, and thumbnails",
+      "members": "All team members and their access",
+      "displays": "{{count}} registered displays",
+      "invitations": "All pending invitations"
+    },
+    "typeToConfirm": "Type \"{{name}}\" to confirm:",
+    "deleteChurchConfirm": "Delete Forever",
+    "deletingChurch": "Deleting Church...",
+    "churchDeleted": "Church deleted successfully",
+    "deleteError": "Deletion Failed"
   },
   "team": {
     "title": "Team",
