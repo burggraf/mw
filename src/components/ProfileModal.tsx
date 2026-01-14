@@ -437,8 +437,8 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
                   {t('common.loading')}
                 </div>
               ) : canDelete === false ? (
-                <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 space-y-3">
-                  <div className="flex items-center gap-2 text-destructive">
+                <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-amber-500">
                     <AlertTriangle className="h-4 w-4 flex-shrink-0" />
                     <p className="font-medium">{t('profile.cannotDeleteAccount')}</p>
                   </div>
@@ -483,8 +483,8 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 space-y-2">
-                    <div className="flex items-center gap-2 text-destructive">
+                  <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-4 space-y-2">
+                    <div className="flex items-center gap-2 text-amber-500">
                       <AlertTriangle className="h-4 w-4 flex-shrink-0" />
                       <p className="font-medium">{t('profile.deleteAccountTitle')}</p>
                     </div>
