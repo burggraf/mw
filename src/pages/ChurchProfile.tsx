@@ -398,6 +398,116 @@ export function ChurchProfilePage() {
     navigate('/')
   }
 
+  // Show "What's next" dialog if user just deleted their last church
+  if (showWhatsNextDialog) {
+    return (
+      <Dialog open={showWhatsNextDialog} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>
+              {whatsNextStep === 'choose' && t('churchProfile.whatsNext')}
+              {whatsNextStep === 'confirm-delete' && t('profile.deleteAccountTitle')}
+              {whatsNextStep === 'deleting-account' && t('profile.deletingAccount')}
+            </DialogTitle>
+            {whatsNextStep === 'choose' && (
+              <DialogDescription>
+                {t('churchProfile.noChurchesLeft')}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+
+          {whatsNextStep === 'choose' && (
+            <div className="space-y-3 py-4">
+              <Button
+                variant="default"
+                className="w-full justify-start gap-3"
+                onClick={() => navigate('/setup-church')}
+              >
+                <PlusCircle className="h-5 w-5" />
+                {t('churchProfile.createNewChurch')}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-3"
+                onClick={() => setWhatsNextStep('confirm-delete')}
+              >
+                <UserX className="h-5 w-5" />
+                {t('profile.deleteAccount')}
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3"
+                onClick={handleSignOutFromDialog}
+              >
+                <LogOut className="h-5 w-5" />
+                {t('auth.signOut')}
+              </Button>
+            </div>
+          )}
+
+          {whatsNextStep === 'confirm-delete' && (
+            <div className="space-y-4 py-4">
+              <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-4 space-y-2">
+                <div className="flex items-center gap-2 text-amber-500">
+                  <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                  <p className="font-medium">{t('profile.deleteAccountTitle')}</p>
+                </div>
+                <p className="text-sm text-muted-foreground">{t('profile.deleteAccountWarning')}</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="deleteAccountConfirm" className="text-sm">
+                  {t('profile.typeDeleteToConfirm')}
+                </Label>
+                <Input
+                  id="deleteAccountConfirm"
+                  value={deleteAccountConfirmText}
+                  onChange={(e) => setDeleteAccountConfirmText(e.target.value)}
+                  placeholder="DELETE"
+                  className="font-mono"
+                  autoComplete="off"
+                />
+              </div>
+
+              {accountDeletionError && (
+                <p className="text-sm text-destructive">{accountDeletionError}</p>
+              )}
+
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setWhatsNextStep('choose')
+                    setDeleteAccountConfirmText('')
+                    setAccountDeletionError(null)
+                  }}
+                >
+                  {t('common.back')}
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteAccountFromDialog}
+                  disabled={deleteAccountConfirmText !== 'DELETE'}
+                >
+                  {t('profile.deleteAccountButton')}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+
+          {whatsNextStep === 'deleting-account' && (
+            <div className="py-8 flex flex-col items-center gap-4" aria-live="polite" role="status">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden="true" />
+              <p className="text-sm text-muted-foreground">
+                {accountDeletionProgress?.message || t('profile.deletingAccount')}
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
   if (!isAdmin) {
     return (
       <div className="p-4 md:p-8 max-w-4xl">
@@ -779,112 +889,6 @@ export function ChurchProfilePage() {
                 {t('common.ok')}
               </Button>
             </DialogFooter>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* What's Next Dialog - shown after deleting last church */}
-      <Dialog open={showWhatsNextDialog} onOpenChange={() => {}}>
-        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle>
-              {whatsNextStep === 'choose' && t('churchProfile.whatsNext')}
-              {whatsNextStep === 'confirm-delete' && t('profile.deleteAccountTitle')}
-              {whatsNextStep === 'deleting-account' && t('profile.deletingAccount')}
-            </DialogTitle>
-            {whatsNextStep === 'choose' && (
-              <DialogDescription>
-                {t('churchProfile.noChurchesLeft')}
-              </DialogDescription>
-            )}
-          </DialogHeader>
-
-          {whatsNextStep === 'choose' && (
-            <div className="space-y-3 py-4">
-              <Button
-                variant="default"
-                className="w-full justify-start gap-3"
-                onClick={() => navigate('/setup-church')}
-              >
-                <PlusCircle className="h-5 w-5" />
-                {t('churchProfile.createNewChurch')}
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-3"
-                onClick={() => setWhatsNextStep('confirm-delete')}
-              >
-                <UserX className="h-5 w-5" />
-                {t('profile.deleteAccount')}
-              </Button>
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-3"
-                onClick={handleSignOutFromDialog}
-              >
-                <LogOut className="h-5 w-5" />
-                {t('auth.signOut')}
-              </Button>
-            </div>
-          )}
-
-          {whatsNextStep === 'confirm-delete' && (
-            <div className="space-y-4 py-4">
-              <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-4 space-y-2">
-                <div className="flex items-center gap-2 text-amber-500">
-                  <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-                  <p className="font-medium">{t('profile.deleteAccountTitle')}</p>
-                </div>
-                <p className="text-sm text-muted-foreground">{t('profile.deleteAccountWarning')}</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="deleteAccountConfirm" className="text-sm">
-                  {t('profile.typeDeleteToConfirm')}
-                </Label>
-                <Input
-                  id="deleteAccountConfirm"
-                  value={deleteAccountConfirmText}
-                  onChange={(e) => setDeleteAccountConfirmText(e.target.value)}
-                  placeholder="DELETE"
-                  className="font-mono"
-                  autoComplete="off"
-                />
-              </div>
-
-              {accountDeletionError && (
-                <p className="text-sm text-destructive">{accountDeletionError}</p>
-              )}
-
-              <DialogFooter className="gap-2 sm:gap-0">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setWhatsNextStep('choose')
-                    setDeleteAccountConfirmText('')
-                    setAccountDeletionError(null)
-                  }}
-                >
-                  {t('common.back')}
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleDeleteAccountFromDialog}
-                  disabled={deleteAccountConfirmText !== 'DELETE'}
-                >
-                  {t('profile.deleteAccountButton')}
-                </Button>
-              </DialogFooter>
-            </div>
-          )}
-
-          {whatsNextStep === 'deleting-account' && (
-            <div className="py-8 flex flex-col items-center gap-4" aria-live="polite" role="status">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden="true" />
-              <p className="text-sm text-muted-foreground">
-                {accountDeletionProgress?.message || t('profile.deletingAccount')}
-              </p>
-            </div>
           )}
         </DialogContent>
       </Dialog>
